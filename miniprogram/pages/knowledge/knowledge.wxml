@@ -41,7 +41,6 @@
           <view>
             <text class="knowledge-card__title">词汇和句型</text>
           </view>
-          <text class="knowledge-count">{{phraseItems.length}}</text>
         </view>
         <view class="phrase-list">
           <view wx:for="{{phraseItems}}" wx:key="id" class="phrase-item">

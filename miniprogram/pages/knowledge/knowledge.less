@@ -12,10 +12,14 @@
 page {
   height: 100vh;
   background: @bg;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .knowledge-page {
-  height: 100vh;
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 }
@@ -61,8 +65,6 @@ page {
 .knowledge-card__head--inline {
   flex-direction: row;
   align-items: center;
-  justify-content: space-between;
-  gap: 20rpx;
 }
 
 .knowledge-card__title {
@@ -71,19 +73,6 @@ page {
   font-size: 32rpx;
   font-weight: 850;
   line-height: 1.28;
-}
-
-.knowledge-count {
-  display: flex;
-  min-width: 52rpx;
-  height: 44rpx;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999rpx;
-  background: #eef2ff;
-  color: @secondary;
-  font-size: 24rpx;
-  font-weight: 850;
 }
 
 .knowledge-paragraph-list {
