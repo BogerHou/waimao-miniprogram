@@ -4,6 +4,10 @@ import {
   buildTimelineShare,
   enablePageShareMenu,
 } from '../../utils/share'
+import {
+  formatKnowledgeDialogue,
+  type KnowledgeDialogueItem,
+} from './dialogue-format'
 
 type KnowledgeSection = {
   title: string
@@ -16,11 +20,7 @@ type KnowledgePageData = {
   loading: boolean
   error: string
   sections: KnowledgeSection[]
-  dialogue: Array<{
-    speaker: string
-    text: string
-    translation?: string
-  }>
+  dialogue: KnowledgeDialogueItem[]
 }
 
 Page<KnowledgePageData, WechatMiniprogram.IAnyObject>({
@@ -73,12 +73,14 @@ Page<KnowledgePageData, WechatMiniprogram.IAnyObject>({
       { title: '讲解备注', content: knowledge?.notes ?? '' },
     ].filter(section => section.content.trim())
 
+    const dialogue = formatKnowledgeDialogue(knowledge?.dialogue ?? [])
+
     this.setData({
       courseTitle: detail.title || this.data.courseTitle,
       sections,
-      dialogue: knowledge?.dialogue ?? [],
+      dialogue,
       loading: false,
-      error: sections.length || knowledge?.dialogue?.length ? '' : '暂无知识点内容',
+      error: sections.length || dialogue.length ? '' : '暂无知识点内容',
     })
   },
   handleRetry() {

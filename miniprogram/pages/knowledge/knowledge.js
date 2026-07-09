@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const api_1 = require("../../utils/api");
 const share_1 = require("../../utils/share");
+const dialogue_format_1 = require("./dialogue-format");
 Page({
     data: {
         courseId: '',
@@ -50,12 +51,13 @@ Page({
             { title: '纠错提醒', content: knowledge?.correction ?? '' },
             { title: '讲解备注', content: knowledge?.notes ?? '' },
         ].filter(section => section.content.trim());
+        const dialogue = (0, dialogue_format_1.formatKnowledgeDialogue)(knowledge?.dialogue ?? []);
         this.setData({
             courseTitle: detail.title || this.data.courseTitle,
             sections,
-            dialogue: knowledge?.dialogue ?? [],
+            dialogue,
             loading: false,
-            error: sections.length || knowledge?.dialogue?.length ? '' : '暂无知识点内容',
+            error: sections.length || dialogue.length ? '' : '暂无知识点内容',
         });
     },
     handleRetry() {

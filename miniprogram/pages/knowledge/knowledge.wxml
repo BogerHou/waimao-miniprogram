@@ -30,11 +30,27 @@
 
     <view wx:if="{{dialogue.length}}" class="dialogue-section">
       <text class="dialogue-section__title">对话原文</text>
-      <view wx:for="{{dialogue}}" wx:key="text" class="dialogue-item">
+      <view wx:for="{{dialogue}}" wx:key="id" class="dialogue-item {{item.toneClass}}">
         <text class="dialogue-item__speaker">{{item.speaker}}</text>
         <view class="dialogue-item__body">
-          <text class="dialogue-item__text" user-select>{{item.text}}</text>
-          <text wx:if="{{item.translation}}" class="dialogue-item__translation" user-select>{{item.translation}}</text>
+          <view class="dialogue-segment-list">
+            <text
+              wx:for="{{item.textSegments}}"
+              wx:for-item="segment"
+              wx:key="id"
+              class="dialogue-segment dialogue-segment--text {{item.toneClass}}"
+              user-select
+            >{{segment.text}}</text>
+          </view>
+          <view wx:if="{{item.translationSegments.length}}" class="dialogue-segment-list dialogue-segment-list--translation">
+            <text
+              wx:for="{{item.translationSegments}}"
+              wx:for-item="segment"
+              wx:key="id"
+              class="dialogue-segment dialogue-segment--translation {{item.toneClass}}"
+              user-select
+            >{{segment.text}}</text>
+          </view>
         </view>
       </view>
     </view>
