@@ -1,0 +1,18 @@
+<view class="custom-navbar" style="padding-top: {{statusBarHeight}}px;">
+  <view class="navbar-content" style="height: {{navBarHeight}}px;">
+    <!-- 左侧返回按钮 -->
+    <view class="navbar-left" wx:if="{{showBack}}" bindtap="onBack">
+      <view class="back-icon">‹</view>
+    </view>
+
+    <!-- 中间标题 -->
+    <view class="navbar-title">
+      <text class="title-text">{{title}}</text>
+    </view>
+
+    <!-- 右侧插槽 -->
+    <view class="navbar-right">
+      <slot name="right"></slot>
+    </view>
+  </view>
+</view>

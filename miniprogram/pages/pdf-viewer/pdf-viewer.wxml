@@ -1,0 +1,52 @@
+<!-- 固定导航栏 -->
+<view class="navbar">
+  <navigation-bar
+    title="{{courseTitle}}"
+    back="{{true}}"
+    color="black"
+    background="#FFF"
+  >
+  </navigation-bar>
+</view>
+
+<!-- 页面内容 -->
+<view class="page-content">
+  <!-- Loading -->
+  <view class="loading-state" wx:if="{{loading}}">
+    <view class="spinner"></view>
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <!-- Error -->
+  <view class="error-state" wx:elif="{{error}}">
+    <icon type="warn" size="64" color="#F87171"></icon>
+    <text class="error-text">{{error}}</text>
+    <button class="retry-btn" bindtap="handleRetry">重试</button>
+  </view>
+
+  <!-- Images List -->
+  <scroll-view 
+    wx:else 
+    class="image-scroll" 
+    scroll-y 
+    enhanced="{{true}}"
+    show-scrollbar="{{true}}"
+  >
+    <view 
+      wx:for="{{images}}" 
+      wx:key="*this"
+      class="image-wrapper"
+    >
+      <image 
+        class="page-image"
+        src="{{item}}"
+        mode="widthFix"
+        lazy-load="{{true}}"
+        data-url="{{item}}"
+        bindtap="handlePreview"
+        binderror="handleImageError"
+        bindload="handleImageLoad"
+      />
+    </view>
+  </scroll-view>
+</view>

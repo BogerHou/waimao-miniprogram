@@ -1,0 +1,174 @@
+@primary: #6366f1;
+@secondary: #ec4899;
+@text-primary: #1e293b;
+@text-secondary: #64748b;
+@text-tertiary: #94a3b8;
+@border: #e2e8f0;
+@bg: #f8fafc;
+
+page {
+  min-height: 100vh;
+  background: @bg;
+}
+
+.unlock-page {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 28rpx 32rpx calc(44rpx + env(safe-area-inset-bottom));
+}
+
+.unlock-card {
+  border-radius: 14rpx;
+  background: #ffffff;
+  border: 1rpx solid @border;
+  padding: 28rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 20rpx;
+  box-shadow: 0 10rpx 26rpx rgba(0, 0, 0, 0.05);
+}
+
+.unlock-card--success {
+  gap: 18rpx;
+  align-items: center;
+  text-align: center;
+}
+
+.unlock-card__icon {
+  width: 70rpx;
+  height: 70rpx;
+  border-radius: 50%;
+  background: #edf7ef;
+  color: #10b981;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 34rpx;
+  font-weight: 900;
+}
+
+.unlock-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.unlock-card__title {
+  color: @text-primary;
+  font-size: 32rpx;
+  font-weight: 800;
+}
+
+.unlock-card__desc {
+  color: @text-secondary;
+  font-size: 26rpx;
+  line-height: 1.5;
+}
+
+.wechat-card__title {
+  color: @text-primary;
+  font-size: 30rpx;
+  font-weight: 850;
+  text-align: center;
+}
+
+.wechat-card__qr-wrap {
+  width: 360rpx;
+  height: 360rpx;
+  align-self: center;
+  border-radius: 16rpx;
+  background: #ffffff;
+  border: 1rpx solid @border;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.wechat-card__qr {
+  width: 332rpx;
+  height: 332rpx;
+}
+
+.wechat-card__qr-placeholder {
+  color: @text-tertiary;
+  font-size: 25rpx;
+}
+
+.wechat-card__tip {
+  color: @primary;
+  font-size: 24rpx;
+  font-weight: 800;
+  text-align: center;
+}
+
+.member-benefits {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14rpx;
+}
+
+.member-benefit {
+  min-height: 92rpx;
+  border-radius: 10rpx;
+  background: #f8fafc;
+  border: 1rpx solid @border;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6rpx;
+  padding: 0 18rpx;
+}
+
+.member-benefit__label {
+  color: @text-tertiary;
+  font-size: 22rpx;
+  font-weight: 700;
+}
+
+.member-benefit__value {
+  color: @text-primary;
+  font-size: 28rpx;
+  font-weight: 850;
+}
+
+.unlock-input {
+  height: 92rpx;
+  border-radius: 10rpx;
+  border: 1rpx solid @border;
+  background: #fafafa;
+  color: @text-primary;
+  font-size: 30rpx;
+  padding: 0 24rpx;
+}
+
+.unlock-primary,
+.unlock-card__button {
+  height: 88rpx;
+  line-height: 88rpx;
+  border-radius: 999rpx;
+  font-size: 29rpx;
+  font-weight: 800;
+  padding: 0 24rpx;
+}
+
+.unlock-primary::after,
+.unlock-card__button::after {
+  border: none;
+}
+
+.unlock-primary,
+.unlock-card__button {
+  background: @primary;
+  color: #ffffff;
+}
+
+.unlock-primary[disabled] {
+  opacity: 0.56;
+}
+
+.unlock-divider {
+  height: 1rpx;
+  background: #eeeeee;
+}

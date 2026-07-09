@@ -1,0 +1,295 @@
+<wxs module="utils">
+  var formatSpeed = function(speed) {
+    // 保留最多2位小数
+    var formatted = speed.toFixed(2)
+    // 移除末尾的0和小数点
+    // WXS 支持 getRegExp 创建正则表达式
+    formatted = formatted.replace(getRegExp('\\.?0+$'), '')
+    return formatted
+  }
+  module.exports = {
+    formatSpeed: formatSpeed
+  }
+</wxs>
+
+<!-- 固定导航栏 -->
+<view class="course-navbar">
+  <navigation-bar
+    title="{{course ? course.title : 'Course'}}"
+    back="{{true}}"
+    color="black"
+    background="#FFF"
+  ></navigation-bar>
+</view>
+
+<!-- 页面内容 -->
+<view class="course-page">
+  <!-- Loading State -->
+  <block wx:if="{{loading}}">
+    <view class="loading-container">
+      <view class="loading-spinner"></view>
+      <text class="loading-text">加载中...</text>
+    </view>
+  </block>
+
+  <!-- Error State -->
+  <block wx:elif="{{error}}">
+    <view class="error-container">
+      <text class="error-icon">⚠️</text>
+      <text class="error-text">{{error}}</text>
+      <button class="retry-btn" bindtap="handleRetry">重试</button>
+    </view>
+  </block>
+
+  <!-- Main Content -->
+  <block wx:else>
+    <!-- 固定的模式选择器 -->
+    <view class="course-header" wx:if="{{course && showModeSelector}}">
+      <view class="mode-selector">
+        <view
+          class="mode-btn {{playMode === 'shadow' ? 'active' : ''}}"
+          bindtap="handleModeChange"
+          data-mode="shadow"
+        >
+          <text class="mode-icon">🎯</text>
+          <text class="mode-text">影子跟读</text>
+        </view>
+        <view
+          class="mode-btn {{playMode === 'echo' ? 'active' : ''}}"
+          bindtap="handleModeChange"
+          data-mode="echo"
+        >
+          <text class="mode-icon">🔊</text>
+          <text class="mode-text">Echo模式</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 可滚动的字幕列表区域 -->
+    <view
+      class="course-content"
+      bindtouchstart="handleTouchStart"
+      bindtouchmove="handleTouchMove"
+      bindtouchend="handleTouchEnd"
+      bindtouchcancel="handleTouchEnd"
+    >
+      <scroll-view
+        class="subtitle-scroll"
+        scroll-y
+        scroll-into-view="{{scrollIntoView}}"
+        scroll-top="{{scrollTop}}"
+        scroll-with-animation="{{true}}"
+      >
+        <view class="subtitle-list transcript-mode-{{transcriptMode}}">
+          <block wx:if="{{subtitles.length}}">
+            <view
+              wx:for="{{subtitles}}"
+              wx:key="id"
+              id="subtitle-{{item.id}}"
+              class="subtitle-item {{currentSubtitleId === item.id ? 'active' : ''}}"
+              data-index="{{index}}"
+              bindtap="handleSubtitleTap"
+            >
+              <view class="subtitle-text">
+                <block wx:if="{{item.tokens && item.tokens.length}}">
+                  <block wx:for="{{item.tokens}}" wx:for-item="token" wx:for-index="tokenIndex" wx:key="tokenIndex">
+                    <view
+                      wx:if="{{token.isWord}}"
+                      id="word-{{item.id}}-{{tokenIndex}}"
+                      class="subtitle-word"
+                      data-word="{{token.word}}"
+                      data-raw="{{token.text}}"
+                      data-word-id="word-{{item.id}}-{{tokenIndex}}"
+                      catchlongpress="handleWordLongPress"
+                      catchtap=""
+                    >
+                      {{token.text}}
+                    </view>
+                    <text wx:else class="subtitle-token">{{token.text}}</text>
+                  </block>
+                </block>
+                <text wx:else class="subtitle-text-raw">{{item.text}}</text>
+              </view>
+              <text wx:if="{{item.translation}}" class="subtitle-translation">{{item.translation}}</text>
+            </view>
+          </block>
+
+          <view wx:else class="empty-state">
+            <text class="empty-text">暂无内容</text>
+          </view>
+        </view>
+
+        <!-- Complete Button -->
+        <view class="complete-section" wx:if="{{subtitles.length}}">
+          <button
+            wx:if="{{status !== 'completed'}}"
+            class="complete-btn"
+            loading="{{actionLoading}}"
+            disabled="{{actionLoading}}"
+            bindtap="handleMarkCompleted"
+          >
+            完成课程
+          </button>
+          <view wx:else class="completed-card">
+            <text class="completed-icon">🎉</text>
+            <text class="completed-text">已完成</text>
+          </view>
+        </view>
+      </scroll-view>
+      <view
+        wx:if="{{wordPopupVisible}}"
+        class="word-popup {{wordPopupPlacement === 'bottom' ? 'word-popup-bottom' : ''}} {{wordPopupReady ? 'word-popup-ready' : 'word-popup-hidden'}}"
+        style="left: {{wordPopupLeft}}px; top: {{wordPopupTop}}px;"
+        id="word-popup"
+        catchtap="handleStopPropagation"
+      >
+        <view class="word-popup-header">
+          <text class="word-popup-word">{{wordPopupWord}}</text>
+        </view>
+        <view class="word-popup-phonetics" wx:if="{{wordPopupPhoneticUk || wordPopupPhoneticUs}}">
+          <view class="word-phonetic">
+            <text class="phonetic-label">美音</text>
+            <text class="phonetic-text">{{wordPopupPhoneticUs}}</text>
+            <view
+              wx:if="{{wordPopupAudioUs}}"
+              class="phonetic-audio"
+              hover-class="phonetic-audio-active"
+              hover-stop-propagation
+              data-variant="us"
+              bindtap="handlePlayWordAudio"
+            >
+              🔊
+            </view>
+          </view>
+          <view class="word-phonetic">
+            <text class="phonetic-label">英音</text>
+            <text class="phonetic-text">{{wordPopupPhoneticUk}}</text>
+            <view
+              wx:if="{{wordPopupAudioUk}}"
+              class="phonetic-audio"
+              hover-class="phonetic-audio-active"
+              hover-stop-propagation
+              data-variant="uk"
+              bindtap="handlePlayWordAudio"
+            >
+              🔊
+            </view>
+          </view>
+        </view>
+        <scroll-view class="word-popup-body" scroll-y>
+          <block wx:if="{{wordPopupLoading}}">
+            <text class="word-popup-loading">加载中...</text>
+          </block>
+          <block wx:elif="{{wordPopupError}}">
+            <text class="word-popup-error">{{wordPopupError}}</text>
+          </block>
+          <block wx:else>
+            <text class="word-popup-definition">{{wordPopupDefinition}}</text>
+          </block>
+        </scroll-view>
+      </view>
+    </view>
+
+    <!-- 固定的播放控制栏 -->
+    <view class="playback-controls" wx:if="{{subtitles.length}}">
+      <view class="controls-row">
+        <!-- Explanation Button -->
+        <view wx:if="{{showPracticeControls}}" class="control-item" bindtap="handleExplain">
+          <view class="control-icon-wrapper">
+             <text class="control-icon">💡</text>
+          </view>
+          <text class="control-label">讲解</text>
+        </view>
+
+        <!-- Repeat Button -->
+        <view wx:if="{{showPracticeControls}}" class="control-item {{isRepeating ? 'control-item-active' : ''}}" bindtap="handleRepeat">
+          <view class="control-icon-wrapper {{isRepeating ? 'control-icon-repeat' : ''}}">
+            <text class="control-icon">🔁</text>
+            <text wx:if="{{isRepeating}}" class="repeat-counter">{{repeatCount + 1}}/{{repeatTarget}}</text>
+          </view>
+          <text class="control-label">{{isRepeating ? '重复中' : '重复'}}</text>
+        </view>
+
+        <!-- Speed Control -->
+        <view wx:if="{{showPracticeControls}}" class="control-item" bindtap="handleShowSpeedModal">
+          <view class="control-icon-wrapper">
+            <text class="control-icon">⚡</text>
+          </view>
+          <text class="control-label">速度</text>
+        </view>
+
+        <!-- Language Control -->
+        <view class="control-item" bindtap="handleToggleLanguage">
+          <view class="control-icon-wrapper control-icon-lang mode-{{transcriptMode}}">
+             <text class="control-icon">{{transcriptMode === 'all' ? '双' : (transcriptMode === 'en' ? 'EN' : '中')}}</text>
+          </view>
+          <text class="control-label">语言</text>
+        </view>
+
+        <!-- Play/Pause Button -->
+        <view wx:if="{{showPracticeControls}}" class="control-item" bindtap="handlePlayPause">
+          <view class="control-icon-wrapper control-icon-play {{playing ? 'playing' : ''}}">
+            <text class="control-icon">{{playing ? '⏸' : '▶'}}</text>
+          </view>
+          <text class="control-label">播放</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- Speed Adjustment Modal -->
+    <view class="speed-modal {{showSpeedModal ? 'show' : ''}}" bindtap="handleHideSpeedModal">
+      <view class="speed-modal-content" catchtap="">
+        <view class="speed-modal-header">
+          <text class="speed-modal-title">播放速度</text>
+          <text class="speed-modal-value">{{playbackRate}}x</text>
+        </view>
+        
+        <view class="speed-slider-container">
+          <text class="speed-label">0.5x</text>
+          <slider 
+            class="speed-slider"
+            min="50" 
+            max="200" 
+            step="5"
+            value="{{playbackRate * 100}}" 
+            activeColor="#3B82F6"
+            block-size="20"
+            bindchange="handleSpeedChange"
+          />
+          <text class="speed-label">2x</text>
+        </view>
+        
+        <view class="speed-presets">
+          <view 
+            wx:for="{{speedPresets}}" 
+            wx:key="*this"
+            class="speed-preset-btn {{playbackRate === item ? 'active' : ''}}"
+            data-speed="{{item}}"
+            bindtap="handleSpeedPreset"
+          >
+            {{item}}x
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- Floating Knowledge Button -->
+    <view class="fab-pdf" bindtap="handleOpenPDFPage">
+      <text class="fab-icon">📖</text>
+      <text class="fab-text">知识点</text>
+    </view>
+
+    <ai-popup 
+      show="{{showAiPopup}}" 
+      text="{{aiText}}" 
+      context="{{aiContext}}"
+      bind:close="handleAiPopupClose" 
+    />
+  </block>
+</view>
+
+<canvas
+  canvas-id="course-share-canvas"
+  class="course-share-canvas"
+  style="width: 600px; height: 840px;"
+></canvas>

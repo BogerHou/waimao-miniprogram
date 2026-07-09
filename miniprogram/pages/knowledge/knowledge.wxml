@@ -1,0 +1,42 @@
+<navigation-bar
+  title="{{courseTitle}}"
+  back="{{true}}"
+  color="black"
+  background="#FFF"
+></navigation-bar>
+
+<view class="knowledge-page">
+  <block wx:if="{{loading}}">
+    <view class="state state--loading">
+      <view class="spinner"></view>
+      <text>加载中...</text>
+    </view>
+  </block>
+
+  <block wx:elif="{{error}}">
+    <view class="state">
+      <text class="state__title">{{error}}</text>
+      <button class="retry-btn" bindtap="handleRetry">重试</button>
+    </view>
+  </block>
+
+  <scroll-view wx:else class="knowledge-scroll" scroll-y>
+    <view class="knowledge-section-list">
+      <view wx:for="{{sections}}" wx:key="title" class="knowledge-section">
+        <text class="knowledge-section__title">{{item.title}}</text>
+        <text class="knowledge-section__content" user-select space="ensp">{{item.content}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{dialogue.length}}" class="dialogue-section">
+      <text class="dialogue-section__title">对话原文</text>
+      <view wx:for="{{dialogue}}" wx:key="text" class="dialogue-item">
+        <text class="dialogue-item__speaker">{{item.speaker}}</text>
+        <view class="dialogue-item__body">
+          <text class="dialogue-item__text" user-select>{{item.text}}</text>
+          <text wx:if="{{item.translation}}" class="dialogue-item__translation" user-select>{{item.translation}}</text>
+        </view>
+      </view>
+    </view>
+  </scroll-view>
+</view>

@@ -1,36 +1,52 @@
-# harness-template-cn
+# 外贸英语影子跟读小程序
 
-English version: [`harness-template`](https://github.com/iFurySt/harness-template)
+这是一个复刻 `englishpod` 小程序交互的外贸英语影子跟读项目。小程序主体保留 EnglishPod 的首页、课程详情、影子跟读、Echo、AI 讲解、查词、微信登录等成熟逻辑，只在外贸版明确差异处做改动。
 
-## 简介
+## 当前形态
 
-一个面向 Agent 协作开发的基础仓库模板，可以用来启动任何你想做的产品或服务。关于如何品尝，可以参考这篇文章：[日常Harness](https://www.ifuryst.com/blog/2026/daily-harness/)
+- 首页按 7 章展示外贸场景小节，默认展开第一章。
+- 第一章免费试学，后 6 章锁定。
+- 解锁走小程序专用邀请码 entitlement；用户先填写头像/昵称登录，再扫码添加微信购买会员邀请码，兑换后获得全部章节 1 年访问权，暂不和 Web 版账号打通。
+- 详情页保留 EnglishPod 跟读布局，悬浮“知识点”按钮跳转新知识点页。
+- Shadow 模式按当前小节时间范围播放，不串到下一小节。
+- 后端复用 `englishpod-server`，但走独立 `/api/waimao-mini/*` 前缀、`waimao_mini_*` 表和 `data/waimao-mini` 数据目录。
 
-## 快速开始
+## 本地验证
 
-可以在这个仓库右上角直接使用 GitHub 的模板流程：
-
-1. 选择 **Use this template**。
-2. 选择 [**Create a new repository**](https://github.com/new?template_name=harness-template-cn&template_owner=iFurySt)。
-
-也可以在新仓库或已有仓库里用 [`harness-cli`](https://github.com/iFurySt/harness-cli) 初始化。先通过 npm 安装：
-
-```sh
-npm install -g @ifuryst/harness-cli
-```
-
-然后运行：
+先启动复用后端：
 
 ```sh
-harness-cli init --language zh
+cd /Users/simon/Documents/code/englishpod-server/server
+npm run dev
 ```
 
-`harness-cli` 需要 Node.js 18+，并且本机 `PATH` 中需要有 Go。
+也可以在本仓库直接运行：
 
-## 许可证
+```sh
+npm run dev:backend
+```
 
-[MIT](LICENSE)
+微信开发者工具处于 `develop` 环境时，小程序默认请求 `http://127.0.0.1:4000`；体验版和正式版默认请求线上 `https://englishecho.site`。
 
-## 备注
+```sh
+npm run typecheck
+npm test
+```
 
-这套方法主要来自我们自己的持续实践和整理，同时也吸收了 OpenAI 在 [harness engineering 文章](https://openai.com/index/harness-engineering/) 中的一部分思路，最后汇总成了这个模板。
+`npm test` 会先运行 `tsc`，同步生成小程序 `.js` 文件，再运行本仓库的单元测试。
+
+后端需要在 `/Users/simon/Documents/code/englishpod-server/server` 中验证：
+
+```sh
+npm run build
+npm test
+npm run waimao-mini:generate
+```
+
+## 发布前注意
+
+- `project.config.json` 已配置外贸小程序 appid；切换发布账号前需要再次确认。
+- 后端正式环境需要配置 `WAIMAO_MINI_WECHAT_APPID` / `WAIMAO_MINI_WECHAT_SECRET`，不要复用 EnglishPod 的微信密钥。
+- 线上发布前需要先部署后端 `/api/waimao-mini/*`，否则体验版/正式版会请求线上接口并返回 404。
+- 第一版音频走服务端静态资源 `/static/waimao-mini/audio/*`，未上 CDN；上线后需要评估 CDN/R2 优化。
+- 不接微信支付；会员购买通过添加微信完成，小程序内只负责展示二维码和兑换会员邀请码，邀请码权益为全部章节 1 年访问权。

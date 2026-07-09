@@ -1,0 +1,79 @@
+<navigation-bar title="{{navTitle}}" back="{{true}}" color="black" background="#FFF"></navigation-bar>
+
+<scroll-view class="intro-scroll" scroll-y>
+  <view class="page">
+    <image
+      wx:if="{{showContentImage}}"
+      class="section-hero"
+      src="{{contentImageUrl}}"
+      mode="widthFix"
+      show-menu-by-longpress="{{true}}"
+      bindtap="previewContentImage"
+    />
+
+    <view class="hero">
+      <image wx:if="{{showDetailBanner}}" class="hero__banner" src="{{bannerUrl}}" mode="widthFix" />
+      <view class="hero__content">
+        <text class="hero__eyebrow">{{eyebrow}}</text>
+        <text class="hero__title">{{title}}</text>
+        <text class="hero__desc">{{description}}</text>
+      </view>
+    </view>
+
+    <view class="section">
+      <text class="section__title">适合这样练</text>
+      <view class="feature-list">
+        <view wx:for="{{features}}" wx:key="title" class="feature-card">
+          <view class="feature-card__dot"></view>
+          <view class="feature-card__body">
+            <text class="feature-card__title">{{item.title}}</text>
+            <text class="feature-card__desc">{{item.desc}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{showPromotion}}" class="promotion-section">
+      <view wx:if="{{showPromotionTop}}" class="promotion-section__top">
+        <text wx:if="{{promotionBadge}}" class="promotion-section__badge">{{promotionBadge}}</text>
+        <text wx:if="{{promotionOriginalPrice}}" class="promotion-section__original">{{promotionOriginalPrice}}</text>
+      </view>
+      <text wx:if="{{promotionTitle}}" class="promotion-section__title">{{promotionTitle}}</text>
+      <text wx:if="{{promotionSubtitle}}" class="promotion-section__subtitle">{{promotionSubtitle}}</text>
+      <view wx:if="{{showPromotionPrice}}" class="promotion-price">
+        <text wx:if="{{promotionPricePrefix}}" class="promotion-price__prefix">{{promotionPricePrefix}}</text>
+        <text class="promotion-price__value">{{promotionPrice}}</text>
+        <text wx:if="{{promotionPriceSuffix}}" class="promotion-price__suffix">{{promotionPriceSuffix}}</text>
+      </view>
+      <view wx:if="{{promotionFeatures.length}}" class="promotion-benefits">
+        <view wx:for="{{promotionFeatures}}" wx:key="*this" class="promotion-benefit">
+          <text class="promotion-benefit__mark">✓</text>
+          <text class="promotion-benefit__text">{{item}}</text>
+        </view>
+      </view>
+      <text wx:if="{{promotionNote}}" class="promotion-section__note">{{promotionNote}}</text>
+    </view>
+
+    <view class="trial-card">
+      <text class="trial-card__title">{{trialTitle}}</text>
+      <text class="trial-card__desc">{{trialDescription}}</text>
+      <view class="url-box">
+        <text class="url-box__text" user-select="{{true}}">{{websiteUrl}}</text>
+      </view>
+      <button class="trial-button" bindtap="copyWebsiteUrl">{{ctaText}}</button>
+    </view>
+
+    <view wx:if="{{showContactQr}}" class="wechat-card">
+      <text class="wechat-card__title">{{contactTitle}}</text>
+      <text class="wechat-card__desc">{{contactDescription}}</text>
+      <image
+        class="wechat-card__qr"
+        src="{{contactQrUrl}}"
+        mode="aspectFit"
+        show-menu-by-longpress="{{true}}"
+        bindtap="previewContactQr"
+      />
+      <text class="wechat-card__tip">{{contactTip}}</text>
+    </view>
+  </view>
+</scroll-view>

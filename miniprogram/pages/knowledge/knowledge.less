@@ -1,0 +1,148 @@
+@primary: #3B82F6;
+@secondary: #6366f1;
+@text-primary: #1F2937;
+@text-secondary: #6B7280;
+@text-tertiary: #9CA3AF;
+@border: #E5E7EB;
+@bg: #F9FAFB;
+
+page {
+  height: 100vh;
+  background: @bg;
+}
+
+.knowledge-page {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.knowledge-scroll {
+  flex: 1;
+  min-height: 0;
+  box-sizing: border-box;
+  padding-top: 28rpx;
+}
+
+.knowledge-section-list,
+.dialogue-section {
+  padding: 0 32rpx 32rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+}
+
+.knowledge-section,
+.dialogue-section {
+  border-radius: 16rpx;
+  background: #ffffff;
+  border: 1rpx solid @border;
+  padding: 26rpx 24rpx;
+}
+
+.knowledge-section__title,
+.dialogue-section__title {
+  color: @text-primary;
+  font-size: 30rpx;
+  font-weight: 850;
+  margin-bottom: 14rpx;
+}
+
+.knowledge-section__content {
+  display: block;
+  color: @text-secondary;
+  font-size: 27rpx;
+  line-height: 1.68;
+  white-space: pre-wrap;
+}
+
+.dialogue-section {
+  margin: 0 32rpx 40rpx;
+}
+
+.dialogue-item {
+  display: flex;
+  gap: 16rpx;
+  padding: 18rpx 0;
+  border-top: 1rpx solid #eeeeee;
+}
+
+.dialogue-item:first-of-type {
+  border-top: none;
+}
+
+.dialogue-item__speaker {
+  width: 104rpx;
+  color: @secondary;
+  font-size: 24rpx;
+  font-weight: 800;
+  line-height: 1.45;
+  flex-shrink: 0;
+}
+
+.dialogue-item__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.dialogue-item__text {
+  color: @text-primary;
+  font-size: 27rpx;
+  line-height: 1.48;
+}
+
+.dialogue-item__translation {
+  color: @text-tertiary;
+  font-size: 24rpx;
+  line-height: 1.5;
+}
+
+.state {
+  flex: 1;
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20rpx;
+  color: @text-secondary;
+  font-size: 27rpx;
+}
+
+.spinner {
+  width: 50rpx;
+  height: 50rpx;
+  border-radius: 50%;
+  border: 5rpx solid #e6e6e6;
+  border-top-color: @primary;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.state__title {
+  color: @text-secondary;
+  font-size: 28rpx;
+}
+
+.retry-btn {
+  height: 72rpx;
+  line-height: 72rpx;
+  border-radius: 999rpx;
+  background: @primary;
+  color: #ffffff;
+  font-size: 26rpx;
+  font-weight: 800;
+  padding: 0 40rpx;
+}
+
+.retry-btn::after {
+  border: none;
+}

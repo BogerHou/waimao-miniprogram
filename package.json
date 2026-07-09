@@ -1,0 +1,19 @@
+{
+  "name": "waimao-miniprogram",
+  "version": "1.0.0",
+  "description": "外贸英语影子跟读小程序",
+  "scripts": {
+    "dev:backend": "npm --prefix ../englishpod-server/server run dev",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "test": "npm run build && node tests/run-all.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "",
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "miniprogram-api-typings": "^2.8.3-1",
+    "typescript": "^5.5.4"
+  }
+}

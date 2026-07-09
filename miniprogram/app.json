@@ -1,0 +1,32 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/website-intro/website-intro",
+    "pages/practice-help/practice-help",
+    "pages/course/course",
+    "pages/knowledge/knowledge",
+    "pages/unlock/unlock",
+    "pages/logs/logs",
+    "pages/contact/contact",
+    "pages/pdf-viewer/pdf-viewer"
+  ],
+  "window": {
+    "navigationBarTextStyle": "black",
+    "navigationStyle": "custom"
+  },
+  "style": "v2",
+  "rendererOptions": {
+    "skyline": {
+      "defaultDisplayBlock": true,
+      "disableABTest": true,
+      "sdkVersionBegin": "3.0.0",
+      "sdkVersionEnd": "15.255.255"
+    }
+  },
+  "requiredBackgroundModes": [
+    "audio"
+  ],
+  "componentFramework": "glass-easel",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

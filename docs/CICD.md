@@ -1,29 +1,31 @@
 # CI/CD 说明
 
-这个模板当前不再内置 GitHub Actions CI/CD 骨架。
+当前仓库还没有 GitHub Actions 或发布流水线。先以本地真实验证命令作为最小 gate。
 
-## 当前状态
+## 当前验证命令
 
-- `.github/workflows/` 下没有默认 workflow。
-- 仓库不再提供 `make ci`、`scripts/ci.sh` 或 `scripts/release-package.sh`。
-- 具体项目落地后，再按真实技术栈补回测试、构建、扫描、发布和部署流水线。
+```sh
+npm run typecheck
+npm test
+```
 
-## 设计原则
+后端变更在 `englishpod-server/server` 中验证：
 
-CI/CD 应该服务真实项目，而不是在模板阶段保留一套无人维护的占位流程。
-
-当新项目的技术栈确定后，优先补一条最小但真实的验证链路，再逐步加入构建产物、供应链扫描、release 和部署。新增 GitHub Actions 时，仍应固定到 commit SHA，避免使用浮动 tag。
+```sh
+npm run build
+npm test
+```
 
 ## 推荐接入顺序
 
-1. 先定义项目自己的本地验证命令。
-2. 添加最小 PR gate，运行真实测试、lint 或 smoke check。
-3. 有可交付产物后，再增加打包、SBOM 和 provenance。
-4. 技术栈和环境稳定后，再补具体的部署 job。
-5. 把所有流水线入口和制品说明同步写回本文件。
+1. PR gate 先运行小程序 `npm test`。
+2. 若同一 PR 修改后端，同步运行后端 `npm run build && npm test`。
+3. 增加外贸数据生成 smoke check，确保 `waimao-mini` 数据和音频路径存在。
+4. 有真实发布流程后，再接入小程序上传、版本标记、SBOM 和 provenance。
 
-## 后续补回时注意
+## 发布前手工检查
 
-- 不要恢复只有占位意义的 workflow。
-- 不要让 `Makefile` 暴露不存在或没人维护的命令。
-- 如果引入 release 自动化，同步更新 `docs/SUPPLY_CHAIN_SECURITY.md` 和 `docs/releases/README.md`。
+- `project.config.json` 使用真实外贸小程序 appid。
+- 后端环境变量中配置外贸小程序专用 `WAIMAO_MINI_WECHAT_APPID` / `WAIMAO_MINI_WECHAT_SECRET`。
+- 邀请码解锁策略已确认：用户添加微信购买会员邀请码，小程序内不接微信支付。
+- 音频静态目录已部署，后续 CDN 优化已排期。

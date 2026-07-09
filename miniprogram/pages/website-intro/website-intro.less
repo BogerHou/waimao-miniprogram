@@ -1,0 +1,352 @@
+page {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: linear-gradient(180deg, #eef2ff 0%, #f8fafc 42%, #ffffff 100%);
+}
+
+.intro-scroll {
+  flex: 1;
+  height: 0;
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+.page {
+  min-height: 100%;
+  padding: 28rpx 32rpx 56rpx;
+  box-sizing: border-box;
+}
+
+.hero {
+  overflow: hidden;
+  border-radius: 18rpx;
+  background: #ffffff;
+  box-shadow: 0 14rpx 40rpx rgba(15, 27, 74, 0.08);
+}
+
+.hero__banner {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #e2e8f0;
+}
+
+.hero__content {
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+  padding: 34rpx 32rpx 38rpx;
+}
+
+.hero__eyebrow {
+  align-self: flex-start;
+  padding: 8rpx 18rpx;
+  border-radius: 999rpx;
+  background: #eef2ff;
+  color: #4f46e5;
+  font-size: 22rpx;
+  font-weight: 700;
+}
+
+.hero__title {
+  color: #111827;
+  font-size: 42rpx;
+  font-weight: 800;
+  line-height: 1.22;
+}
+
+.hero__desc {
+  color: #64748b;
+  font-size: 27rpx;
+  line-height: 1.65;
+}
+
+.section {
+  margin-top: 32rpx;
+}
+
+.section-hero {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-bottom: 24rpx;
+  border-radius: 16rpx;
+  background: #e2e8f0;
+  box-shadow: 0 10rpx 28rpx rgba(15, 27, 74, 0.06);
+}
+
+.section__title {
+  display: block;
+  margin-bottom: 18rpx;
+  padding-left: 8rpx;
+  color: #1e293b;
+  font-size: 32rpx;
+  font-weight: 800;
+}
+
+.feature-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+}
+
+.feature-card {
+  display: flex;
+  gap: 20rpx;
+  align-items: flex-start;
+  padding: 28rpx;
+  border: 1rpx solid #e2e8f0;
+  border-radius: 16rpx;
+  background: #ffffff;
+  box-shadow: 0 8rpx 24rpx rgba(15, 27, 74, 0.05);
+}
+
+.feature-card__dot {
+  width: 18rpx;
+  height: 18rpx;
+  margin-top: 10rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(135deg, #6366f1, #06b6d4);
+  flex-shrink: 0;
+}
+
+.feature-card__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10rpx;
+}
+
+.feature-card__title {
+  color: #111827;
+  font-size: 29rpx;
+  font-weight: 700;
+}
+
+.feature-card__desc {
+  color: #64748b;
+  font-size: 25rpx;
+  line-height: 1.55;
+}
+
+.promotion-section {
+  margin-top: 32rpx;
+  padding: 34rpx 30rpx;
+  border-radius: 16rpx;
+  background: #ffffff;
+  border: 1rpx solid #e2e8f0;
+  box-shadow: 0 14rpx 38rpx rgba(15, 27, 74, 0.07);
+}
+
+.promotion-section__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.promotion-section__badge {
+  padding: 8rpx 18rpx;
+  border-radius: 999rpx;
+  background: #fff3df;
+  color: #0369a1;
+  font-size: 22rpx;
+  font-weight: 800;
+}
+
+.promotion-section__original {
+  color: #9ca3af;
+  font-size: 23rpx;
+  text-decoration: line-through;
+}
+
+.promotion-section__title {
+  display: block;
+  margin-top: 22rpx;
+  color: #1e1b4b;
+  font-size: 36rpx;
+  line-height: 1.24;
+  font-weight: 900;
+}
+
+.promotion-section__subtitle {
+  display: block;
+  margin-top: 12rpx;
+  color: #6b5f86;
+  font-size: 25rpx;
+  line-height: 1.55;
+}
+
+.promotion-price {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8rpx;
+  margin-top: 20rpx;
+}
+
+.promotion-price__prefix,
+.promotion-price__suffix {
+  color: #475569;
+  font-size: 26rpx;
+  font-weight: 800;
+}
+
+.promotion-price__value {
+  color: #4f46e5;
+  font-size: 62rpx;
+  line-height: 1;
+  font-weight: 900;
+}
+
+.promotion-benefits {
+  display: flex;
+  flex-direction: column;
+  gap: 14rpx;
+  margin-top: 26rpx;
+}
+
+.promotion-benefit {
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+}
+
+.promotion-benefit__mark {
+  width: 32rpx;
+  height: 32rpx;
+  margin-top: 2rpx;
+  border-radius: 50%;
+  background: #dcfce7;
+  color: #10B981;
+  font-size: 20rpx;
+  line-height: 32rpx;
+  text-align: center;
+  font-weight: 900;
+  flex-shrink: 0;
+}
+
+.promotion-benefit__text {
+  flex: 1;
+  min-width: 0;
+  color: #334155;
+  font-size: 25rpx;
+  line-height: 1.45;
+  font-weight: 600;
+}
+
+.promotion-section__note {
+  display: block;
+  margin-top: 22rpx;
+  color: #7c6d99;
+  font-size: 23rpx;
+  line-height: 1.5;
+}
+
+.trial-card {
+  margin-top: 32rpx;
+  padding: 34rpx 30rpx;
+  border-radius: 16rpx;
+  background: #ffffff;
+  border: 1rpx solid rgba(132, 92, 246, 0.16);
+  box-shadow: 0 14rpx 38rpx rgba(0, 0, 0, 0.06);
+}
+
+.trial-card__title {
+  display: block;
+  color: #3b217a;
+  font-size: 34rpx;
+  font-weight: 800;
+}
+
+.trial-card__desc {
+  display: block;
+  margin-top: 12rpx;
+  color: #6b5f86;
+  font-size: 25rpx;
+  line-height: 1.55;
+}
+
+.url-box {
+  margin-top: 24rpx;
+  padding: 20rpx 22rpx;
+  border-radius: 12rpx;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1rpx solid rgba(139, 92, 246, 0.18);
+}
+
+.url-box__text {
+  color: #5b21b6;
+  font-size: 25rpx;
+  line-height: 1.4;
+  word-break: break-all;
+}
+
+.trial-button {
+  margin-top: 24rpx;
+  width: 100%;
+  height: 88rpx;
+  line-height: 1;
+  padding: 0;
+  border-radius: 999rpx;
+  background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  font-size: 29rpx;
+  font-weight: 800;
+}
+
+.trial-button::after {
+  border: none;
+}
+
+.trial-button:active {
+  opacity: 0.9;
+  transform: scale(0.985);
+}
+
+.wechat-card {
+  margin-top: 28rpx;
+  padding: 34rpx 30rpx 38rpx;
+  border-radius: 16rpx;
+  background: #ffffff;
+  box-shadow: 0 12rpx 34rpx rgba(15, 27, 74, 0.07);
+  text-align: center;
+}
+
+.wechat-card__title {
+  display: block;
+  color: #111827;
+  font-size: 34rpx;
+  font-weight: 800;
+}
+
+.wechat-card__desc {
+  display: block;
+  margin-top: 12rpx;
+  color: #64748b;
+  font-size: 25rpx;
+  line-height: 1.55;
+}
+
+.wechat-card__qr {
+  display: block;
+  width: 360rpx;
+  height: 360rpx;
+  margin: 28rpx auto 16rpx;
+  border-radius: 16rpx;
+  background: #f8fafc;
+  border: 1rpx solid #e2e8f0;
+}
+
+.wechat-card__tip {
+  display: block;
+  color: #94a3b8;
+  font-size: 24rpx;
+  line-height: 1.4;
+}

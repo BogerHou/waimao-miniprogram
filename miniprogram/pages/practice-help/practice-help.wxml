@@ -1,0 +1,93 @@
+<navigation-bar title="练习帮助" back="{{true}}" color="black" background="#FFF"></navigation-bar>
+
+<scroll-view class="help-scroll" scroll-y>
+  <view class="help-page">
+    <view class="help-hero">
+      <view class="help-hero__badge">Speaking Practice</view>
+      <text class="help-hero__title">用 Echo 法和影子跟读练口语</text>
+      <text class="help-hero__desc">先听懂，再模仿，最后跟上原声节奏。每节课 10 到 15 分钟，就按下面的流程练。</text>
+    </view>
+
+    <view class="method-grid">
+      <view class="method-card method-card--echo">
+        <view class="method-card__header">
+          <view class="method-card__icon">E</view>
+          <view class="method-card__title-group">
+            <text class="method-card__title">Echo 模式</text>
+            <text class="method-card__subtitle">适合逐句打磨发音</text>
+          </view>
+        </view>
+        <view class="step-list">
+          <view wx:for="{{echoSteps}}" wx:key="label" class="step-item">
+            <text class="step-item__label">{{item.label}}</text>
+            <view class="step-item__body">
+              <text class="step-item__title">{{item.title}}</text>
+              <text class="step-item__desc">{{item.desc}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view class="method-card method-card--shadow">
+        <view class="method-card__header">
+          <view class="method-card__icon">S</view>
+          <view class="method-card__title-group">
+            <text class="method-card__title">影子跟读</text>
+            <text class="method-card__subtitle">适合练节奏和流畅度</text>
+          </view>
+        </view>
+        <view class="step-list">
+          <view wx:for="{{shadowSteps}}" wx:key="label" class="step-item">
+            <text class="step-item__label">{{item.label}}</text>
+            <view class="step-item__body">
+              <text class="step-item__title">{{item.title}}</text>
+              <text class="step-item__desc">{{item.desc}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="routine-section">
+      <view class="section-heading">
+        <text class="section-heading__title">一节课这样练</text>
+        <text class="section-heading__desc">不需要一次练很久，关键是每一步有目标。</text>
+      </view>
+      <view class="routine-list">
+        <view wx:for="{{routineSteps}}" wx:key="label" class="routine-item">
+          <text class="routine-item__label">{{item.label}}</text>
+          <view class="routine-item__content">
+            <text class="routine-item__title">{{item.title}}</text>
+            <text class="routine-item__desc">{{item.desc}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="checkpoint-section">
+      <view class="section-heading">
+        <text class="section-heading__title">练到什么程度算有效</text>
+      </view>
+      <view class="checkpoint-list">
+        <view wx:for="{{checkpoints}}" wx:key="title" class="checkpoint-item">
+          <text class="checkpoint-item__mark">✓</text>
+          <view class="checkpoint-item__body">
+            <text class="checkpoint-item__title">{{item.title}}</text>
+            <text class="checkpoint-item__desc">{{item.desc}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="help-actions">
+      <button class="help-action help-action--primary" bindtap="goToCourses">去选课程练习</button>
+      <button class="help-action help-action--secondary" open-type="share">转发给朋友</button>
+    </view>
+  </view>
+</scroll-view>
+
+<canvas
+  canvas-id="practice-help-share-canvas"
+  class="share-poster-canvas"
+  style="width: 600px; height: 840px;"
+></canvas>

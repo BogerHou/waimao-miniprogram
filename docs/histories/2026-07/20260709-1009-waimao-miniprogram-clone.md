@@ -1,0 +1,103 @@
+## [2026-07-09 10:09] | Task: 复刻外贸小程序
+
+### 🤖 Execution Context
+
+- **Agent ID**: `Codex`
+- **Base Model**: `GPT-5`
+- **Runtime**: `Codex desktop`
+
+### 📥 User Query
+
+> 复刻一个外贸版影子跟读小程序：小程序部分尽量直接复制 EnglishPod，只修改外贸数据、7章首页、第一章免费/后续锁定、邀请码/付费解锁、知识点新页、播放范围、外贸配色和后端数据隔离等明确差异。
+
+### 🛠 Changes Overview
+
+**Scope:** 小程序仓库 `waimao-miniprogram`，以及复用后端 `englishpod-server/server` 的 `waimao-mini` namespace。
+
+**Key Actions:**
+
+- **复制小程序主体**：从 EnglishPod 复制小程序结构、练习页、AI 弹层、查词、分享和测试基础。
+- **新增外贸小程序后端隔离层**：添加 `/api/waimao-mini/*` 路由、`waimao_mini_*` 表、邀请码 entitlement、小节进度、学习时长、头像上传。
+- **生成外贸课程数据**：从外贸 Web 数据生成 7 章、50 个小节、课程详情 JSON 和服务端静态音频。
+- **实现小程序差异**：首页改为 7 章展开小节，默认第一章展开；后 6 章锁定；新增解锁页和知识点页；课程 Shadow 播放限制在当前小节范围。
+- **更新品牌和配色**：名称改为“外贸英语影子跟读”；配色按后续确认改回 EnglishPod 紫蓝/蓝色体系。
+- **补验证和文档**：添加小程序测试入口，更新架构、前端、安全、稳定性、CI/CD、产品和质量文档。
+
+### 🧠 Design Intent (Why)
+
+用户明确要求“完整复刻 EnglishPod，只有差异白名单内可改”。因此实现上保留 EnglishPod 的成熟练习体验，把风险集中在数据适配、播放范围、解锁和后端隔离四个点；后端采用同服务不同 namespace，复用部署和 AI 能力，同时避免污染 EnglishPod 用户和进度数据。
+
+### 📁 Files Modified
+
+- `miniprogram/pages/index/index.ts`
+- `miniprogram/pages/index/index.wxml`
+- `miniprogram/pages/course/course.ts`
+- `miniprogram/pages/knowledge/knowledge.ts`
+- `miniprogram/pages/unlock/unlock.ts`
+- `miniprogram/utils/api.ts`
+- `miniprogram/store/index.ts`
+- `package.json`
+- `docs/ARCHITECTURE.md`
+- `docs/FRONTEND.md`
+- `docs/SECURITY.md`
+- `docs/RELIABILITY.md`
+- `docs/CICD.md`
+- `docs/PRODUCT_SENSE.md`
+
+### 🔧 Follow-up: 小程序开发者工具报错修复
+
+- 移除各页面 `.json` 中当前开发者工具不支持的 `enableShareAppMessage` 和 `enableShareTimeline` 字段，保留页面 TS 内的分享回调逻辑。
+- 将 API 基址改为按小程序环境选择：`develop` 请求本地 `http://127.0.0.1:4000`，体验版/正式版请求线上域名。
+- 新增页面 JSON 配置扫描和 API 环境选择测试，避免后续复制页面时再次引入同类报错。
+
+### 🔧 Follow-up: 本地联调与控制台警告收敛
+
+- 确认 `ERR_CONNECTION_REFUSED` 的根因是开发者工具已请求本地 `127.0.0.1:4000`，但复用后端未运行。
+- 新增 `npm run dev:backend`，可从小程序仓库直接启动 `englishpod-server`。
+- 导航栏组件改用 `getWindowInfo` / `getDeviceInfo` 主路径，避免新版基础库提示 `getSystemInfo` 废弃。
+- 导航栏样式移除组件 WXSS 中的标签选择器，避免开发者工具的 selector 警告。
+- 开发者工具不支持 `setInnerAudioOption` 时不再打印失败警告；真机上的失败仍会保留日志。
+
+### 🔧 Follow-up: 配色回到 EnglishPod
+
+- 根据用户确认，外贸版小程序不再沿用外贸 Web 版黑白灰配色，恢复 EnglishPod 的紫蓝首页、蓝色练习页和浅蓝灰背景/文字体系。
+- 新增的知识点页、解锁页使用同一套 EnglishPod 颜色变量，不改变页面结构。
+
+### 🔧 Follow-up: 进度 cue 信息补齐
+
+- 审计发现后端已支持 `cueIndex`、`totalCues` 和 `completedCueIndexes`，但小程序完成上报只传了 `sceneId + status`。
+- 扩展小程序进度请求 payload，完成小节时同步上报最后 cue 位置和总 cue 数，保持“小节粒度 + cue 位置”的进度模型。
+- 新增 `progress-payload` 单元测试，防止进度请求体退化。
+
+### 🔧 Follow-up: 外贸小程序微信登录配置隔离
+
+- 审计发现外贸小程序登录路由复用了通用 `WECHAT_APPID` / `WECHAT_SECRET`，在外贸小程序 appid 与 EnglishPod 不同时会导致正式微信登录换 session 失败。
+- 后端 `waimao-mini` 登录改为读取 `WAIMAO_MINI_WECHAT_APPID` / `WAIMAO_MINI_WECHAT_SECRET`，EnglishPod 原登录配置不受影响。
+
+### 🔧 Follow-up: 解锁页和知识点页口径收敛
+
+- 根据用户确认，小程序不接微信支付；商业化路径改为用户扫码添加微信购买会员邀请码，小程序内只负责兑换邀请码并解锁全部权益。
+- 解锁页移除付费占位，新增微信二维码展示、预览和会员邀请码兑换的一页式流程；首页解锁 tab 仍由 `unlockPromptEnabled` 控制且默认展示。
+- 知识点页面内容区移除章节和小节标题信息，仅保留知识点正文和对话内容，标题信息由页面导航栏承担。
+
+### 🔧 Follow-up: 解锁入口登录和页面瘦身
+
+- 首页解锁提示和锁定小节跳转解锁页前，先调用现有微信登录流程；登录失败则停留在当前页。
+- 解锁页支持直达兜底登录，未登录无法直接填邀请码兑换权益。
+- 解锁页删掉网页式标题说明和次级登录按钮，保留二维码、简短提示、邀请码输入和解锁按钮。
+
+### 🔧 Follow-up: 解锁登录资料和一年会员权益
+
+- 修正“去解锁”静默调用 `ensureAuth()` 导致创建默认 `Learner` 用户的问题；未登录或当前仍是默认 `Learner` 昵称时，改为打开首页头像/昵称登录弹窗，用户确认后再进入解锁页。
+- 解锁页直达时不再静默创建用户，未登录会返回首页。
+- 后端 `waimao-mini` entitlement 新增 `expires_at`，邀请码兑换授予全部章节 1 年访问权，并按到期时间判断后 6 章是否解锁。
+- 解锁页增加简短会员权益说明：全部 7 章、1 年访问权限。
+
+### 🔧 Follow-up: 首页目录信息瘦身
+
+- 根据用户确认，主页定位为课程章节目录，不再展示“已完成 / 小节 / 进度 / 时间”等学习统计卡片。
+- 章节卡片移除小节数量和章节进度条，小节条目移除“几句 / 多少秒”等训练元信息，只保留标题、锁定/完成状态和进入动作。
+- 同步清理主页不再使用的完成率、学习时长和时长格式化派生字段；完成状态和进度数据仍保留用于小节状态、登录同步和分享卡片。
+- 首页头像区域隐藏连续学习天数 badge，避免新用户看到 `0 day streak` 的负反馈；streak 数据仍保留给后续激励设计和分享卡片。
+- 首页解锁提示改成更轻的小程序会员入口：使用“会员权益 / 全部章节开放 1 年 / 添加微信购买邀请码，解锁后 6 章。”文案，并收窄按钮、降低横幅感。
+- 更新前端文档，明确首页不是学习统计仪表盘，避免后续复刻旧结构时把冗余信息带回。

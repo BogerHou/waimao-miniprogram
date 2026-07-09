@@ -1,0 +1,61 @@
+<navigation-bar
+  title="解锁课程"
+  back="{{true}}"
+  color="black"
+  background="#FFF"
+></navigation-bar>
+
+<view class="unlock-page">
+  <view wx:if="{{fullAccess}}" class="unlock-card unlock-card--success">
+    <view class="unlock-card__icon">✓</view>
+    <view class="unlock-card__body">
+      <text class="unlock-card__title">已解锁全部课程</text>
+      <text class="unlock-card__desc">全部 7 章 · 1 年访问权限</text>
+    </view>
+    <button class="unlock-card__button" bindtap="goHome">返回首页</button>
+  </view>
+
+  <view wx:else class="unlock-card">
+    <view class="wechat-card__qr-wrap" bindtap="previewContactQr">
+      <image
+        wx:if="{{contactQrUrl}}"
+        class="wechat-card__qr"
+        src="{{contactQrUrl}}"
+        mode="aspectFit"
+      />
+      <view wx:else class="wechat-card__qr-placeholder">微信二维码</view>
+    </view>
+    <text class="wechat-card__title">{{contactTitle}}</text>
+    <text class="wechat-card__tip">{{contactTip}}</text>
+
+    <view class="member-benefits">
+      <view class="member-benefit">
+        <text class="member-benefit__label">全部章节</text>
+        <text class="member-benefit__value">7 章开放</text>
+      </view>
+      <view class="member-benefit">
+        <text class="member-benefit__label">访问期限</text>
+        <text class="member-benefit__value">1 年</text>
+      </view>
+    </view>
+
+    <view class="unlock-divider"></view>
+
+    <input
+      class="unlock-input"
+      value="{{code}}"
+      placeholder="输入会员邀请码"
+      bindinput="handleCodeInput"
+      confirm-type="done"
+    />
+
+    <button
+      class="unlock-primary"
+      bindtap="handleRedeem"
+      loading="{{submitting || authLoading}}"
+      disabled="{{submitting || authLoading}}"
+    >
+      解锁全部课程
+    </button>
+  </view>
+</view>

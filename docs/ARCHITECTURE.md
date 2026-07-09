@@ -1,25 +1,43 @@
 # 架构总览
 
-这份文档用于描述仓库的顶层结构。下面这些内容是模板占位，等新项目真正落地后，应该尽快替换成真实架构。
+本仓库承载“外贸英语影子跟读”微信小程序。实现策略是复制 `englishpod` 小程序主体，再按外贸版差异白名单修改。后端运行基础复用 `/Users/simon/Documents/code/englishpod-server/server`，但数据、接口和授权 namespace 与 EnglishPod 隔离。
 
-## 预期的仓库结构
+## 顶层结构
 
-- `apps/`：可部署的应用、服务或入口。
-- `packages/`：跨应用复用的库、契约和共享能力。
-- `infra/`：部署、基础设施和环境定义。
-- `scripts/`：仓库级自动化脚本，供人和 Agent 直接调用。
-- `docs/`：仓库知识库，也是本地规则和上下文的正式来源。
+- `miniprogram/`：微信小程序源码和编译后的 `.js` 文件。
+- `miniprogram/pages/index/`：首页，展示 7 章外贸场景小节，默认第一章展开。
+- `miniprogram/pages/course/`：课程详情，保留 EnglishPod 的 Shadow/Echo/查词/AI 讲解交互。
+- `miniprogram/pages/knowledge/`：外贸知识点新页面，展示 Web 数据中的背景、重点表达、纠错、备注和对话。
+- `miniprogram/pages/unlock/`：小程序专用邀请码解锁页；进入前要求用户填写头像/昵称完成登录，页面内展示微信二维码、会员权益和邀请码兑换控件。
+- `miniprogram/utils/api.ts`：外贸小程序 API 客户端，统一使用 `/api/waimao-mini/*`。
+- `miniprogram/store/`：轻量全局状态，保存登录用户、进度、app config 和 full access entitlement。
+- `tests/`：可在 Node 环境运行的小程序纯逻辑测试。
+- `docs/`：协作、架构、质量和变更历史。
 
-## 边界建议
+## 后端边界
 
-- 业务逻辑优先沉淀到可复用包里，不要一开始就散落在各个 app 中。
-- 基础设施和运行编排要显式版本化，不要藏在手工操作里。
-- 避免隐式跨包耦合；一旦仓库成形，就把允许的依赖方向写清楚。
-- 只要架构有变化，就同步更新这份文档。
+后端代码不在本仓库内，当前落在 `englishpod-server/server`：
 
-## 新项目需要补齐的内容
+- 路由前缀：`/api/waimao-mini`
+- 数据表：`waimao_mini_users`、`waimao_mini_sessions`、`waimao_mini_invite_codes`、`waimao_mini_entitlements`、`waimao_mini_progress`、`waimao_mini_study_sessions`
+- 数据目录：`server/data/waimao-mini`
+- 静态音频：`server/static/waimao-mini/audio`
+- 数据生成脚本：`npm run waimao-mini:generate`
+- 邀请码脚本：`npm run waimao-mini:invite -- <code>`
 
-- 核心产品面和运行拓扑。
-- 包分层与依赖边界。
-- 数据流与存储模型。
-- 可观测性方案和本地开发模式。
+这个边界保证外贸小程序不读写 EnglishPod 的用户、进度、课程表，也不影响外贸 Web 版账号。
+
+## 数据流
+
+1. 小程序首页调用 `/api/waimao-mini/courses` 获取章节树、锁定状态、进度和 app config。
+2. 小节详情调用 `/api/waimao-mini/courses/:id` 获取场景字幕、整章音频地址、小节播放范围和知识点。
+3. Shadow 模式使用整章音频，但前端用小节 `range.start/end` 限制播放范围。
+4. 完成小节后调用 `/api/waimao-mini/users/me/progress`，前端上报 `sceneId`、`cueIndex` 和 `totalCues`，后端按小节保存 cue 进度并汇总章节进度。
+5. 点击首页解锁提示或锁定小节时先强制微信登录，再进入解锁页。
+6. 邀请码解锁调用 `/api/waimao-mini/invite/redeem`，写入小程序专用 entitlement；会员权益为全部章节 1 年访问权。
+
+## 约束
+
+- 不随意重做 EnglishPod 布局；只有用户确认的差异点可以改。
+- 第一版不上 CDN，音频从服务端静态目录加载。
+- Web 账号打通和 CDN 优化都是后续阶段；小程序不接微信支付，购买会员邀请码走添加微信人工交付。

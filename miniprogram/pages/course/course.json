@@ -1,0 +1,6 @@
+{
+  "usingComponents": {
+    "navigation-bar": "/components/navigation-bar/navigation-bar",
+    "ai-popup": "/components/ai-popup/ai-popup"
+  }
+}

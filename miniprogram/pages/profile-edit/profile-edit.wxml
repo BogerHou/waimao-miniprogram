@@ -1,0 +1,40 @@
+<view class="profile-edit-container">
+  <view class="profile-edit-header">
+    <text class="profile-edit-title">完善个人信息</text>
+  </view>
+
+  <view class="profile-edit-form">
+    <!-- 头像选择 -->
+    <view class="form-item">
+      <text class="form-label">头像</text>
+      <button class="avatar-button" open-type="chooseAvatar" bind:chooseavatar="onChooseAvatar">
+        <image class="avatar-image" src="{{avatarUrl || '/assets/images/icon.png'}}" mode="aspectFill"></image>
+        <view class="avatar-overlay">
+          <text class="avatar-text">点击更换</text>
+        </view>
+      </button>
+    </view>
+
+    <!-- 昵称输入 -->
+    <view class="form-item">
+      <text class="form-label">昵称</text>
+      <input
+        class="nickname-input"
+        type="nickname"
+        value="{{nickname}}"
+        placeholder="请输入昵称"
+        bind:input="onNicknameInput"
+        bind:blur="onNicknameBlur"
+      />
+    </view>
+  </view>
+
+  <view class="profile-edit-actions">
+    <button class="save-button" bind:tap="handleSave" disabled="{{!canSave}}">
+      保存
+    </button>
+    <button class="cancel-button" bind:tap="handleCancel">
+      取消
+    </button>
+  </view>
+</view>

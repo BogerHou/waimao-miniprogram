@@ -1,0 +1,31 @@
+<navigation-bar title="交流与反馈" back="{{true}}" color="black" background="#FFF"></navigation-bar>
+
+<view class="container">
+  <view class="contact-card">
+    <view class="card-header">
+      <view class="header-icon">💬</view>
+      <text class="header-title">加入外贸英语打卡群</text>
+      <text class="header-desc">一起练外贸沟通场景，持续打卡影子跟读</text>
+    </view>
+    
+    <view class="qr-section">
+      <image 
+        class="qr-code" 
+        src="{{qrCodeUrl}}" 
+        mode="aspectFit" 
+        bindtap="previewQRCode"
+      />
+      <text class="qr-tip">点击预览二维码，长按识别加入</text>
+    </view>
+
+    <view class="action-section">
+      <button class="btn btn-primary" bindtap="previewQRCode">预览二维码</button>
+    </view>
+  </view>
+</view>
+
+<canvas
+  canvas-id="contact-share-canvas"
+  class="share-poster-canvas"
+  style="width: 600px; height: 840px;"
+></canvas>

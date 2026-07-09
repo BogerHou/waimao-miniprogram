@@ -1,0 +1,208 @@
+<navigation-bar
+  title="外贸英语影子跟读"
+  back="{{false}}"
+  color="black"
+  background="#FFF"
+></navigation-bar>
+
+<view class="page-content">
+  <view class="hero">
+    <view class="hero__profile-card {{showPracticeHelp ? 'hero__profile-card--help' : ''}}">
+      <view wx:if="{{showPracticeHelp}}" class="hero__help-button" bindtap="goToPracticeHelp">
+        <text class="hero__help-icon">?</text>
+        <text class="hero__help-text">帮助</text>
+      </view>
+      <view class="hero__profile">
+        <view wx:if="{{isAuthenticated}}" class="hero__avatar-wrapper">
+          <view class="hero__avatar {{avatarUrl ? 'hero__avatar--image' : ''}}">
+            <image
+              wx:if="{{avatarUrl}}"
+              class="hero__avatar-image"
+              src="{{avatarUrl}}"
+              mode="aspectFill"
+            />
+            <text wx:else class="hero__avatar-text">{{avatarInitial}}</text>
+          </view>
+        </view>
+        <view wx:if="{{isAuthenticated}}" class="hero__info">
+          <text class="hero__greeting">Hi, {{userNickname}}</text>
+        </view>
+        <view wx:else class="hero__login">
+          <button
+            class="hero__login-button"
+            type="primary"
+            size="mini"
+            bindtap="showLoginDialog"
+            loading="{{authLoading}}"
+            disabled="{{authLoading}}"
+          >
+            授权登录
+          </button>
+          <text class="hero__login-tip">第一章可先试学，登录后记录进度</text>
+        </view>
+      </view>
+    </view>
+
+  </view>
+
+  <view wx:if="{{showUnlockPrompt}}" class="unlock-prompt" bindtap="goToUnlock">
+    <view class="unlock-prompt__content">
+      <text class="unlock-prompt__eyebrow">会员权益</text>
+      <text class="unlock-prompt__title">{{unlockPromptTitle}}</text>
+      <text class="unlock-prompt__desc">{{unlockPromptDescription}}</text>
+    </view>
+    <view class="unlock-prompt__cta">
+      <text>{{unlockPromptCta}}</text>
+      <text class="unlock-prompt__arrow">→</text>
+    </view>
+  </view>
+
+  <view class="courses-section">
+    <view class="section-header">
+      <text class="section-title">课程章节</text>
+      <text class="section-subtitle">7章外贸场景训练</text>
+    </view>
+
+    <scroll-view
+      class="course-scroll"
+      scroll-y
+      bindscroll="handleCourseScroll"
+      scroll-top="{{scrollTop}}"
+      scroll-with-animation="{{scrollWithAnimation}}"
+    >
+      <view class="course-container">
+        <block wx:if="{{chapters.length}}">
+          <view class="chapter-list">
+            <view
+              wx:for="{{chapters}}"
+              wx:key="id"
+              class="chapter-card {{item.locked ? 'chapter-card--locked' : ''}}"
+              id="chapter-{{item.id}}"
+            >
+              <view class="chapter-card__header" data-id="{{item.id}}" bindtap="toggleChapter">
+                <view class="chapter-card__main">
+                  <view class="chapter-card__meta">
+                    <text class="chapter-card__label">{{item.label}}</text>
+                  </view>
+                  <text class="chapter-card__title">{{item.title}}</text>
+                </view>
+                <view class="chapter-card__side">
+                  <view wx:if="{{item.locked}}" class="chapter-card__lock">🔒</view>
+                  <view wx:elif="{{item.free}}" class="chapter-card__free">免费</view>
+                  <view wx:else class="chapter-card__free chapter-card__free--unlocked">已解锁</view>
+                  <text class="chapter-card__chevron">{{expandedChapterId === item.id ? '⌃' : '⌄'}}</text>
+                </view>
+              </view>
+
+              <view wx:if="{{expandedChapterId === item.id}}" class="scene-list">
+                <view
+                  wx:for="{{item.scenes}}"
+                  wx:for-item="scene"
+                  wx:key="id"
+                  class="scene-item {{scene.status === 'completed' ? 'scene-item--completed' : ''}} {{scene.locked ? 'scene-item--locked' : ''}}"
+                  data-id="{{scene.id}}"
+                  bindtap="goToDetail"
+                  id="course-{{scene.id}}"
+                >
+                  <view class="scene-item__index">{{scene.index}}</view>
+                  <view class="scene-item__body">
+                    <text class="scene-item__title">{{scene.title}}</text>
+                  </view>
+                  <view wx:if="{{scene.status === 'completed'}}" class="scene-item__status scene-item__status--done">✓</view>
+                  <view wx:elif="{{scene.locked}}" class="scene-item__status scene-item__status--locked">🔒</view>
+                  <text wx:else class="scene-item__arrow">→</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </block>
+        <view wx:elif="{{loading}}" class="state-text">加载课程中...</view>
+        <view wx:elif="{{error}}" class="state-text state-text--error">{{error}}</view>
+        <view wx:else class="state-text">暂无课程</view>
+      </view>
+    </scroll-view>
+  </view>
+</view>
+
+<view wx:if="{{showLoginModal}}" class="login-modal">
+  <view class="login-modal__mask" bindtap="hideLoginDialog"></view>
+  <view class="login-modal__content">
+    <view class="login-modal__header">
+      <text class="login-modal__title">完善个人信息</text>
+      <view class="login-modal__close" bindtap="hideLoginDialog">×</view>
+    </view>
+    <view class="login-modal__body">
+      <view class="login-form-item">
+        <text class="login-form-label">头像</text>
+        <button class="login-avatar-button" open-type="chooseAvatar" bind:chooseavatar="onChooseAvatar">
+          <image wx:if="{{loginAvatarUrl}}" class="login-avatar-image" src="{{loginAvatarUrl}}"></image>
+          <view wx:else class="login-avatar-placeholder">
+            <text class="login-avatar-icon">👤</text>
+          </view>
+        </button>
+      </view>
+      <view class="login-form-item">
+        <text class="login-form-label">昵称</text>
+        <input
+          class="login-nickname-input"
+          type="nickname"
+          value="{{loginNickname}}"
+          placeholder="请输入昵称"
+          bind:input="onNicknameInput"
+          bind:blur="onNicknameBlur"
+        />
+      </view>
+    </view>
+    <view class="login-modal__footer">
+      <button
+        class="login-confirm-button"
+        bindtap="handleLoginConfirm"
+        disabled="{{!canLogin}}"
+        loading="{{authLoading}}"
+      >
+        确认登录
+      </button>
+    </view>
+  </view>
+</view>
+
+<view wx:if="{{showPracticeGuide}}" class="practice-guide-modal">
+  <view class="practice-guide-modal__mask"></view>
+  <view class="practice-guide-card">
+    <view class="practice-guide-card__badge">第一次练习前</view>
+    <text class="practice-guide-card__title">先花 1 分钟了解练习方法</text>
+    <text class="practice-guide-card__desc">Echo 模式适合逐句模仿，影子跟读适合练节奏和流畅度。照着流程练一节课，上手会快很多。</text>
+
+    <view class="practice-guide-points">
+      <view class="practice-guide-point">
+        <text class="practice-guide-point__label">1</text>
+        <text class="practice-guide-point__text">先听懂句子和场景</text>
+      </view>
+      <view class="practice-guide-point">
+        <text class="practice-guide-point__label">2</text>
+        <text class="practice-guide-point__text">再逐句 Echo 打磨发音</text>
+      </view>
+      <view class="practice-guide-point">
+        <text class="practice-guide-point__label">3</text>
+        <text class="practice-guide-point__text">最后影子跟读追上原声</text>
+      </view>
+    </view>
+
+    <view class="practice-guide-actions">
+      <button class="practice-guide-action practice-guide-action--primary" bindtap="startPracticeHelpFromGuide">查看练习帮助</button>
+      <button class="practice-guide-action practice-guide-action--secondary" bindtap="hidePracticeGuide">先看课程</button>
+    </view>
+  </view>
+</view>
+
+<view class="fab-container" bindtap="goToContact" aria-label="交流与反馈">
+  <view class="fab-button">
+    <text class="fab-icon">💬</text>
+  </view>
+</view>
+
+<canvas
+  canvas-id="index-share-canvas"
+  class="share-poster-canvas"
+  style="width: 600px; height: 840px;"
+></canvas>
