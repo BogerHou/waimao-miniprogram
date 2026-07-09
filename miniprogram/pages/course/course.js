@@ -9,6 +9,7 @@ const shadow_background_handoff_1 = require("./shadow-background-handoff");
 const audio_source_fallback_1 = require("./audio-source-fallback");
 const course_share_card_1 = require("./course-share-card");
 const course_mode_config_1 = require("./course-mode-config");
+const dialogue_format_1 = require("../../utils/dialogue-format");
 const BACKGROUND_AUDIO_COVER_URL = `${env_1.API_BASE_URL}/static/images/icon.png`;
 const COURSE_SHARE_CANVAS_ID = 'course-share-canvas';
 const COURSE_SHARE_CANVAS_WIDTH = 600;
@@ -2891,12 +2892,27 @@ function normalizeAudioUrl(audio) {
     return result;
 }
 function mapSubtitles(entries) {
-    return entries.map(entry => ({
-        ...entry,
-        timeLabel: formatSeconds(entry.start),
-        durationLabel: formatSeconds(entry.end - entry.start),
-        tokens: tokenizeSubtitle(entry.text),
-    }));
+    const speakerToneIndexes = new Map();
+    return entries.map((entry, index) => {
+        const speaker = entry.speaker || `speaker-${index}`;
+        const textSentences = (0, dialogue_format_1.splitDialogueSentences)(entry.text);
+        const translationSentences = (0, dialogue_format_1.splitDialogueSentences)(entry.translation ?? '');
+        return {
+            ...entry,
+            timeLabel: formatSeconds(entry.start),
+            durationLabel: formatSeconds(entry.end - entry.start),
+            tokens: tokenizeSubtitle(entry.text),
+            toneClass: (0, dialogue_format_1.resolveSpeakerToneClass)(speaker, speakerToneIndexes),
+            textSegments: textSentences.map((text, sentenceIndex) => ({
+                id: `${entry.id}-text-${sentenceIndex}`,
+                tokens: tokenizeSubtitle(text),
+            })),
+            translationSegments: translationSentences.map((text, sentenceIndex) => ({
+                id: `${entry.id}-translation-${sentenceIndex}`,
+                text,
+            })),
+        };
+    });
 }
 function tokenizeSubtitle(text) {
     const tokens = [];

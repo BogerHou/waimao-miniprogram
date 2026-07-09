@@ -2,8 +2,9 @@ import assert from "node:assert/strict"
 
 import {
   formatKnowledgeDialogue,
+  resolveSpeakerToneClass,
   splitDialogueSentences,
-} from "../miniprogram/pages/knowledge/dialogue-format"
+} from "../miniprogram/utils/dialogue-format"
 
 function testSplitDialogueSentencesByTerminalPunctuation() {
   assert.deepEqual(
@@ -66,7 +67,18 @@ function testFormatDialogueKeepsSpeakerToneStable() {
   ])
 }
 
+function testSpeakerToneResolverKeepsSameSpeakerConsistent() {
+  const toneIndexes = new Map<string, number>()
+  const first = resolveSpeakerToneClass("Yibing", toneIndexes)
+  const second = resolveSpeakerToneClass("Walter", toneIndexes)
+  const third = resolveSpeakerToneClass("Yibing", toneIndexes)
+
+  assert.equal(first, third)
+  assert.notEqual(first, second)
+}
+
 testSplitDialogueSentencesByTerminalPunctuation()
 testSplitKeepsDecimalsAndEmailFragmentsTogether()
 testFormatDialogueKeepsSpeakerToneStable()
+testSpeakerToneResolverKeepsSameSpeakerConsistent()
 console.log("knowledge dialogue format tests passed.")

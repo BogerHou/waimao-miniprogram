@@ -17,7 +17,7 @@ export type KnowledgeDialogueItem = {
   translationSegments: KnowledgeDialogueSegment[]
 }
 
-const SPEAKER_TONE_CLASSES = [
+export const SPEAKER_TONE_CLASSES = [
   'dialogue-tone-0',
   'dialogue-tone-1',
   'dialogue-tone-2',
@@ -39,21 +39,29 @@ export function formatKnowledgeDialogue(
     .filter(item => item && String(item.text ?? '').trim())
     .map((item, itemIndex) => {
       const speaker = String(item.speaker || 'Speaker').trim() || 'Speaker'
-      const speakerKey = speaker.toLowerCase()
-      let toneIndex = speakerToneIndexes.get(speakerKey)
-      if (toneIndex === undefined) {
-        toneIndex = speakerToneIndexes.size % SPEAKER_TONE_CLASSES.length
-        speakerToneIndexes.set(speakerKey, toneIndex)
-      }
+      const speakerKey = normalizeSpeakerKey(speaker)
 
       return {
         id: `${speakerKey}-${itemIndex}`,
         speaker,
-        toneClass: SPEAKER_TONE_CLASSES[toneIndex],
+        toneClass: resolveSpeakerToneClass(speaker, speakerToneIndexes),
         textSegments: buildSegments(item.text, `${itemIndex}-text`),
         translationSegments: buildSegments(item.translation ?? '', `${itemIndex}-translation`),
       }
     })
+}
+
+export function resolveSpeakerToneClass(
+  speaker: string,
+  speakerToneIndexes: Map<string, number>,
+): string {
+  const speakerKey = normalizeSpeakerKey(speaker)
+  let toneIndex = speakerToneIndexes.get(speakerKey)
+  if (toneIndex === undefined) {
+    toneIndex = speakerToneIndexes.size % SPEAKER_TONE_CLASSES.length
+    speakerToneIndexes.set(speakerKey, toneIndex)
+  }
+  return SPEAKER_TONE_CLASSES[toneIndex]
 }
 
 export function splitDialogueSentences(input: string): string[] {
@@ -105,6 +113,10 @@ function buildSegments(input: string, prefix: string): KnowledgeDialogueSegment[
     id: `${prefix}-${index}`,
     text,
   }))
+}
+
+function normalizeSpeakerKey(speaker: string): string {
+  return String(speaker || 'Speaker').trim().toLowerCase() || 'speaker'
 }
 
 function shouldSplitAt(text: string, index: number, segmentStart: number): boolean {

@@ -7,7 +7,7 @@ import {
 import {
   formatKnowledgeDialogue,
   type KnowledgeDialogueItem,
-} from './dialogue-format'
+} from '../../utils/dialogue-format'
 
 type KnowledgeSection = {
   title: string

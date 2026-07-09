@@ -47,6 +47,11 @@ import {
 } from './audio-source-fallback'
 import { buildCourseShareCardModel } from './course-share-card'
 import { resolveCourseModePresentation } from './course-mode-config'
+import {
+  resolveSpeakerToneClass,
+  splitDialogueSentences,
+  type KnowledgeDialogueSegment,
+} from '../../utils/dialogue-format'
 
 const BACKGROUND_AUDIO_COVER_URL = `${API_BASE_URL}/static/images/icon.png`
 const COURSE_SHARE_CANVAS_ID = 'course-share-canvas'
@@ -215,10 +220,18 @@ type SubtitleToken = {
   isWord: boolean
 }
 
+type SubtitleTextSegment = {
+  id: string
+  tokens: SubtitleToken[]
+}
+
 type ViewSubtitle = SubtitleEntry & {
   timeLabel: string
   durationLabel: string
   tokens: SubtitleToken[]
+  toneClass: string
+  textSegments: SubtitleTextSegment[]
+  translationSegments: KnowledgeDialogueSegment[]
 }
 
 type CourseSummary = {
@@ -3358,12 +3371,28 @@ function normalizeAudioUrl(audio: string): string {
 }
 
 function mapSubtitles(entries: SubtitleEntry[]): ViewSubtitle[] {
-  return entries.map(entry => ({
-    ...entry,
-    timeLabel: formatSeconds(entry.start),
-    durationLabel: formatSeconds(entry.end - entry.start),
-    tokens: tokenizeSubtitle(entry.text),
-  }))
+  const speakerToneIndexes = new Map<string, number>()
+  return entries.map((entry, index) => {
+    const speaker = entry.speaker || `speaker-${index}`
+    const textSentences = splitDialogueSentences(entry.text)
+    const translationSentences = splitDialogueSentences(entry.translation ?? '')
+
+    return {
+      ...entry,
+      timeLabel: formatSeconds(entry.start),
+      durationLabel: formatSeconds(entry.end - entry.start),
+      tokens: tokenizeSubtitle(entry.text),
+      toneClass: resolveSpeakerToneClass(speaker, speakerToneIndexes),
+      textSegments: textSentences.map((text, sentenceIndex) => ({
+        id: `${entry.id}-text-${sentenceIndex}`,
+        tokens: tokenizeSubtitle(text),
+      })),
+      translationSegments: translationSentences.map((text, sentenceIndex) => ({
+        id: `${entry.id}-translation-${sentenceIndex}`,
+        text,
+      })),
+    }
+  })
 }
 
 function tokenizeSubtitle(text: string): SubtitleToken[] {

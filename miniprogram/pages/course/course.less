@@ -319,8 +319,11 @@ page {
     .subtitle-translation {
       border-top: none;
       padding-top: 0;
-      font-size: 32rpx;
-      color: @text-primary;
+
+      .subtitle-sentence--translation {
+        font-size: 32rpx;
+        font-weight: 600;
+      }
     }
   }
 }
@@ -348,7 +351,9 @@ page {
 }
 
 .subtitle-text {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
   font-size: 32rpx;
   color: @text-primary;
   line-height: 1.7;
@@ -358,17 +363,71 @@ page {
 }
 
 .subtitle-translation {
-  display: block;
-  font-size: 28rpx;
-  color: @text-secondary;
-  line-height: 1.7;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
   padding-top: 16rpx;
   border-top: 1rpx solid @border-color;
 }
 
+.subtitle-sentence {
+  display: block;
+  border-radius: 12rpx;
+  border-left: 6rpx solid transparent;
+  padding: 12rpx 14rpx;
+  word-break: break-word;
+}
+
+.subtitle-sentence--text {
+  font-size: 32rpx;
+  line-height: 1.62;
+  font-weight: 600;
+}
+
+.subtitle-sentence--translation {
+  font-size: 28rpx;
+  line-height: 1.62;
+}
+
+.subtitle-sentence.dialogue-tone-0 {
+  color: #3730a3;
+  background: #eef2ff;
+  border-left-color: #c7d2fe;
+}
+
+.subtitle-sentence.dialogue-tone-1 {
+  color: #1d4ed8;
+  background: #eff6ff;
+  border-left-color: #bfdbfe;
+}
+
+.subtitle-sentence.dialogue-tone-2 {
+  color: #047857;
+  background: #ecfdf5;
+  border-left-color: #bbf7d0;
+}
+
+.subtitle-sentence.dialogue-tone-3 {
+  color: #c2410c;
+  background: #fff7ed;
+  border-left-color: #fed7aa;
+}
+
+.subtitle-sentence.dialogue-tone-4 {
+  color: #be185d;
+  background: #fdf2f8;
+  border-left-color: #fbcfe8;
+}
+
+.subtitle-sentence.dialogue-tone-5 {
+  color: #475569;
+  background: #f8fafc;
+  border-left-color: #cbd5e1;
+}
+
 .subtitle-word {
   display: inline-block;
-  color: @text-primary;
+  color: inherit;
   font-weight: 600;
   border-bottom: 2rpx solid transparent;
 
@@ -379,7 +438,7 @@ page {
 }
 
 .subtitle-token {
-  color: @text-primary;
+  color: inherit;
 }
 
 .subtitle-text-raw {

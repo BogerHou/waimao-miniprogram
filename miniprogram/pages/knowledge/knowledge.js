@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const api_1 = require("../../utils/api");
 const share_1 = require("../../utils/share");
-const dialogue_format_1 = require("./dialogue-format");
+const dialogue_format_1 = require("../../utils/dialogue-format");
 Page({
     data: {
         courseId: '',

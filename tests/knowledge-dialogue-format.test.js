@@ -4,7 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const strict_1 = __importDefault(require("node:assert/strict"));
-const dialogue_format_1 = require("../miniprogram/pages/knowledge/dialogue-format");
+const dialogue_format_1 = require("../miniprogram/utils/dialogue-format");
 function testSplitDialogueSentencesByTerminalPunctuation() {
     strict_1.default.deepEqual((0, dialogue_format_1.splitDialogueSentences)("I understand. What if we split the shipment? Great!"), [
         "I understand.",
@@ -53,7 +53,16 @@ function testFormatDialogueKeepsSpeakerToneStable() {
         "那我们分批发货怎么样？",
     ]);
 }
+function testSpeakerToneResolverKeepsSameSpeakerConsistent() {
+    const toneIndexes = new Map();
+    const first = (0, dialogue_format_1.resolveSpeakerToneClass)("Yibing", toneIndexes);
+    const second = (0, dialogue_format_1.resolveSpeakerToneClass)("Walter", toneIndexes);
+    const third = (0, dialogue_format_1.resolveSpeakerToneClass)("Yibing", toneIndexes);
+    strict_1.default.equal(first, third);
+    strict_1.default.notEqual(first, second);
+}
 testSplitDialogueSentencesByTerminalPunctuation();
 testSplitKeepsDecimalsAndEmailFragmentsTogether();
 testFormatDialogueKeepsSpeakerToneStable();
+testSpeakerToneResolverKeepsSameSpeakerConsistent();
 console.log("knowledge dialogue format tests passed.");
