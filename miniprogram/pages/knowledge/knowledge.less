@@ -55,7 +55,6 @@ page {
 .knowledge-card__head {
   display: flex;
   flex-direction: column;
-  gap: 6rpx;
   margin-bottom: 18rpx;
 }
 
@@ -64,15 +63,6 @@ page {
   align-items: center;
   justify-content: space-between;
   gap: 20rpx;
-}
-
-.knowledge-card__eyebrow {
-  display: block;
-  color: @secondary;
-  font-size: 20rpx;
-  font-weight: 850;
-  letter-spacing: 0;
-  line-height: 1.2;
 }
 
 .knowledge-card__title {
@@ -235,6 +225,7 @@ page {
   box-sizing: border-box;
   width: 112rpx;
   align-self: flex-start;
+  border: 1rpx solid transparent;
   border-radius: 999rpx;
   background: #eef2ff;
   color: @secondary;
@@ -280,70 +271,76 @@ page {
   line-height: 1.5;
 }
 
-.dialogue-tone-0 .dialogue-item__speaker,
+.dialogue-tone-0 .dialogue-item__speaker {
+  color: #4f46e5;
+  background: #eef2ff;
+  border-color: #c7d2fe;
+}
+
 .dialogue-segment.dialogue-tone-0 {
   color: #3730a3;
-}
-
-.dialogue-tone-0 .dialogue-item__speaker,
-.dialogue-segment.dialogue-tone-0 {
   background: #eef2ff;
-  border-left-color: #c7d2fe;
+  border-left-color: #a5b4fc;
 }
 
-.dialogue-tone-1 .dialogue-item__speaker,
-.dialogue-segment.dialogue-tone-1 {
-  color: #1d4ed8;
-}
-
-.dialogue-tone-1 .dialogue-item__speaker,
-.dialogue-segment.dialogue-tone-1 {
-  background: #eff6ff;
-  border-left-color: #bfdbfe;
-}
-
-.dialogue-tone-2 .dialogue-item__speaker,
-.dialogue-segment.dialogue-tone-2 {
+.dialogue-tone-1 .dialogue-item__speaker {
   color: #047857;
-}
-
-.dialogue-tone-2 .dialogue-item__speaker,
-.dialogue-segment.dialogue-tone-2 {
   background: #ecfdf5;
-  border-left-color: #bbf7d0;
+  border-color: #bbf7d0;
 }
 
-.dialogue-tone-3 .dialogue-item__speaker,
-.dialogue-segment.dialogue-tone-3 {
-  color: #c2410c;
+.dialogue-segment.dialogue-tone-1 {
+  color: #047857;
+  background: #ecfdf5;
+  border-left-color: #86efac;
 }
 
-.dialogue-tone-3 .dialogue-item__speaker,
-.dialogue-segment.dialogue-tone-3 {
-  background: #fff7ed;
-  border-left-color: #fed7aa;
+.dialogue-tone-2 .dialogue-item__speaker {
+  color: #b45309;
+  background: #fffbeb;
+  border-color: #fde68a;
 }
 
-.dialogue-tone-4 .dialogue-item__speaker,
-.dialogue-segment.dialogue-tone-4 {
+.dialogue-segment.dialogue-tone-2 {
+  color: #92400e;
+  background: #fffbeb;
+  border-left-color: #fcd34d;
+}
+
+.dialogue-tone-3 .dialogue-item__speaker {
   color: #be185d;
-}
-
-.dialogue-tone-4 .dialogue-item__speaker,
-.dialogue-segment.dialogue-tone-4 {
   background: #fdf2f8;
-  border-left-color: #fbcfe8;
+  border-color: #fbcfe8;
 }
 
-.dialogue-tone-5 .dialogue-item__speaker,
-.dialogue-segment.dialogue-tone-5 {
+.dialogue-segment.dialogue-tone-3 {
+  color: #be185d;
+  background: #fdf2f8;
+  border-left-color: #f9a8d4;
+}
+
+.dialogue-tone-4 .dialogue-item__speaker {
+  color: #0369a1;
+  background: #f0f9ff;
+  border-color: #bae6fd;
+}
+
+.dialogue-segment.dialogue-tone-4 {
+  color: #0369a1;
+  background: #f0f9ff;
+  border-left-color: #7dd3fc;
+}
+
+.dialogue-tone-5 .dialogue-item__speaker {
   color: #475569;
+  background: #f8fafc;
+  border-color: #cbd5e1;
 }
 
-.dialogue-tone-5 .dialogue-item__speaker,
 .dialogue-segment.dialogue-tone-5 {
+  color: #334155;
   background: #f8fafc;
-  border-left-color: #cbd5e1;
+  border-left-color: #94a3b8;
 }
 
 .state {

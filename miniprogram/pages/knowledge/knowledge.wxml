@@ -24,7 +24,6 @@
     <view class="knowledge-content">
       <view wx:if="{{backgroundParagraphs.length}}" class="knowledge-card knowledge-card--background">
         <view class="knowledge-card__head">
-          <text class="knowledge-card__eyebrow">Scene</text>
           <text class="knowledge-card__title">场景背景</text>
         </view>
         <view class="knowledge-paragraph-list">
@@ -40,7 +39,6 @@
       <view wx:if="{{phraseItems.length}}" class="knowledge-card">
         <view class="knowledge-card__head knowledge-card__head--inline">
           <view>
-            <text class="knowledge-card__eyebrow">Words &amp; Phrases</text>
             <text class="knowledge-card__title">词汇和句型</text>
           </view>
           <text class="knowledge-count">{{phraseItems.length}}</text>
@@ -55,7 +53,6 @@
 
       <view wx:if="{{correction.hasContent}}" class="knowledge-card knowledge-card--correction">
         <view class="knowledge-card__head">
-          <text class="knowledge-card__eyebrow">Chinglish Correction</text>
           <text class="knowledge-card__title">中式英语纠错</text>
         </view>
         <view wx:if="{{correction.promptLines.length}}" class="correction-prompt">
@@ -96,7 +93,6 @@
 
       <view wx:if="{{noteParagraphs.length}}" class="knowledge-card">
         <view class="knowledge-card__head">
-          <text class="knowledge-card__eyebrow">Yibing Notes</text>
           <text class="knowledge-card__title">毅冰补充</text>
         </view>
         <view class="knowledge-paragraph-list">
@@ -111,7 +107,6 @@
 
       <view wx:if="{{dialogue.length}}" class="dialogue-section">
         <view class="knowledge-card__head">
-          <text class="knowledge-card__eyebrow">Dialogue</text>
           <text class="knowledge-card__title">对话原文</text>
         </view>
         <view wx:for="{{dialogue}}" wx:key="id" class="dialogue-item {{index == 0 ? 'dialogue-item--first' : ''}} {{item.toneClass}}">
