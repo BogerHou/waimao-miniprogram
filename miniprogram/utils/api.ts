@@ -83,6 +83,11 @@ export type SubtitleEntry = {
   speaker?: string
   rawStart?: number
   rawEnd?: number
+  sourceSubtitleId?: string
+  sourceIndex?: number
+  segmentIndex?: number
+  segmentCount?: number
+  timingSource?: 'word-srt' | 'estimated' | 'source-cue'
 }
 
 export type CourseDetailResponse = {

@@ -3373,12 +3373,20 @@ function mapSubtitles(entries: SubtitleEntry[]): ViewSubtitle[] {
   entries.forEach((entry, entryIndex) => {
     const speaker = entry.speaker || `speaker-${entryIndex}`
     const toneClass = resolveSpeakerToneClass(speaker, speakerToneIndexes)
-    const segments = buildTimedDialogueSentences({
-      text: entry.text,
-      translation: entry.translation,
-      start: entry.start,
-      end: entry.end,
-    })
+    const hasBackendSentenceTiming = entry.segmentCount !== undefined || Boolean(entry.timingSource)
+    const segments = hasBackendSentenceTiming
+      ? [{
+        text: entry.text,
+        translation: entry.translation ?? '',
+        start: entry.start,
+        end: entry.end,
+      }]
+      : buildTimedDialogueSentences({
+        text: entry.text,
+        translation: entry.translation,
+        start: entry.start,
+        end: entry.end,
+      })
     const safeSegments = segments.length
       ? segments
       : [{
@@ -3389,7 +3397,7 @@ function mapSubtitles(entries: SubtitleEntry[]): ViewSubtitle[] {
       }]
 
     safeSegments.forEach((segment, segmentIndex) => {
-      const id = safeSegments.length === 1
+      const id = hasBackendSentenceTiming || safeSegments.length === 1
         ? entry.id
         : `${entry.id}-s${segmentIndex + 1}`
       const start = segment.start
@@ -3403,16 +3411,16 @@ function mapSubtitles(entries: SubtitleEntry[]): ViewSubtitle[] {
         translation: segment.translation || undefined,
         start,
         end,
-        rawStart: start,
-        rawEnd: end,
+        rawStart: entry.rawStart ?? start,
+        rawEnd: entry.rawEnd ?? end,
         timeLabel: formatSeconds(start),
         durationLabel: formatSeconds(end - start),
         tokens: tokenizeSubtitle(segment.text),
         toneClass,
-        sourceSubtitleId: entry.id,
-        sourceIndex: entry.index ?? entryIndex,
-        segmentIndex,
-        segmentCount: safeSegments.length,
+        sourceSubtitleId: entry.sourceSubtitleId ?? entry.id,
+        sourceIndex: entry.sourceIndex ?? entry.index ?? entryIndex,
+        segmentIndex: entry.segmentIndex ?? segmentIndex,
+        segmentCount: entry.segmentCount ?? safeSegments.length,
       })
     })
   })
