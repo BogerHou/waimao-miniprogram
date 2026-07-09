@@ -7,12 +7,20 @@
 @bg: #f8fafc;
 
 page {
-  min-height: 100vh;
+  height: 100vh;
   background: @bg;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.unlock-scroll {
+  flex: 1;
+  min-height: 0;
+  box-sizing: border-box;
 }
 
 .unlock-page {
-  min-height: 100vh;
   box-sizing: border-box;
   padding: 28rpx 32rpx calc(44rpx + env(safe-area-inset-bottom));
 }

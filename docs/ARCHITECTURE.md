@@ -19,7 +19,7 @@
 后端代码不在本仓库内，当前落在 `englishpod-server/server`：
 
 - 路由前缀：`/api/waimao-mini`
-- 数据表：`waimao_mini_users`、`waimao_mini_sessions`、`waimao_mini_invite_codes`、`waimao_mini_entitlements`、`waimao_mini_progress`、`waimao_mini_study_sessions`
+- 数据表：`waimao_mini_users`、`waimao_mini_sessions`、`waimao_mini_invite_codes`、`waimao_mini_invite_labels`、`waimao_mini_entitlements`、`waimao_mini_progress`、`waimao_mini_study_sessions`
 - 数据目录：`server/data/waimao-mini`
 - 静态音频：`server/static/waimao-mini/audio`
 - 数据生成脚本：`npm run waimao-mini:generate`
