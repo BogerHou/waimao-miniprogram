@@ -3,13 +3,24 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const api_1 = require("../../utils/api");
 const share_1 = require("../../utils/share");
 const dialogue_format_1 = require("../../utils/dialogue-format");
+const knowledge_format_1 = require("../../utils/knowledge-format");
 Page({
     data: {
         courseId: '',
         courseTitle: '知识点',
         loading: true,
         error: '',
-        sections: [],
+        backgroundParagraphs: [],
+        phraseItems: [],
+        correction: {
+            hasContent: false,
+            promptLines: [],
+            chinglishLines: [],
+            nativeLines: [],
+            extraLines: [],
+        },
+        noteParagraphs: [],
+        hasKnowledgeContent: false,
         dialogue: [],
     },
     onLoad(query) {
@@ -45,19 +56,19 @@ Page({
     },
     applyDetail(detail) {
         const knowledge = detail.knowledge;
-        const sections = [
-            { title: '背景', content: knowledge?.background ?? '' },
-            { title: '重点表达', content: knowledge?.phrases ?? '' },
-            { title: '纠错提醒', content: knowledge?.correction ?? '' },
-            { title: '讲解备注', content: knowledge?.notes ?? '' },
-        ].filter(section => section.content.trim());
+        const formattedKnowledge = (0, knowledge_format_1.formatKnowledgeContent)({
+            background: knowledge?.background,
+            phrases: knowledge?.phrases,
+            correction: knowledge?.correction,
+            notes: knowledge?.notes,
+        });
         const dialogue = (0, dialogue_format_1.formatKnowledgeDialogue)(knowledge?.dialogue ?? []);
         this.setData({
             courseTitle: detail.title || this.data.courseTitle,
-            sections,
+            ...formattedKnowledge,
             dialogue,
             loading: false,
-            error: sections.length || dialogue.length ? '' : '暂无知识点内容',
+            error: formattedKnowledge.hasKnowledgeContent || dialogue.length ? '' : '暂无知识点内容',
         });
     },
     handleRetry() {

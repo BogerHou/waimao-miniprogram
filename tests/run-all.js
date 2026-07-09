@@ -9,6 +9,7 @@ require("./course-mode-config.test");
 require("./course-share-card.test");
 require("./env-config.test");
 require("./knowledge-dialogue-format.test");
+require("./knowledge-format.test");
 require("./page-json-schema.test");
 require("./pdf-image-scan.test");
 require("./progress-payload.test");

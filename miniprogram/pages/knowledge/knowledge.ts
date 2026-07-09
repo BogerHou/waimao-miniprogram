@@ -8,18 +8,23 @@ import {
   formatKnowledgeDialogue,
   type KnowledgeDialogueItem,
 } from '../../utils/dialogue-format'
-
-type KnowledgeSection = {
-  title: string
-  content: string
-}
+import {
+  formatKnowledgeContent,
+  type KnowledgeCorrectionBlock,
+  type KnowledgePhraseItem,
+  type KnowledgeTextLine,
+} from '../../utils/knowledge-format'
 
 type KnowledgePageData = {
   courseId: string
   courseTitle: string
   loading: boolean
   error: string
-  sections: KnowledgeSection[]
+  backgroundParagraphs: KnowledgeTextLine[]
+  phraseItems: KnowledgePhraseItem[]
+  correction: KnowledgeCorrectionBlock
+  noteParagraphs: KnowledgeTextLine[]
+  hasKnowledgeContent: boolean
   dialogue: KnowledgeDialogueItem[]
 }
 
@@ -29,7 +34,17 @@ Page<KnowledgePageData, WechatMiniprogram.IAnyObject>({
     courseTitle: '知识点',
     loading: true,
     error: '',
-    sections: [],
+    backgroundParagraphs: [],
+    phraseItems: [],
+    correction: {
+      hasContent: false,
+      promptLines: [],
+      chinglishLines: [],
+      nativeLines: [],
+      extraLines: [],
+    },
+    noteParagraphs: [],
+    hasKnowledgeContent: false,
     dialogue: [],
   },
   onLoad(query: { id?: string; courseId?: string; title?: string }) {
@@ -66,21 +81,20 @@ Page<KnowledgePageData, WechatMiniprogram.IAnyObject>({
   },
   applyDetail(detail: CourseDetailResponse) {
     const knowledge = detail.knowledge
-    const sections: KnowledgeSection[] = [
-      { title: '背景', content: knowledge?.background ?? '' },
-      { title: '重点表达', content: knowledge?.phrases ?? '' },
-      { title: '纠错提醒', content: knowledge?.correction ?? '' },
-      { title: '讲解备注', content: knowledge?.notes ?? '' },
-    ].filter(section => section.content.trim())
-
+    const formattedKnowledge = formatKnowledgeContent({
+      background: knowledge?.background,
+      phrases: knowledge?.phrases,
+      correction: knowledge?.correction,
+      notes: knowledge?.notes,
+    })
     const dialogue = formatKnowledgeDialogue(knowledge?.dialogue ?? [])
 
     this.setData({
       courseTitle: detail.title || this.data.courseTitle,
-      sections,
+      ...formattedKnowledge,
       dialogue,
       loading: false,
-      error: sections.length || dialogue.length ? '' : '暂无知识点内容',
+      error: formattedKnowledge.hasKnowledgeContent || dialogue.length ? '' : '暂无知识点内容',
     })
   },
   handleRetry() {

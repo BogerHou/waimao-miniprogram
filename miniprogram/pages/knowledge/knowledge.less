@@ -5,6 +5,9 @@
 @text-tertiary: #9CA3AF;
 @border: #E5E7EB;
 @bg: #F9FAFB;
+@surface-soft: #F8FAFC;
+@danger: #DC2626;
+@success: #047857;
 
 page {
   height: 100vh;
@@ -21,62 +24,226 @@ page {
   flex: 1;
   min-height: 0;
   box-sizing: border-box;
-  padding-top: 28rpx;
+  padding-top: 24rpx;
 }
 
-.knowledge-section-list,
-.dialogue-section {
-  padding: 0 32rpx 32rpx;
+.knowledge-content {
   display: flex;
   flex-direction: column;
-  gap: 18rpx;
+  gap: 20rpx;
+  padding: 0 28rpx calc(48rpx + env(safe-area-inset-bottom));
 }
 
-.knowledge-section,
+.knowledge-card,
 .dialogue-section {
+  box-sizing: border-box;
+  border: 1rpx solid @border;
   border-radius: 16rpx;
   background: #ffffff;
-  border: 1rpx solid @border;
   padding: 26rpx 24rpx;
+  box-shadow: 0 8rpx 24rpx rgba(31, 41, 55, 0.04);
 }
 
-.knowledge-section__title,
-.dialogue-section__title {
-  color: @text-primary;
-  font-size: 30rpx;
+.knowledge-card--background {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.knowledge-card--correction {
+  border-color: #dbeafe;
+}
+
+.knowledge-card__head {
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+  margin-bottom: 18rpx;
+}
+
+.knowledge-card__head--inline {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+
+.knowledge-card__eyebrow {
+  display: block;
+  color: @secondary;
+  font-size: 20rpx;
   font-weight: 850;
-  margin-bottom: 14rpx;
+  letter-spacing: 0;
+  line-height: 1.2;
 }
 
-.knowledge-section__content {
+.knowledge-card__title {
+  display: block;
+  color: @text-primary;
+  font-size: 32rpx;
+  font-weight: 850;
+  line-height: 1.28;
+}
+
+.knowledge-count {
+  display: flex;
+  min-width: 52rpx;
+  height: 44rpx;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999rpx;
+  background: #eef2ff;
+  color: @secondary;
+  font-size: 24rpx;
+  font-weight: 850;
+}
+
+.knowledge-paragraph-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14rpx;
+}
+
+.knowledge-paragraph {
   display: block;
   color: @text-secondary;
   font-size: 27rpx;
   line-height: 1.68;
-  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.phrase-list {
+  display: flex;
+  flex-direction: column;
+  border-top: 1rpx solid #eef2f7;
+}
+
+.phrase-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+  padding: 18rpx 0;
+  border-bottom: 1rpx solid #eef2f7;
+}
+
+.phrase-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.phrase-item:first-child {
+  padding-top: 0;
+}
+
+.phrase-item__term {
+  display: block;
+  color: @text-primary;
+  font-size: 29rpx;
+  font-weight: 850;
+  line-height: 1.34;
+  word-break: break-word;
+}
+
+.phrase-item__definition {
+  display: block;
+  color: @text-secondary;
+  font-size: 26rpx;
+  line-height: 1.56;
+  word-break: break-word;
+}
+
+.correction-prompt {
+  margin-bottom: 16rpx;
+  padding: 18rpx 20rpx;
+  border-radius: 14rpx;
+  background: @surface-soft;
+}
+
+.correction-prompt__text {
+  display: block;
+  color: @text-primary;
+  font-size: 28rpx;
+  font-weight: 750;
+  line-height: 1.55;
+}
+
+.correction-example {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+  margin-top: 14rpx;
+  padding: 18rpx 20rpx;
+  border-left: 6rpx solid transparent;
+  border-radius: 14rpx;
+  background: @surface-soft;
+}
+
+.correction-example--bad {
+  border-left-color: #fecaca;
+  background: #fff7f7;
+}
+
+.correction-example--bad .correction-label {
+  color: @danger;
+}
+
+.correction-example--good {
+  border-left-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.correction-example--good .correction-label {
+  color: @success;
+}
+
+.correction-label {
+  display: block;
+  font-size: 21rpx;
+  font-weight: 850;
+  line-height: 1.2;
+}
+
+.correction-text {
+  display: block;
+  color: @text-primary;
+  font-size: 27rpx;
+  font-weight: 650;
+  line-height: 1.56;
+  word-break: break-word;
 }
 
 .dialogue-section {
-  margin: 0 32rpx 40rpx;
+  display: flex;
+  flex-direction: column;
 }
 
 .dialogue-item {
   display: flex;
   gap: 16rpx;
-  padding: 18rpx 0;
-  border-top: 1rpx solid #eeeeee;
+  padding: 20rpx 0;
+  border-top: 1rpx solid #eef2f7;
 }
 
-.dialogue-item:first-of-type {
+.dialogue-item--first {
   border-top: none;
+  padding-top: 0;
+}
+
+.dialogue-item:last-child {
+  padding-bottom: 0;
 }
 
 .dialogue-item__speaker {
-  width: 104rpx;
+  box-sizing: border-box;
+  width: 112rpx;
+  align-self: flex-start;
+  border-radius: 999rpx;
+  background: #eef2ff;
   color: @secondary;
-  font-size: 24rpx;
-  font-weight: 800;
-  line-height: 1.45;
+  font-size: 23rpx;
+  font-weight: 850;
+  line-height: 1.2;
+  padding: 9rpx 10rpx;
+  text-align: center;
+  word-break: break-word;
   flex-shrink: 0;
 }
 
@@ -96,7 +263,7 @@ page {
 
 .dialogue-segment {
   display: block;
-  border-radius: 10rpx;
+  border-radius: 12rpx;
   border-left: 6rpx solid transparent;
   padding: 12rpx 14rpx;
   word-break: break-word;
@@ -104,13 +271,13 @@ page {
 
 .dialogue-segment--text {
   font-size: 27rpx;
-  line-height: 1.55;
-  font-weight: 550;
+  line-height: 1.44;
+  font-weight: 650;
 }
 
 .dialogue-segment--translation {
   font-size: 24rpx;
-  line-height: 1.55;
+  line-height: 1.5;
 }
 
 .dialogue-tone-0 .dialogue-item__speaker,
@@ -118,6 +285,7 @@ page {
   color: #3730a3;
 }
 
+.dialogue-tone-0 .dialogue-item__speaker,
 .dialogue-segment.dialogue-tone-0 {
   background: #eef2ff;
   border-left-color: #c7d2fe;
@@ -128,6 +296,7 @@ page {
   color: #1d4ed8;
 }
 
+.dialogue-tone-1 .dialogue-item__speaker,
 .dialogue-segment.dialogue-tone-1 {
   background: #eff6ff;
   border-left-color: #bfdbfe;
@@ -138,6 +307,7 @@ page {
   color: #047857;
 }
 
+.dialogue-tone-2 .dialogue-item__speaker,
 .dialogue-segment.dialogue-tone-2 {
   background: #ecfdf5;
   border-left-color: #bbf7d0;
@@ -148,6 +318,7 @@ page {
   color: #c2410c;
 }
 
+.dialogue-tone-3 .dialogue-item__speaker,
 .dialogue-segment.dialogue-tone-3 {
   background: #fff7ed;
   border-left-color: #fed7aa;
@@ -158,6 +329,7 @@ page {
   color: #be185d;
 }
 
+.dialogue-tone-4 .dialogue-item__speaker,
 .dialogue-segment.dialogue-tone-4 {
   background: #fdf2f8;
   border-left-color: #fbcfe8;
@@ -168,6 +340,7 @@ page {
   color: #475569;
 }
 
+.dialogue-tone-5 .dialogue-item__speaker,
 .dialogue-segment.dialogue-tone-5 {
   background: #f8fafc;
   border-left-color: #cbd5e1;
