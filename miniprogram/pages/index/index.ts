@@ -1,6 +1,7 @@
 import {
   fetchCourseList,
   ChapterListItem,
+  ChapterSceneItem,
   CourseListResponse,
   UserProgress,
 } from '../../utils/api'
@@ -26,6 +27,13 @@ const DEFAULT_NICKNAME = 'Learner'
 const DEFAULT_AVATAR_INITIAL = 'L'
 const PRACTICE_HELP_GUIDE_SEEN_KEY = 'waimao_practice_help_guide_seen_v1'
 
+type ContinueScene = {
+  id: string
+  chapterLabel: string
+  title: string
+  statusText: string
+}
+
 type IndexPageData = {
   userNickname: string
   avatarInitial: string
@@ -34,6 +42,7 @@ type IndexPageData = {
   completedCount: number
   courseCount: number
   chapters: ChapterListItem[]
+  continueScene: ContinueScene | null
   loading: boolean
   error: string | null
   scrollTop: number
@@ -67,6 +76,7 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
     completedCount: 0,
     courseCount: 0,
     chapters: [],
+    continueScene: null,
     loading: false,
     error: null,
     scrollTop: 0,
@@ -192,6 +202,9 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
     const avatarUrl = isAuthenticated ? (state.user?.avatarUrl?.trim() ?? '') : ''
     const chapters = applyProgressToChapters(chaptersOverride ?? this.data.chapters, state.progress, state.fullAccess)
     const sceneCount = courseCountOverride ?? countScenes(chapters)
+    const continueScene = isAuthenticated
+      ? findContinueScene(chapters, state.progress?.currentSceneId ?? null)
+      : null
     const completedCount = isAuthenticated ? state.progress?.totalCompleted ?? 0 : 0
     const streakCount = isAuthenticated ? state.progress?.streakCount ?? 0 : 0
     const home = state.appConfig.home
@@ -204,6 +217,7 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
       completedCount,
       courseCount: sceneCount,
       chapters,
+      continueScene,
       isAuthenticated,
       fullAccess: state.fullAccess,
       showUnlockPrompt: Boolean(home.unlockPromptEnabled) && !state.fullAccess,
@@ -485,6 +499,7 @@ function applyProgressToChapters(
 ) {
   const sceneProgress = new Map((progress?.scenes ?? []).map(item => [item.sceneId, item]))
   const completed = new Set(progress?.completedSceneIds ?? progress?.completedCourseIds ?? [])
+  const currentSceneId = progress?.currentSceneId ?? null
 
   return chapters.map(chapter => {
     const locked = !chapter.free && !fullAccess
@@ -494,6 +509,7 @@ function applyProgressToChapters(
       return {
         ...scene,
         locked,
+        isCurrent: currentSceneId === scene.id,
         status: done ? 'completed' as const : 'pending' as const,
         progress: progressItem,
       }
@@ -504,6 +520,23 @@ function applyProgressToChapters(
       scenes,
     }
   })
+}
+
+function findContinueScene(chapters: ChapterListItem[], sceneId: string | null): ContinueScene | null {
+  if (!sceneId) return null
+  for (const chapter of chapters) {
+    const scene = chapter.scenes.find(item => item.id === sceneId) as (ChapterSceneItem | undefined)
+    if (!scene || scene.locked) {
+      continue
+    }
+    return {
+      id: scene.id,
+      chapterLabel: chapter.label,
+      title: scene.title,
+      statusText: scene.status === 'completed' ? '上次完成，可复习' : '上次学到这里',
+    }
+  }
+  return null
 }
 
 function countScenes(chapters: ChapterListItem[]) {

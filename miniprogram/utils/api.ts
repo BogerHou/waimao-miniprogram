@@ -3,6 +3,7 @@ import { request } from './request'
 import { LocalCache, DictCache } from './storage'
 
 export type CourseStatus = 'completed' | 'pending'
+export type ProgressStatus = 'completed'
 
 export type CourseListItem = {
   id: string
@@ -35,6 +36,7 @@ export type ChapterSceneItem = {
   free: boolean
   locked?: boolean
   status?: CourseStatus
+  isCurrent?: boolean
   progress?: SceneProgress | null
 }
 
@@ -610,25 +612,49 @@ export function fetchUserProgress(): Promise<UserProgress> {
 
 export function buildUpdateProgressPayload(
   courseId: string,
-  status: 'completed',
+  status: ProgressStatus | null,
   options: UpdateProgressOptions = {},
 ) {
-  return {
+  const payload: {
+    sceneId: string
+    status?: ProgressStatus
+  } & UpdateProgressOptions = {
     sceneId: courseId,
-    status,
     ...options,
   }
+  if (status) {
+    payload.status = status
+  }
+  return payload
+}
+
+export function buildRecordProgressPayload(
+  courseId: string,
+  options: UpdateProgressOptions = {},
+) {
+  return buildUpdateProgressPayload(courseId, null, options)
 }
 
 export function updateUserProgress(
   courseId: string,
-  status: 'completed',
+  status: ProgressStatus,
   options: UpdateProgressOptions = {},
 ) {
   return request<UpdateProgressResponse>({
     url: `${WAIMAO_MINI_API_PREFIX}/users/me/progress`,
     method: 'POST',
     data: buildUpdateProgressPayload(courseId, status, options),
+  })
+}
+
+export function recordUserProgress(
+  courseId: string,
+  options: UpdateProgressOptions = {},
+) {
+  return request<UpdateProgressResponse>({
+    url: `${WAIMAO_MINI_API_PREFIX}/users/me/progress`,
+    method: 'POST',
+    data: buildRecordProgressPayload(courseId, options),
   })
 }
 

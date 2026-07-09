@@ -311,6 +311,9 @@ Page({
     scheduleCourseShareImage: (0, storage_1.debounce)(function () {
         void this.generateCourseShareImage();
     }, 280),
+    scheduleSceneProgressSync: (0, storage_1.debounce)(function () {
+        void this.syncCurrentSceneProgress('debounced');
+    }, 1200),
     getCourseShareSnippetText() {
         const currentSubtitleId = this.data.currentSubtitleId;
         if (currentSubtitleId) {
@@ -557,12 +560,14 @@ Page({
         this.handleForegroundReturn();
     },
     onHide() {
+        void this.syncCurrentSceneProgress('hide');
         void this.finalizeStudySession(false); // 使用防抖
         this.debugShadowBackground('onHide');
         this.handleBackgroundHandoff();
     },
     onUnload() {
         this.debugShadowBackground('onUnload');
+        void this.syncCurrentSceneProgress('unload');
         void this.finalizeStudySession(true); // 立即上报，不防抖
         this.stopBackgroundPlayback(true);
         this.destroyAudioContext();
@@ -662,6 +667,7 @@ Page({
                 this.setAudioLoading(false);
             }
             this.handleStoreUpdate((0, index_1.getState)());
+            void this.syncCurrentSceneProgress('load');
             this.scheduleCourseShareImage();
             const restoredFromBackgroundAudio = modePresentation.showPracticeControls && this.pendingBackgroundAudioRestore
                 ? this.restoreBackgroundAudioFromStorage()
@@ -683,6 +689,23 @@ Page({
                 error: message,
             });
             this.setAudioLoading(false);
+        }
+    },
+    async syncCurrentSceneProgress(_reason) {
+        const state = (0, index_1.getState)();
+        if (!state.token || !this.courseId || !this.data.course || this.data.loading) {
+            return;
+        }
+        try {
+            const response = await (0, api_1.recordUserProgress)(this.courseId, {
+                totalCues: this.data.subtitles.length,
+                cueIndex: this.getProgressCueIndex(),
+            });
+            (0, index_1.setUser)(response.user);
+            (0, index_1.setProgress)(response.progress);
+        }
+        catch (error) {
+            console.warn('[Progress] sync current scene failed', error);
         }
     },
     ensureAudioContext(src) {
@@ -1960,6 +1983,7 @@ Page({
                 currentSubtitleId: subtitle.id,
                 scrollIntoView: '',
             });
+            this.scheduleSceneProgressSync();
             this.centerSubtitle(subtitle.id);
             // Echo模式优先使用完整音频 + seek
             if (!this.usingFallbackAudio && this.data.course.audio) {
@@ -2050,6 +2074,7 @@ Page({
             currentSubtitleId: subtitle.id,
             scrollIntoView: '',
         });
+        this.scheduleSceneProgressSync();
         this.centerSubtitle(subtitle.id);
         if (this.stopTimer) {
             clearTimeout(this.stopTimer);
@@ -2277,6 +2302,7 @@ Page({
         this.setData({
             currentSubtitleId: targetSubtitleView.id,
         });
+        this.scheduleSceneProgressSync();
         this.activeSubtitle = targetSubtitle;
         this.centerSubtitle(targetSubtitleView.id);
         if (mode === 'shadow') {
@@ -2354,6 +2380,7 @@ Page({
                 currentSubtitleId: firstSubtitle.id,
                 scrollIntoView: '',
             });
+            this.scheduleSceneProgressSync();
             this.centerSubtitle(firstSubtitle.id);
         }
     },
@@ -2411,6 +2438,7 @@ Page({
                         currentSubtitleId: currentSubtitle.id,
                         scrollIntoView: '',
                     });
+                    this.scheduleSceneProgressSync();
                     this.centerSubtitle(currentSubtitle.id);
                 }
             }

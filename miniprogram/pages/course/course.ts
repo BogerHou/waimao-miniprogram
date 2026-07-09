@@ -3,6 +3,7 @@ import {
   CourseDetailResponse,
   SubtitleEntry,
   updateUserProgress,
+  recordUserProgress,
   reportStudyTime,
   fetchWordLookup,
   fetchWordBasics,
@@ -486,6 +487,9 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
   scheduleCourseShareImage: debounce(function (this: any) {
     void this.generateCourseShareImage()
   }, 280) as () => void,
+  scheduleSceneProgressSync: debounce(function (this: any) {
+    void this.syncCurrentSceneProgress('debounced')
+  }, 1200) as () => void,
 
   getCourseShareSnippetText() {
     const currentSubtitleId = this.data.currentSubtitleId
@@ -761,6 +765,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
   },
 
   onHide() {
+    void this.syncCurrentSceneProgress('hide')
     void this.finalizeStudySession(false) // 使用防抖
     this.debugShadowBackground('onHide')
     this.handleBackgroundHandoff()
@@ -768,6 +773,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
 
   onUnload() {
     this.debugShadowBackground('onUnload')
+    void this.syncCurrentSceneProgress('unload')
     void this.finalizeStudySession(true) // 立即上报，不防抖
     this.stopBackgroundPlayback(true)
     this.destroyAudioContext()
@@ -877,6 +883,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
         this.setAudioLoading(false)
       }
       this.handleStoreUpdate(getStoreState())
+      void this.syncCurrentSceneProgress('load')
       this.scheduleCourseShareImage()
       const restoredFromBackgroundAudio = modePresentation.showPracticeControls && this.pendingBackgroundAudioRestore
         ? this.restoreBackgroundAudioFromStorage()
@@ -899,6 +906,23 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
         error: message,
       })
       this.setAudioLoading(false)
+    }
+  },
+
+  async syncCurrentSceneProgress(_reason: string) {
+    const state = getStoreState()
+    if (!state.token || !this.courseId || !this.data.course || this.data.loading) {
+      return
+    }
+    try {
+      const response = await recordUserProgress(this.courseId, {
+        totalCues: this.data.subtitles.length,
+        cueIndex: this.getProgressCueIndex(),
+      })
+      updateUserInStore(response.user)
+      updateProgressInStore(response.progress)
+    } catch (error) {
+      console.warn('[Progress] sync current scene failed', error)
     }
   },
 
@@ -2300,6 +2324,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
         currentSubtitleId: subtitle.id,
         scrollIntoView: '',
       })
+      this.scheduleSceneProgressSync()
 
       this.centerSubtitle(subtitle.id)
 
@@ -2403,6 +2428,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
       currentSubtitleId: subtitle.id,
       scrollIntoView: '',
     })
+    this.scheduleSceneProgressSync()
 
     this.centerSubtitle(subtitle.id)
     if (this.stopTimer) {
@@ -2665,6 +2691,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     this.setData({
       currentSubtitleId: targetSubtitleView.id,
     })
+    this.scheduleSceneProgressSync()
     this.activeSubtitle = targetSubtitle
     this.centerSubtitle(targetSubtitleView.id)
 
@@ -2750,6 +2777,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
         currentSubtitleId: firstSubtitle.id,
         scrollIntoView: '',
       })
+      this.scheduleSceneProgressSync()
       this.centerSubtitle(firstSubtitle.id)
     }
   },
@@ -2814,6 +2842,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
             currentSubtitleId: currentSubtitle.id,
             scrollIntoView: '',
           })
+          this.scheduleSceneProgressSync()
           this.centerSubtitle(currentSubtitle.id)
         }
       }

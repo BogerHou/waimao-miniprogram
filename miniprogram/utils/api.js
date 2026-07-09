@@ -13,7 +13,9 @@ exports.logout = logout;
 exports.fetchCurrentUser = fetchCurrentUser;
 exports.fetchUserProgress = fetchUserProgress;
 exports.buildUpdateProgressPayload = buildUpdateProgressPayload;
+exports.buildRecordProgressPayload = buildRecordProgressPayload;
 exports.updateUserProgress = updateUserProgress;
+exports.recordUserProgress = recordUserProgress;
 exports.resetUserProgress = resetUserProgress;
 exports.reportStudyTime = reportStudyTime;
 exports.redeemInviteCode = redeemInviteCode;
@@ -336,17 +338,30 @@ function fetchUserProgress() {
     });
 }
 function buildUpdateProgressPayload(courseId, status, options = {}) {
-    return {
+    const payload = {
         sceneId: courseId,
-        status,
         ...options,
     };
+    if (status) {
+        payload.status = status;
+    }
+    return payload;
+}
+function buildRecordProgressPayload(courseId, options = {}) {
+    return buildUpdateProgressPayload(courseId, null, options);
 }
 function updateUserProgress(courseId, status, options = {}) {
     return (0, request_1.request)({
         url: `${WAIMAO_MINI_API_PREFIX}/users/me/progress`,
         method: 'POST',
         data: buildUpdateProgressPayload(courseId, status, options),
+    });
+}
+function recordUserProgress(courseId, options = {}) {
+    return (0, request_1.request)({
+        url: `${WAIMAO_MINI_API_PREFIX}/users/me/progress`,
+        method: 'POST',
+        data: buildRecordProgressPayload(courseId, options),
     });
 }
 function resetUserProgress() {

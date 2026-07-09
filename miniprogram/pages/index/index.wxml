@@ -45,6 +45,21 @@
 
   </view>
 
+  <view wx:if="{{continueScene}}" class="continue-card" data-id="{{continueScene.id}}" bindtap="goToDetail">
+    <view class="continue-card__mark">
+      <text class="continue-card__mark-text">▶</text>
+    </view>
+    <view class="continue-card__content">
+      <text class="continue-card__eyebrow">继续学习</text>
+      <text class="continue-card__title">{{continueScene.chapterLabel}} {{continueScene.title}}</text>
+      <text class="continue-card__desc">{{continueScene.statusText}}</text>
+    </view>
+    <view class="continue-card__cta">
+      <text>继续</text>
+      <text class="continue-card__arrow">→</text>
+    </view>
+  </view>
+
   <view wx:if="{{showUnlockPrompt}}" class="unlock-prompt" bindtap="goToUnlock">
     <view class="unlock-prompt__content">
       <text class="unlock-prompt__eyebrow">会员权益</text>
@@ -95,19 +110,20 @@
               </view>
 
               <view wx:if="{{expandedChapterId === item.id}}" class="scene-list">
-                <view
-                  wx:for="{{item.scenes}}"
-                  wx:for-item="scene"
-                  wx:key="id"
-                  class="scene-item {{scene.status === 'completed' ? 'scene-item--completed' : ''}} {{scene.locked ? 'scene-item--locked' : ''}}"
-                  data-id="{{scene.id}}"
-                  bindtap="goToDetail"
-                  id="course-{{scene.id}}"
+	                <view
+	                  wx:for="{{item.scenes}}"
+	                  wx:for-item="scene"
+	                  wx:key="id"
+	                  class="scene-item {{scene.status === 'completed' ? 'scene-item--completed' : ''}} {{scene.locked ? 'scene-item--locked' : ''}} {{scene.isCurrent ? 'scene-item--current' : ''}}"
+	                  data-id="{{scene.id}}"
+	                  bindtap="goToDetail"
+	                  id="course-{{scene.id}}"
                 >
-                  <view class="scene-item__index">{{scene.index}}</view>
-                  <view class="scene-item__body">
-                    <text class="scene-item__title">{{scene.title}}</text>
-                  </view>
+	                  <view class="scene-item__index">{{scene.index}}</view>
+	                  <view class="scene-item__body">
+	                    <text class="scene-item__title">{{scene.title}}</text>
+	                    <text wx:if="{{scene.isCurrent && scene.status !== 'completed'}}" class="scene-item__badge">上次学到</text>
+	                  </view>
                   <view wx:if="{{scene.status === 'completed'}}" class="scene-item__status scene-item__status--done">✓</view>
                   <view wx:elif="{{scene.locked}}" class="scene-item__status scene-item__status--locked">🔒</view>
                   <text wx:else class="scene-item__arrow">→</text>

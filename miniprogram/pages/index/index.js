@@ -22,6 +22,7 @@ Page({
         completedCount: 0,
         courseCount: 0,
         chapters: [],
+        continueScene: null,
         loading: false,
         error: null,
         scrollTop: 0,
@@ -140,6 +141,9 @@ Page({
         const avatarUrl = isAuthenticated ? (state.user?.avatarUrl?.trim() ?? '') : '';
         const chapters = applyProgressToChapters(chaptersOverride ?? this.data.chapters, state.progress, state.fullAccess);
         const sceneCount = courseCountOverride ?? countScenes(chapters);
+        const continueScene = isAuthenticated
+            ? findContinueScene(chapters, state.progress?.currentSceneId ?? null)
+            : null;
         const completedCount = isAuthenticated ? state.progress?.totalCompleted ?? 0 : 0;
         const streakCount = isAuthenticated ? state.progress?.streakCount ?? 0 : 0;
         const home = state.appConfig.home;
@@ -151,6 +155,7 @@ Page({
             completedCount,
             courseCount: sceneCount,
             chapters,
+            continueScene,
             isAuthenticated,
             fullAccess: state.fullAccess,
             showUnlockPrompt: Boolean(home.unlockPromptEnabled) && !state.fullAccess,
@@ -426,6 +431,7 @@ function normalizeProgress(progress) {
 function applyProgressToChapters(chapters, progress, fullAccess) {
     const sceneProgress = new Map((progress?.scenes ?? []).map(item => [item.sceneId, item]));
     const completed = new Set(progress?.completedSceneIds ?? progress?.completedCourseIds ?? []);
+    const currentSceneId = progress?.currentSceneId ?? null;
     return chapters.map(chapter => {
         const locked = !chapter.free && !fullAccess;
         const scenes = chapter.scenes.map(scene => {
@@ -434,6 +440,7 @@ function applyProgressToChapters(chapters, progress, fullAccess) {
             return {
                 ...scene,
                 locked,
+                isCurrent: currentSceneId === scene.id,
                 status: done ? 'completed' : 'pending',
                 progress: progressItem,
             };
@@ -444,6 +451,23 @@ function applyProgressToChapters(chapters, progress, fullAccess) {
             scenes,
         };
     });
+}
+function findContinueScene(chapters, sceneId) {
+    if (!sceneId)
+        return null;
+    for (const chapter of chapters) {
+        const scene = chapter.scenes.find(item => item.id === sceneId);
+        if (!scene || scene.locked) {
+            continue;
+        }
+        return {
+            id: scene.id,
+            chapterLabel: chapter.label,
+            title: scene.title,
+            statusText: scene.status === 'completed' ? '上次完成，可复习' : '上次学到这里',
+        };
+    }
+    return null;
 }
 function countScenes(chapters) {
     return chapters.reduce((sum, chapter) => sum + chapter.scenes.length, 0);

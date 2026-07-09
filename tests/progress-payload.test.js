@@ -16,5 +16,16 @@ function testBuildsSceneProgressPayloadWithCuePosition() {
         totalCues: 6,
     });
 }
+function testBuildsCurrentSceneProgressPayloadWithoutCompletionStatus() {
+    strict_1.default.deepEqual((0, api_1.buildRecordProgressPayload)("chapter-01-scene-02", {
+        cueIndex: 2,
+        totalCues: 6,
+    }), {
+        sceneId: "chapter-01-scene-02",
+        cueIndex: 2,
+        totalCues: 6,
+    });
+}
 testBuildsSceneProgressPayloadWithCuePosition();
+testBuildsCurrentSceneProgressPayloadWithoutCompletionStatus();
 console.log("progress payload tests passed.");
