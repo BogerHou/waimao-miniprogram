@@ -7,6 +7,7 @@ export type SharePosterCard = {
 
 export const SHARE_POSTER_WIDTH = 600
 export const SHARE_POSTER_HEIGHT = 840
+export const SHARE_POSTER_ICON_PATH = '/assets/images/icon.png'
 
 export function drawShareRoundedRect(
   ctx: WechatMiniprogram.CanvasContext,
@@ -87,6 +88,34 @@ export function drawShareWrappedText(
   })
 }
 
+export function drawShareBrandFooter(
+  ctx: WechatMiniprogram.CanvasContext,
+  _width: number,
+  height: number,
+  tagline: string,
+  accentColor = '#2563EB',
+) {
+  const iconSize = 58
+  const iconX = 72
+  const iconY = height - 160
+  let textX = iconX
+
+  try {
+    ctx.drawImage(SHARE_POSTER_ICON_PATH, iconX, iconY, iconSize, iconSize)
+    textX = iconX + iconSize + 18
+  } catch (_error) {
+    textX = iconX
+  }
+
+  ctx.setFillStyle('#94A3B8')
+  ctx.setFontSize(22)
+  ctx.fillText('外贸英语影子跟读', textX, height - 134)
+
+  ctx.setFillStyle(accentColor)
+  ctx.setFontSize(26)
+  ctx.fillText(tagline, textX, height - 88)
+}
+
 export async function renderSharePoster(
   scope: WechatMiniprogram.Page.Instance<any, any> | WechatMiniprogram.Component.Instance<any, any, any, any>,
   canvasId: string,
@@ -137,13 +166,7 @@ export async function renderSharePoster(
   ctx.setFontSize(30)
   drawShareWrappedText(ctx, card.snippet, 104, 378, width - 208, 48, 4)
 
-  ctx.setFillStyle('#94A3B8')
-  ctx.setFontSize(22)
-  ctx.fillText('外贸英语影子跟读', 72, height - 134)
-
-  ctx.setFillStyle('#2563EB')
-  ctx.setFontSize(26)
-  ctx.fillText('打开小程序，继续学习英语听力', 72, height - 88)
+  drawShareBrandFooter(ctx, width, height, '打开小程序，继续学习英语听力')
 
   await new Promise<void>(resolve => {
     ctx.draw(false, () => resolve())

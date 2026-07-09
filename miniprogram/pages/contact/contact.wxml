@@ -3,7 +3,7 @@
 <view class="container">
   <view class="contact-card">
     <view class="card-header">
-      <view class="header-icon">💬</view>
+      <image class="header-icon" src="/assets/images/icon.png" mode="aspectFill"></image>
       <text class="header-title">加入外贸英语打卡群</text>
       <text class="header-desc">一起练外贸沟通场景，持续打卡影子跟读</text>
     </view>

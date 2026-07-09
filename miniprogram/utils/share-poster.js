@@ -1,11 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SHARE_POSTER_HEIGHT = exports.SHARE_POSTER_WIDTH = void 0;
+exports.SHARE_POSTER_ICON_PATH = exports.SHARE_POSTER_HEIGHT = exports.SHARE_POSTER_WIDTH = void 0;
 exports.drawShareRoundedRect = drawShareRoundedRect;
 exports.drawShareWrappedText = drawShareWrappedText;
+exports.drawShareBrandFooter = drawShareBrandFooter;
 exports.renderSharePoster = renderSharePoster;
 exports.SHARE_POSTER_WIDTH = 600;
 exports.SHARE_POSTER_HEIGHT = 840;
+exports.SHARE_POSTER_ICON_PATH = '/assets/images/icon.png';
 function drawShareRoundedRect(ctx, x, y, width, height, radius, fillColor) {
     const safeRadius = Math.max(0, Math.min(radius, width / 2, height / 2));
     ctx.beginPath();
@@ -60,6 +62,25 @@ function drawShareWrappedText(ctx, text, x, y, maxWidth, lineHeight, maxLines) {
         ctx.fillText(line, x, y + index * lineHeight);
     });
 }
+function drawShareBrandFooter(ctx, _width, height, tagline, accentColor = '#2563EB') {
+    const iconSize = 58;
+    const iconX = 72;
+    const iconY = height - 160;
+    let textX = iconX;
+    try {
+        ctx.drawImage(exports.SHARE_POSTER_ICON_PATH, iconX, iconY, iconSize, iconSize);
+        textX = iconX + iconSize + 18;
+    }
+    catch (_error) {
+        textX = iconX;
+    }
+    ctx.setFillStyle('#94A3B8');
+    ctx.setFontSize(22);
+    ctx.fillText('外贸英语影子跟读', textX, height - 134);
+    ctx.setFillStyle(accentColor);
+    ctx.setFontSize(26);
+    ctx.fillText(tagline, textX, height - 88);
+}
 async function renderSharePoster(scope, canvasId, card, accentLabel) {
     const ctx = wx.createCanvasContext(canvasId, scope);
     const width = exports.SHARE_POSTER_WIDTH;
@@ -96,12 +117,7 @@ async function renderSharePoster(scope, canvasId, card, accentLabel) {
     ctx.setFillStyle('#1F2937');
     ctx.setFontSize(30);
     drawShareWrappedText(ctx, card.snippet, 104, 378, width - 208, 48, 4);
-    ctx.setFillStyle('#94A3B8');
-    ctx.setFontSize(22);
-    ctx.fillText('外贸英语影子跟读', 72, height - 134);
-    ctx.setFillStyle('#2563EB');
-    ctx.setFontSize(26);
-    ctx.fillText('打开小程序，继续学习英语听力', 72, height - 88);
+    drawShareBrandFooter(ctx, width, height, '打开小程序，继续学习英语听力');
     await new Promise(resolve => {
         ctx.draw(false, () => resolve());
     });

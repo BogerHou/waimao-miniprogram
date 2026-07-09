@@ -34,6 +34,7 @@ npm test
 - 知识点页不要把 `background / phrases / correction / notes` 直接作为整块纯文本输出；词汇行要解析成术语与释义，Chinglish Correction 要拆成题干、Chinglish 和 Native English 对照块。
 - 课程详情页字幕角色分色不能只依赖左边线；卡片边框、浅底色和播放态都要保留同一说话人的稳定颜色。英文短句行距保持紧凑，避免换行后像被拆成多段。
 - 解锁页默认读取服务端静态图 `/static/images/waimao-purchase-wechat-qr.jpg`，交流页读取 `/static/images/waimao-community-qr.jpg`；图片和 EnglishPod 一样由服务端维护，后续替换服务器文件即可生效。
+- 小程序品牌图标放在 `miniprogram/assets/images/icon.png`；分享海报和联系页使用这份本地资源。后台播放封面和默认分享图走服务端 `/static/images/icon.png`，需要在 `englishpod-server` 同步维护。
 - 不新增营销 landing page，不随意扩大装饰视觉。
 
 ## 测试策略

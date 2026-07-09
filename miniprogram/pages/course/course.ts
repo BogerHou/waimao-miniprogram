@@ -23,6 +23,7 @@ import {
   buildTimelineShare,
   enablePageShareMenu,
 } from '../../utils/share'
+import { drawShareBrandFooter } from '../../utils/share-poster'
 import {
   BACKGROUND_AUDIO_RESUME_KEY,
   BackgroundAudioResumeState,
@@ -565,13 +566,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     ctx.setFontSize(30)
     drawShareWrappedText(ctx, card.snippet, 104, 378, width - 208, 48, 4)
 
-    ctx.setFillStyle('#94A3B8')
-    ctx.setFontSize(22)
-    ctx.fillText('外贸英语影子跟读', 72, height - 134)
-
-    ctx.setFillStyle('#3B82F6')
-    ctx.setFontSize(26)
-    ctx.fillText('打开小程序，继续当前课程', 72, height - 88)
+    drawShareBrandFooter(ctx, width, height, '打开小程序，继续当前课程', '#3B82F6')
 
     try {
       await new Promise<void>(resolve => {

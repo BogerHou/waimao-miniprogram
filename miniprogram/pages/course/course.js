@@ -5,6 +5,7 @@ const env_1 = require("../../config/env");
 const storage_1 = require("../../utils/storage");
 const index_1 = require("../../store/index");
 const share_1 = require("../../utils/share");
+const share_poster_1 = require("../../utils/share-poster");
 const shadow_background_handoff_1 = require("./shadow-background-handoff");
 const audio_source_fallback_1 = require("./audio-source-fallback");
 const course_share_card_1 = require("./course-share-card");
@@ -371,12 +372,7 @@ Page({
         ctx.setFillStyle('#1F2937');
         ctx.setFontSize(30);
         drawShareWrappedText(ctx, card.snippet, 104, 378, width - 208, 48, 4);
-        ctx.setFillStyle('#94A3B8');
-        ctx.setFontSize(22);
-        ctx.fillText('外贸英语影子跟读', 72, height - 134);
-        ctx.setFillStyle('#3B82F6');
-        ctx.setFontSize(26);
-        ctx.fillText('打开小程序，继续当前课程', 72, height - 88);
+        (0, share_poster_1.drawShareBrandFooter)(ctx, width, height, '打开小程序，继续当前课程', '#3B82F6');
         try {
             await new Promise(resolve => {
                 ctx.draw(false, () => resolve());
