@@ -330,11 +330,11 @@ page {
 // 字幕条目
 // ============================================
 .subtitle-item {
-  padding: 28rpx 24rpx;
+  padding: 26rpx 24rpx 24rpx;
   margin-bottom: 16rpx;
   background: #FFFFFF;
   border: 2rpx solid @border-color;
-  border-left-width: 8rpx;
+  border-left-width: 10rpx;
   border-radius: 16rpx;
   transition: all 0.2s;
 
@@ -349,33 +349,75 @@ page {
   }
 
   &.dialogue-tone-0 {
-    border-left-color: #818cf8;
-    background: #fbfbff;
+    border-color: #c7d2fe;
+    border-left-color: #6366f1;
+    background: #f4f5ff;
+
+    &.active {
+      border-color: #818cf8;
+      border-left-color: #4f46e5;
+      background: #eef2ff;
+    }
   }
 
   &.dialogue-tone-1 {
-    border-left-color: #60a5fa;
-    background: #f8fbff;
+    border-color: #fed7aa;
+    border-left-color: #f97316;
+    background: #fff7ed;
+
+    &.active {
+      border-color: #fb923c;
+      border-left-color: #ea580c;
+      background: #ffedd5;
+    }
   }
 
   &.dialogue-tone-2 {
-    border-left-color: #34d399;
-    background: #f8fffb;
+    border-color: #bbf7d0;
+    border-left-color: #10b981;
+    background: #f0fdf4;
+
+    &.active {
+      border-color: #34d399;
+      border-left-color: #059669;
+      background: #dcfce7;
+    }
   }
 
   &.dialogue-tone-3 {
-    border-left-color: #fb923c;
-    background: #fffaf5;
+    border-color: #bae6fd;
+    border-left-color: #0284c7;
+    background: #f0f9ff;
+
+    &.active {
+      border-color: #38bdf8;
+      border-left-color: #0369a1;
+      background: #e0f2fe;
+    }
   }
 
   &.dialogue-tone-4 {
-    border-left-color: #f472b6;
-    background: #fff8fc;
+    border-color: #fecdd3;
+    border-left-color: #e11d48;
+    background: #fff1f2;
+
+    &.active {
+      border-color: #fb7185;
+      border-left-color: #be123c;
+      background: #ffe4e6;
+    }
   }
 
   &.dialogue-tone-5 {
-    border-left-color: #94a3b8;
-    background: #fbfdff;
+    border-color: #cbd5e1;
+    border-left-color: #64748b;
+    background: #f8fafc;
+
+    &.active {
+      border-color: #94a3b8;
+      border-left-color: #475569;
+      background: #f1f5f9;
+    }
   }
 }
 
@@ -383,26 +425,28 @@ page {
   display: block;
   font-size: 32rpx;
   color: @text-primary;
-  line-height: 1.7;
+  line-height: 1.4;
   white-space: pre-line;
-  margin-bottom: 16rpx;
-  font-weight: 500;
+  margin-bottom: 14rpx;
+  font-weight: 600;
 }
 
 .subtitle-translation {
   display: block;
   font-size: 28rpx;
   color: @text-secondary;
-  line-height: 1.7;
-  padding-top: 16rpx;
+  line-height: 1.55;
+  padding-top: 14rpx;
   border-top: 1rpx solid @border-color;
 }
 
 .subtitle-word {
   display: inline-block;
   color: @text-primary;
+  line-height: 1.4;
   font-weight: 600;
   border-bottom: 2rpx solid transparent;
+  vertical-align: baseline;
 
   &:active {
     background: @active-bg;
@@ -412,6 +456,7 @@ page {
 
 .subtitle-token {
   color: @text-primary;
+  line-height: 1.4;
 }
 
 .subtitle-text-raw {

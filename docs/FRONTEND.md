@@ -31,6 +31,7 @@ npm test
 - 首页解锁提示是轻量会员入口，不做网页式营销横幅；文案优先说明“全部章节 1 年访问权”和邀请码路径。
 - 课程详情页保持 EnglishPod 的 Shadow/Echo 跟读布局。
 - 课程详情页和知识点页共用对话拆句规则；课程页会把长字幕拆成多个短 cue，并在原 cue 时间范围内按句子长度估算 start/end，保证点击短句时播放对应短句范围。
+- 课程详情页字幕角色分色不能只依赖左边线；卡片边框、浅底色和播放态都要保留同一说话人的稳定颜色。英文短句行距保持紧凑，避免换行后像被拆成多段。
 - 解锁页默认读取服务端静态图 `/static/images/waimao-purchase-wechat-qr.jpg`，交流页读取 `/static/images/waimao-community-qr.jpg`；图片和 EnglishPod 一样由服务端维护，后续替换服务器文件即可生效。
 - 不新增营销 landing page，不随意扩大装饰视觉。
 
