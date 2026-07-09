@@ -16,31 +16,52 @@
   </view>
 
   <view wx:else class="unlock-card">
-    <view class="wechat-card__qr-wrap" bindtap="previewContactQr">
-      <image
-        wx:if="{{contactQrUrl}}"
-        class="wechat-card__qr"
-        src="{{contactQrUrl}}"
-        mode="widthFix"
-        show-menu-by-longpress="{{true}}"
-      />
-      <view wx:else class="wechat-card__qr-placeholder">微信二维码</view>
+    <view class="unlock-hero">
+      <text class="unlock-hero__badge">会员权益</text>
+      <text class="unlock-hero__title">解锁完整外贸英语影子跟读</text>
+      <text class="unlock-hero__desc">开通后 1 年内学习全部 7 章，从外贸场景对话到 Shadow 跟读完整开放。</text>
     </view>
-    <text class="wechat-card__title">{{contactTitle}}</text>
-    <text class="wechat-card__tip">{{contactTip}}</text>
 
     <view class="member-benefits">
       <view class="member-benefit">
-        <text class="member-benefit__label">全部章节</text>
-        <text class="member-benefit__value">7 章开放</text>
+        <text class="member-benefit__mark">01</text>
+        <view class="member-benefit__body">
+          <text class="member-benefit__value">全部课程开放</text>
+          <text class="member-benefit__label">解锁后 6 章，完整学习 7 章外贸场景。</text>
+        </view>
       </view>
       <view class="member-benefit">
-        <text class="member-benefit__label">访问期限</text>
-        <text class="member-benefit__value">1 年</text>
+        <text class="member-benefit__mark">02</text>
+        <view class="member-benefit__body">
+          <text class="member-benefit__value">1 年访问权限</text>
+          <text class="member-benefit__label">365 天内不限次数复习，学习进度持续保留。</text>
+        </view>
+      </view>
+      <view class="member-benefit">
+        <text class="member-benefit__mark">03</text>
+        <view class="member-benefit__body">
+          <text class="member-benefit__value">完整跟读体验</text>
+          <text class="member-benefit__label">短句播放、角色分色、知识点和 Shadow 跟读同步使用。</text>
+        </view>
       </view>
     </view>
 
     <view class="unlock-divider"></view>
+
+    <view class="wechat-card">
+      <view class="wechat-card__qr-wrap" bindtap="previewContactQr">
+        <image
+          wx:if="{{contactQrUrl}}"
+          class="wechat-card__qr"
+          src="{{contactQrUrl}}"
+          mode="widthFix"
+          show-menu-by-longpress="{{true}}"
+        />
+        <view wx:else class="wechat-card__qr-placeholder">微信二维码</view>
+      </view>
+      <text class="wechat-card__title">{{contactTitle}}</text>
+      <text class="wechat-card__tip">{{contactTip}}</text>
+    </view>
 
     <input
       class="unlock-input"
