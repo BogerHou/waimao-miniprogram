@@ -21,7 +21,7 @@ function testInitializeStoreDefaultsShadowModeToInvisible() {
     strict_1.default.equal((0, index_1.getState)().appConfig.home.unlockPromptEnabled, true);
     strict_1.default.equal((0, index_1.getState)().appConfig.home.activeAdId, "waimao-mini-unlock");
     strict_1.default.equal((0, index_1.getState)().appConfig.home.ads?.[0]?.id, "waimao-mini-unlock");
-    strict_1.default.equal((0, index_1.getState)().appConfig.home.ads?.[0]?.contactQrUrl, "/static/images/community-qr.png");
+    strict_1.default.equal((0, index_1.getState)().appConfig.home.ads?.[0]?.contactQrUrl, "/static/images/waimao-purchase-wechat-qr.jpg");
 }
 function testSetAppConfigUpdatesShadowModeFlag() {
     (0, index_1.setAppConfig)({

@@ -69,7 +69,7 @@
       <image
         class="wechat-card__qr"
         src="{{contactQrUrl}}"
-        mode="aspectFit"
+        mode="widthFix"
         show-menu-by-longpress="{{true}}"
         bindtap="previewContactQr"
       />

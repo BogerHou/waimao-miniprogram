@@ -45,10 +45,10 @@ export const DEFAULT_HOME_AD = {
   trialDescription: '添加微信购买邀请码，输入后解锁后 6 章。',
   targetUrl: '',
   ctaText: '去解锁',
-  contactQrUrl: '/static/images/community-qr.png',
-  contactTitle: '添加微信购买会员邀请码',
-  contactDescription: '扫码添加微信购买邀请码。',
-  contactTip: '长按识别二维码',
+  contactQrUrl: '/static/images/waimao-purchase-wechat-qr.jpg',
+  contactTitle: '扫码添加微信购买邀请码',
+  contactDescription: '添加微信购买会员邀请码，输入后开通全部章节 1 年访问权。',
+  contactTip: '点击预览，长按识别二维码',
 }
 
 export const DEFAULT_APP_CONFIG: AppConfigResponse = {

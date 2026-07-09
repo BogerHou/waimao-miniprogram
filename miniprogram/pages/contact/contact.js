@@ -4,9 +4,10 @@ const env_1 = require("../../config/env");
 const share_1 = require("../../utils/share");
 const share_card_1 = require("../../utils/share-card");
 const share_poster_1 = require("../../utils/share-poster");
+const COMMUNITY_QR_URL = `${env_1.API_BASE_URL}/static/images/waimao-community-qr.jpg`;
 Page({
     data: {
-        qrCodeUrl: `${env_1.API_BASE_URL}/static/images/community-qr.png`,
+        qrCodeUrl: COMMUNITY_QR_URL,
         shareImageUrl: ''
     },
     onLoad() {

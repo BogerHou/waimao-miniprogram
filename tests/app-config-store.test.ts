@@ -19,7 +19,7 @@ function testInitializeStoreDefaultsShadowModeToInvisible() {
   assert.equal(getState().appConfig.home.unlockPromptEnabled, true)
   assert.equal(getState().appConfig.home.activeAdId, "waimao-mini-unlock")
   assert.equal(getState().appConfig.home.ads?.[0]?.id, "waimao-mini-unlock")
-  assert.equal(getState().appConfig.home.ads?.[0]?.contactQrUrl, "/static/images/community-qr.png")
+  assert.equal(getState().appConfig.home.ads?.[0]?.contactQrUrl, "/static/images/waimao-purchase-wechat-qr.jpg")
 }
 
 function testSetAppConfigUpdatesShadowModeFlag() {

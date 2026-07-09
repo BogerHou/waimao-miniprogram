@@ -12,14 +12,15 @@
       <image 
         class="qr-code" 
         src="{{qrCodeUrl}}" 
-        mode="aspectFit" 
+        mode="widthFix"
+        show-menu-by-longpress="{{true}}"
         bindtap="previewQRCode"
       />
-      <text class="qr-tip">点击预览二维码，长按识别加入</text>
+      <text class="qr-tip">点击预览，长按识别加入交流群</text>
     </view>
 
     <view class="action-section">
-      <button class="btn btn-primary" bindtap="previewQRCode">预览二维码</button>
+      <button class="btn btn-primary" bindtap="previewQRCode">查看二维码</button>
     </view>
   </view>
 </view>

@@ -119,22 +119,6 @@
           </view>
         </view>
 
-        <!-- Complete Button -->
-        <view class="complete-section" wx:if="{{subtitles.length}}">
-          <button
-            wx:if="{{status !== 'completed'}}"
-            class="complete-btn"
-            loading="{{actionLoading}}"
-            disabled="{{actionLoading}}"
-            bindtap="handleMarkCompleted"
-          >
-            完成课程
-          </button>
-          <view wx:else class="completed-card">
-            <text class="completed-icon">🎉</text>
-            <text class="completed-text">已完成</text>
-          </view>
-        </view>
       </scroll-view>
       <view
         wx:if="{{wordPopupVisible}}"

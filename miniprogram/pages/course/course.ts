@@ -233,8 +233,6 @@ type CourseRange = {
   end: number
 }
 
-type CourseStatus = 'completed' | 'pending'
-
 type CoursePageData = {
   course: CourseSummary | null
   subtitles: ViewSubtitle[]
@@ -245,8 +243,6 @@ type CoursePageData = {
   scrollIntoView: string
   scrollTop: number
   leadText: string
-  status: CourseStatus
-  actionLoading: boolean
   playMode: 'shadow' | 'echo'
   playbackRate: number
   showSpeedModal: boolean
@@ -314,8 +310,6 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     scrollIntoView: '',
     scrollTop: 0,
     leadText: '',
-    status: 'pending',
-    actionLoading: false,
     playMode: 'echo',
     playbackRate: 1,
     showSpeedModal: false,
@@ -390,6 +384,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     | null,
   courseRange: null as CourseRange | null,
   knowledgeContext: '',
+  completionSyncing: false,
 
   debugShadowBackground(stage: string, extra?: Record<string, unknown>) {
     const manager = this.backgroundAudioManager as any
@@ -445,6 +440,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
       audioLoading: false,
     })
     this.lastKnownCourseTime = this.courseRange?.end ?? this.lastKnownCourseTime
+    void this.markSceneCompleted('scene-end')
     if (showToast) {
       wx.showToast({
         title: '本小节播放完成',
@@ -613,6 +609,10 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     this.lastEchoCompletion = {
       subtitleId: this.activeSubtitle.id,
       courseTime: completionTime,
+    }
+    const subtitleIndex = this.data.subtitles.findIndex(subtitle => subtitle.id === this.activeSubtitle?.id)
+    if (this.data.subtitles.length > 0 && subtitleIndex === this.data.subtitles.length - 1) {
+      void this.markSceneCompleted('echo-last-subtitle')
     }
     console.log('[Audio] 记录 Echo 完成进度', {
       reason,
@@ -906,6 +906,27 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
         error: message,
       })
       this.setAudioLoading(false)
+    }
+  },
+
+  async markSceneCompleted(_reason: string) {
+    const state = getStoreState()
+    if (!state.token || !this.courseId || !this.data.course || this.completionSyncing) {
+      return
+    }
+    this.completionSyncing = true
+    try {
+      const response = await updateUserProgress(
+        this.courseId,
+        'completed',
+        this.buildCompletionProgressPayload(),
+      )
+      updateUserInStore(response.user)
+      updateProgressInStore(response.progress)
+    } catch (error) {
+      console.warn('[Progress] auto complete scene failed', error)
+    } finally {
+      this.completionSyncing = false
     }
   },
 
@@ -1891,8 +1912,6 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
   },
 
   handleStoreUpdate(state: StoreState) {
-    const progress = state.progress
-    const status = computeStatus(progress, this.courseId)
     const modePresentation = resolveCourseModePresentation({
       currentPlayMode: this.data.playMode,
       shadowModeEnabled: state.appConfig.courseDetail.shadowModeEnabled,
@@ -1921,7 +1940,6 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     }
 
     this.setData({
-      status,
       showModeSelector: modePresentation.showModeSelector,
       showShadowMode: modePresentation.showShadowMode,
       showPracticeControls: modePresentation.showPracticeControls,
@@ -3274,60 +3292,6 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     }
   },
 
-  async handleMarkCompleted() {
-    if (!this.courseId || this.data.actionLoading) {
-      return
-    }
-    const app = getApp<IAppOption>()
-    try {
-      if (typeof app.ensureAuth === 'function') {
-        await app.ensureAuth()
-      }
-    } catch (error) {
-      wx.showToast({
-        title: '请先登录后再试',
-        icon: 'none',
-      })
-      return
-    }
-
-    this.setData({
-      actionLoading: true,
-    })
-    try {
-      const response = await updateUserProgress(
-        this.courseId,
-        'completed',
-        this.buildCompletionProgressPayload(),
-      )
-      updateUserInStore(response.user)
-      updateProgressInStore(response.progress)
-      this.handleStoreUpdate(getStoreState())
-
-      // 完成后播放反馈
-      wx.vibrateShort({
-        type: 'heavy',
-        success() { },
-        fail() { },
-      })
-
-      wx.showToast({
-        title: '已标记完成',
-        icon: 'success',
-      })
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : '更新进度失败，请稍后重试'
-      wx.showToast({
-        title: message,
-        icon: 'none',
-      })
-    } finally {
-      this.setData({
-        actionLoading: false,
-      })
-    }
-  },
 })
 
 function normalizeCourseRange(detail: CourseDetailResponse, subtitles: ViewSubtitle[]): CourseRange | null {
@@ -3435,14 +3399,4 @@ function tokenizeSubtitle(text: string): SubtitleToken[] {
   }
 
   return tokens
-}
-
-function computeStatus(progress: StoreState['progress'], courseId: string): CourseStatus {
-  if (!progress) {
-    return 'pending'
-  }
-  if (progress.completedCourseIds?.includes(courseId)) {
-    return 'completed'
-  }
-  return 'pending'
 }

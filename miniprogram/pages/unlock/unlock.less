@@ -74,26 +74,27 @@ page {
 }
 
 .wechat-card__qr-wrap {
-  width: 360rpx;
-  height: 360rpx;
+  width: 520rpx;
+  max-width: 100%;
   align-self: center;
   border-radius: 16rpx;
   background: #ffffff;
   border: 1rpx solid @border;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   overflow: hidden;
 }
 
 .wechat-card__qr {
-  width: 332rpx;
-  height: 332rpx;
+  display: block;
+  width: 100%;
 }
 
 .wechat-card__qr-placeholder {
+  min-height: 360rpx;
   color: @text-tertiary;
   font-size: 25rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .wechat-card__tip {

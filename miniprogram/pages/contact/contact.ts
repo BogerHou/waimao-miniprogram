@@ -7,9 +7,11 @@ import {
 import { buildContactShareCardModel } from '../../utils/share-card'
 import { renderSharePoster } from '../../utils/share-poster'
 
+const COMMUNITY_QR_URL = `${API_BASE_URL}/static/images/waimao-community-qr.jpg`
+
 Page({
     data: {
-        qrCodeUrl: `${API_BASE_URL}/static/images/community-qr.png`,
+        qrCodeUrl: COMMUNITY_QR_URL,
         shareImageUrl: ''
     },
 

@@ -151,8 +151,6 @@ Page({
         scrollIntoView: '',
         scrollTop: 0,
         leadText: '',
-        status: 'pending',
-        actionLoading: false,
         playMode: 'echo',
         playbackRate: 1,
         showSpeedModal: false,
@@ -225,6 +223,7 @@ Page({
     wordPopupBounds: null,
     courseRange: null,
     knowledgeContext: '',
+    completionSyncing: false,
     debugShadowBackground(stage, extra) {
         const manager = this.backgroundAudioManager;
         console.log('[ShadowBG]', stage, {
@@ -275,6 +274,7 @@ Page({
             audioLoading: false,
         });
         this.lastKnownCourseTime = this.courseRange?.end ?? this.lastKnownCourseTime;
+        void this.markSceneCompleted('scene-end');
         if (showToast) {
             wx.showToast({
                 title: '本小节播放完成',
@@ -418,6 +418,10 @@ Page({
             subtitleId: this.activeSubtitle.id,
             courseTime: completionTime,
         };
+        const subtitleIndex = this.data.subtitles.findIndex(subtitle => subtitle.id === this.activeSubtitle?.id);
+        if (this.data.subtitles.length > 0 && subtitleIndex === this.data.subtitles.length - 1) {
+            void this.markSceneCompleted('echo-last-subtitle');
+        }
         console.log('[Audio] 记录 Echo 完成进度', {
             reason,
             subtitleId: this.activeSubtitle.id,
@@ -689,6 +693,24 @@ Page({
                 error: message,
             });
             this.setAudioLoading(false);
+        }
+    },
+    async markSceneCompleted(_reason) {
+        const state = (0, index_1.getState)();
+        if (!state.token || !this.courseId || !this.data.course || this.completionSyncing) {
+            return;
+        }
+        this.completionSyncing = true;
+        try {
+            const response = await (0, api_1.updateUserProgress)(this.courseId, 'completed', this.buildCompletionProgressPayload());
+            (0, index_1.setUser)(response.user);
+            (0, index_1.setProgress)(response.progress);
+        }
+        catch (error) {
+            console.warn('[Progress] auto complete scene failed', error);
+        }
+        finally {
+            this.completionSyncing = false;
         }
     },
     async syncCurrentSceneProgress(_reason) {
@@ -1586,8 +1608,6 @@ Page({
         }
     },
     handleStoreUpdate(state) {
-        const progress = state.progress;
-        const status = computeStatus(progress, this.courseId);
         const modePresentation = (0, course_mode_config_1.resolveCourseModePresentation)({
             currentPlayMode: this.data.playMode,
             shadowModeEnabled: state.appConfig.courseDetail.shadowModeEnabled,
@@ -1612,7 +1632,6 @@ Page({
             this.setAudioLoading(false);
         }
         this.setData({
-            status,
             showModeSelector: modePresentation.showModeSelector,
             showShadowMode: modePresentation.showShadowMode,
             showPracticeControls: modePresentation.showPracticeControls,
@@ -2818,55 +2837,6 @@ Page({
             console.log(`[Speed] 已设置 playbackRate = ${speed}`);
         }
     },
-    async handleMarkCompleted() {
-        if (!this.courseId || this.data.actionLoading) {
-            return;
-        }
-        const app = getApp();
-        try {
-            if (typeof app.ensureAuth === 'function') {
-                await app.ensureAuth();
-            }
-        }
-        catch (error) {
-            wx.showToast({
-                title: '请先登录后再试',
-                icon: 'none',
-            });
-            return;
-        }
-        this.setData({
-            actionLoading: true,
-        });
-        try {
-            const response = await (0, api_1.updateUserProgress)(this.courseId, 'completed', this.buildCompletionProgressPayload());
-            (0, index_1.setUser)(response.user);
-            (0, index_1.setProgress)(response.progress);
-            this.handleStoreUpdate((0, index_1.getState)());
-            // 完成后播放反馈
-            wx.vibrateShort({
-                type: 'heavy',
-                success() { },
-                fail() { },
-            });
-            wx.showToast({
-                title: '已标记完成',
-                icon: 'success',
-            });
-        }
-        catch (error) {
-            const message = error instanceof Error ? error.message : '更新进度失败，请稍后重试';
-            wx.showToast({
-                title: message,
-                icon: 'none',
-            });
-        }
-        finally {
-            this.setData({
-                actionLoading: false,
-            });
-        }
-    },
 });
 function normalizeCourseRange(detail, subtitles) {
     const start = Number(detail.range?.start);
@@ -2956,13 +2926,4 @@ function tokenizeSubtitle(text) {
         });
     }
     return tokens;
-}
-function computeStatus(progress, courseId) {
-    if (!progress) {
-        return 'pending';
-    }
-    if (progress.completedCourseIds?.includes(courseId)) {
-        return 'completed';
-    }
-    return 'pending';
 }

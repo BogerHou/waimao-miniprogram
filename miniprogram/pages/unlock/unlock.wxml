@@ -21,7 +21,8 @@
         wx:if="{{contactQrUrl}}"
         class="wechat-card__qr"
         src="{{contactQrUrl}}"
-        mode="aspectFit"
+        mode="widthFix"
+        show-menu-by-longpress="{{true}}"
       />
       <view wx:else class="wechat-card__qr-placeholder">微信二维码</view>
     </view>
