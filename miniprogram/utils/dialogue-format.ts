@@ -17,6 +17,16 @@ export type KnowledgeDialogueItem = {
   translationSegments: KnowledgeDialogueSegment[]
 }
 
+export type PairedDialogueSentence = {
+  text: string
+  translation: string
+}
+
+export type TimedDialogueSentence = PairedDialogueSentence & {
+  start: number
+  end: number
+}
+
 export const SPEAKER_TONE_CLASSES = [
   'dialogue-tone-0',
   'dialogue-tone-1',
@@ -108,6 +118,78 @@ export function splitDialogueSentences(input: string): string[] {
   return parts.length ? parts : [text]
 }
 
+export function splitPairedDialogueSentences(
+  text: string,
+  translation = '',
+): PairedDialogueSentence[] {
+  const textParts = splitDialogueSentences(text)
+  const translationParts = splitDialogueSentences(translation)
+
+  if (!textParts.length && !translationParts.length) {
+    return []
+  }
+
+  if (!textParts.length) {
+    return translationParts.map(item => ({
+      text: '',
+      translation: item,
+    }))
+  }
+
+  const canPairTranslations = translationParts.length === textParts.length
+  return textParts.map((item, index) => ({
+    text: item,
+    translation: canPairTranslations
+      ? translationParts[index] ?? ''
+      : textParts.length === 1
+        ? translationParts.join('')
+        : translationParts[index] ?? '',
+  }))
+}
+
+export function buildTimedDialogueSentences(options: {
+  text: string
+  translation?: string
+  start: number
+  end: number
+}): TimedDialogueSentence[] {
+  const pairs = splitPairedDialogueSentences(options.text, options.translation ?? '')
+  if (!pairs.length) {
+    return []
+  }
+
+  const start = Number.isFinite(options.start) ? options.start : 0
+  const end = Number.isFinite(options.end) ? options.end : start
+  const duration = Math.max(0, end - start)
+  if (pairs.length === 1 || duration <= 0) {
+    return pairs.map(pair => ({
+      ...pair,
+      start,
+      end,
+    }))
+  }
+
+  const weights = pairs.map(pair => getSentenceTimingWeight(pair.text || pair.translation))
+  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0) || pairs.length
+  let consumedWeight = 0
+
+  return pairs.map((pair, index) => {
+    const segmentStart = index === 0
+      ? start
+      : start + (duration * consumedWeight / totalWeight)
+    consumedWeight += weights[index] || 1
+    const segmentEnd = index === pairs.length - 1
+      ? end
+      : start + (duration * consumedWeight / totalWeight)
+
+    return {
+      ...pair,
+      start: roundTime(segmentStart),
+      end: roundTime(Math.max(segmentEnd, segmentStart)),
+    }
+  })
+}
+
 function buildSegments(input: string, prefix: string): KnowledgeDialogueSegment[] {
   return splitDialogueSentences(input).map((text, index) => ({
     id: `${prefix}-${index}`,
@@ -117,6 +199,15 @@ function buildSegments(input: string, prefix: string): KnowledgeDialogueSegment[
 
 function normalizeSpeakerKey(speaker: string): string {
   return String(speaker || 'Speaker').trim().toLowerCase() || 'speaker'
+}
+
+function getSentenceTimingWeight(input: string): number {
+  const compact = String(input || '').replace(/\s+/g, '')
+  return Math.max(1, compact.length)
+}
+
+function roundTime(value: number): number {
+  return Math.round(value * 1000) / 1000
 }
 
 function shouldSplitAt(text: string, index: number, segmentStart: number): boolean {

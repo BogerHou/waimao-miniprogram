@@ -4,6 +4,8 @@ exports.SPEAKER_TONE_CLASSES = void 0;
 exports.formatKnowledgeDialogue = formatKnowledgeDialogue;
 exports.resolveSpeakerToneClass = resolveSpeakerToneClass;
 exports.splitDialogueSentences = splitDialogueSentences;
+exports.splitPairedDialogueSentences = splitPairedDialogueSentences;
+exports.buildTimedDialogueSentences = buildTimedDialogueSentences;
 exports.SPEAKER_TONE_CLASSES = [
     'dialogue-tone-0',
     'dialogue-tone-1',
@@ -77,6 +79,61 @@ function splitDialogueSentences(input) {
     }
     return parts.length ? parts : [text];
 }
+function splitPairedDialogueSentences(text, translation = '') {
+    const textParts = splitDialogueSentences(text);
+    const translationParts = splitDialogueSentences(translation);
+    if (!textParts.length && !translationParts.length) {
+        return [];
+    }
+    if (!textParts.length) {
+        return translationParts.map(item => ({
+            text: '',
+            translation: item,
+        }));
+    }
+    const canPairTranslations = translationParts.length === textParts.length;
+    return textParts.map((item, index) => ({
+        text: item,
+        translation: canPairTranslations
+            ? translationParts[index] ?? ''
+            : textParts.length === 1
+                ? translationParts.join('')
+                : translationParts[index] ?? '',
+    }));
+}
+function buildTimedDialogueSentences(options) {
+    const pairs = splitPairedDialogueSentences(options.text, options.translation ?? '');
+    if (!pairs.length) {
+        return [];
+    }
+    const start = Number.isFinite(options.start) ? options.start : 0;
+    const end = Number.isFinite(options.end) ? options.end : start;
+    const duration = Math.max(0, end - start);
+    if (pairs.length === 1 || duration <= 0) {
+        return pairs.map(pair => ({
+            ...pair,
+            start,
+            end,
+        }));
+    }
+    const weights = pairs.map(pair => getSentenceTimingWeight(pair.text || pair.translation));
+    const totalWeight = weights.reduce((sum, weight) => sum + weight, 0) || pairs.length;
+    let consumedWeight = 0;
+    return pairs.map((pair, index) => {
+        const segmentStart = index === 0
+            ? start
+            : start + (duration * consumedWeight / totalWeight);
+        consumedWeight += weights[index] || 1;
+        const segmentEnd = index === pairs.length - 1
+            ? end
+            : start + (duration * consumedWeight / totalWeight);
+        return {
+            ...pair,
+            start: roundTime(segmentStart),
+            end: roundTime(Math.max(segmentEnd, segmentStart)),
+        };
+    });
+}
 function buildSegments(input, prefix) {
     return splitDialogueSentences(input).map((text, index) => ({
         id: `${prefix}-${index}`,
@@ -85,6 +142,13 @@ function buildSegments(input, prefix) {
 }
 function normalizeSpeakerKey(speaker) {
     return String(speaker || 'Speaker').trim().toLowerCase() || 'speaker';
+}
+function getSentenceTimingWeight(input) {
+    const compact = String(input || '').replace(/\s+/g, '');
+    return Math.max(1, compact.length);
+}
+function roundTime(value) {
+    return Math.round(value * 1000) / 1000;
 }
 function shouldSplitAt(text, index, segmentStart) {
     if (text[index] !== '.') {

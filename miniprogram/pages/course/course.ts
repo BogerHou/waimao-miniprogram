@@ -48,9 +48,8 @@ import {
 import { buildCourseShareCardModel } from './course-share-card'
 import { resolveCourseModePresentation } from './course-mode-config'
 import {
+  buildTimedDialogueSentences,
   resolveSpeakerToneClass,
-  splitDialogueSentences,
-  type KnowledgeDialogueSegment,
 } from '../../utils/dialogue-format'
 
 const BACKGROUND_AUDIO_COVER_URL = `${API_BASE_URL}/static/images/icon.png`
@@ -220,18 +219,15 @@ type SubtitleToken = {
   isWord: boolean
 }
 
-type SubtitleTextSegment = {
-  id: string
-  tokens: SubtitleToken[]
-}
-
 type ViewSubtitle = SubtitleEntry & {
   timeLabel: string
   durationLabel: string
   tokens: SubtitleToken[]
   toneClass: string
-  textSegments: SubtitleTextSegment[]
-  translationSegments: KnowledgeDialogueSegment[]
+  sourceSubtitleId: string
+  sourceIndex: number
+  segmentIndex: number
+  segmentCount: number
 }
 
 type CourseSummary = {
@@ -3372,27 +3368,56 @@ function normalizeAudioUrl(audio: string): string {
 
 function mapSubtitles(entries: SubtitleEntry[]): ViewSubtitle[] {
   const speakerToneIndexes = new Map<string, number>()
-  return entries.map((entry, index) => {
-    const speaker = entry.speaker || `speaker-${index}`
-    const textSentences = splitDialogueSentences(entry.text)
-    const translationSentences = splitDialogueSentences(entry.translation ?? '')
+  const subtitles: ViewSubtitle[] = []
 
-    return {
-      ...entry,
-      timeLabel: formatSeconds(entry.start),
-      durationLabel: formatSeconds(entry.end - entry.start),
-      tokens: tokenizeSubtitle(entry.text),
-      toneClass: resolveSpeakerToneClass(speaker, speakerToneIndexes),
-      textSegments: textSentences.map((text, sentenceIndex) => ({
-        id: `${entry.id}-text-${sentenceIndex}`,
-        tokens: tokenizeSubtitle(text),
-      })),
-      translationSegments: translationSentences.map((text, sentenceIndex) => ({
-        id: `${entry.id}-translation-${sentenceIndex}`,
-        text,
-      })),
-    }
+  entries.forEach((entry, entryIndex) => {
+    const speaker = entry.speaker || `speaker-${entryIndex}`
+    const toneClass = resolveSpeakerToneClass(speaker, speakerToneIndexes)
+    const segments = buildTimedDialogueSentences({
+      text: entry.text,
+      translation: entry.translation,
+      start: entry.start,
+      end: entry.end,
+    })
+    const safeSegments = segments.length
+      ? segments
+      : [{
+        text: entry.text,
+        translation: entry.translation ?? '',
+        start: entry.start,
+        end: entry.end,
+      }]
+
+    safeSegments.forEach((segment, segmentIndex) => {
+      const id = safeSegments.length === 1
+        ? entry.id
+        : `${entry.id}-s${segmentIndex + 1}`
+      const start = segment.start
+      const end = segment.end
+
+      subtitles.push({
+        ...entry,
+        id,
+        index: subtitles.length,
+        text: segment.text,
+        translation: segment.translation || undefined,
+        start,
+        end,
+        rawStart: start,
+        rawEnd: end,
+        timeLabel: formatSeconds(start),
+        durationLabel: formatSeconds(end - start),
+        tokens: tokenizeSubtitle(segment.text),
+        toneClass,
+        sourceSubtitleId: entry.id,
+        sourceIndex: entry.index ?? entryIndex,
+        segmentIndex,
+        segmentCount: safeSegments.length,
+      })
+    })
   })
+
+  return subtitles
 }
 
 function tokenizeSubtitle(text: string): SubtitleToken[] {

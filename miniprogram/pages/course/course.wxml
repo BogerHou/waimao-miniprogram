@@ -91,41 +91,26 @@
               bindtap="handleSubtitleTap"
             >
               <view class="subtitle-text">
-                <view
-                  wx:for="{{item.textSegments}}"
-                  wx:for-item="segment"
-                  wx:for-index="segmentIndex"
-                  wx:key="id"
-                  class="subtitle-sentence subtitle-sentence--text {{item.toneClass}}"
-                >
-                  <block wx:if="{{segment.tokens && segment.tokens.length}}">
-                    <block wx:for="{{segment.tokens}}" wx:for-item="token" wx:for-index="tokenIndex" wx:key="tokenIndex">
-                      <view
-                        wx:if="{{token.isWord}}"
-                        id="word-{{item.id}}-{{segmentIndex}}-{{tokenIndex}}"
-                        class="subtitle-word"
-                        data-word="{{token.word}}"
-                        data-raw="{{token.text}}"
-                        data-word-id="word-{{item.id}}-{{segmentIndex}}-{{tokenIndex}}"
-                        catchlongpress="handleWordLongPress"
-                        catchtap=""
-                      >
-                        {{token.text}}
-                      </view>
-                      <text wx:else class="subtitle-token">{{token.text}}</text>
-                    </block>
+                <block wx:if="{{item.tokens && item.tokens.length}}">
+                  <block wx:for="{{item.tokens}}" wx:for-item="token" wx:for-index="tokenIndex" wx:key="tokenIndex">
+                    <view
+                      wx:if="{{token.isWord}}"
+                      id="word-{{item.id}}-{{tokenIndex}}"
+                      class="subtitle-word"
+                      data-word="{{token.word}}"
+                      data-raw="{{token.text}}"
+                      data-word-id="word-{{item.id}}-{{tokenIndex}}"
+                      catchlongpress="handleWordLongPress"
+                      catchtap=""
+                    >
+                      {{token.text}}
+                    </view>
+                    <text wx:else class="subtitle-token">{{token.text}}</text>
                   </block>
-                  <text wx:else class="subtitle-text-raw">{{item.text}}</text>
-                </view>
+                </block>
+                <text wx:else class="subtitle-text-raw">{{item.text}}</text>
               </view>
-              <view wx:if="{{item.translationSegments.length}}" class="subtitle-translation">
-                <text
-                  wx:for="{{item.translationSegments}}"
-                  wx:for-item="segment"
-                  wx:key="id"
-                  class="subtitle-sentence subtitle-sentence--translation {{item.toneClass}}"
-                >{{segment.text}}</text>
-              </view>
+              <text wx:if="{{item.translation}}" class="subtitle-translation">{{item.translation}}</text>
             </view>
           </block>
 

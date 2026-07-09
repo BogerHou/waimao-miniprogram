@@ -2893,26 +2893,52 @@ function normalizeAudioUrl(audio) {
 }
 function mapSubtitles(entries) {
     const speakerToneIndexes = new Map();
-    return entries.map((entry, index) => {
-        const speaker = entry.speaker || `speaker-${index}`;
-        const textSentences = (0, dialogue_format_1.splitDialogueSentences)(entry.text);
-        const translationSentences = (0, dialogue_format_1.splitDialogueSentences)(entry.translation ?? '');
-        return {
-            ...entry,
-            timeLabel: formatSeconds(entry.start),
-            durationLabel: formatSeconds(entry.end - entry.start),
-            tokens: tokenizeSubtitle(entry.text),
-            toneClass: (0, dialogue_format_1.resolveSpeakerToneClass)(speaker, speakerToneIndexes),
-            textSegments: textSentences.map((text, sentenceIndex) => ({
-                id: `${entry.id}-text-${sentenceIndex}`,
-                tokens: tokenizeSubtitle(text),
-            })),
-            translationSegments: translationSentences.map((text, sentenceIndex) => ({
-                id: `${entry.id}-translation-${sentenceIndex}`,
-                text,
-            })),
-        };
+    const subtitles = [];
+    entries.forEach((entry, entryIndex) => {
+        const speaker = entry.speaker || `speaker-${entryIndex}`;
+        const toneClass = (0, dialogue_format_1.resolveSpeakerToneClass)(speaker, speakerToneIndexes);
+        const segments = (0, dialogue_format_1.buildTimedDialogueSentences)({
+            text: entry.text,
+            translation: entry.translation,
+            start: entry.start,
+            end: entry.end,
+        });
+        const safeSegments = segments.length
+            ? segments
+            : [{
+                    text: entry.text,
+                    translation: entry.translation ?? '',
+                    start: entry.start,
+                    end: entry.end,
+                }];
+        safeSegments.forEach((segment, segmentIndex) => {
+            const id = safeSegments.length === 1
+                ? entry.id
+                : `${entry.id}-s${segmentIndex + 1}`;
+            const start = segment.start;
+            const end = segment.end;
+            subtitles.push({
+                ...entry,
+                id,
+                index: subtitles.length,
+                text: segment.text,
+                translation: segment.translation || undefined,
+                start,
+                end,
+                rawStart: start,
+                rawEnd: end,
+                timeLabel: formatSeconds(start),
+                durationLabel: formatSeconds(end - start),
+                tokens: tokenizeSubtitle(segment.text),
+                toneClass,
+                sourceSubtitleId: entry.id,
+                sourceIndex: entry.index ?? entryIndex,
+                segmentIndex,
+                segmentCount: safeSegments.length,
+            });
+        });
     });
+    return subtitles;
 }
 function tokenizeSubtitle(text) {
     const tokens = [];

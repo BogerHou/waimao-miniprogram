@@ -1,8 +1,10 @@
 import assert from "node:assert/strict"
 
 import {
+  buildTimedDialogueSentences,
   formatKnowledgeDialogue,
   resolveSpeakerToneClass,
+  splitPairedDialogueSentences,
   splitDialogueSentences,
 } from "../miniprogram/utils/dialogue-format"
 
@@ -77,8 +79,44 @@ function testSpeakerToneResolverKeepsSameSpeakerConsistent() {
   assert.notEqual(first, second)
 }
 
+function testSplitPairedDialogueSentencesKeepsTranslationUnderEnglish() {
+  assert.deepEqual(
+    splitPairedDialogueSentences(
+      "Great, appreciate that! If you have any questions, feel free to call.",
+      "太好了，十分感谢！如果你有任何问题，请随时联系我。",
+    ),
+    [
+      {
+        text: "Great, appreciate that!",
+        translation: "太好了，十分感谢！",
+      },
+      {
+        text: "If you have any questions, feel free to call.",
+        translation: "如果你有任何问题，请随时联系我。",
+      },
+    ],
+  )
+}
+
+function testTimedDialogueSentencesStayInsideOriginalCue() {
+  const segments = buildTimedDialogueSentences({
+    text: "Great, appreciate that! If you have any questions, feel free to call.",
+    translation: "太好了，十分感谢！如果你有任何问题，请随时联系我。",
+    start: 10,
+    end: 16,
+  })
+
+  assert.equal(segments.length, 2)
+  assert.equal(segments[0].start, 10)
+  assert.equal(segments[1].end, 16)
+  assert.ok(segments[0].end > segments[0].start)
+  assert.equal(segments[0].end, segments[1].start)
+}
+
 testSplitDialogueSentencesByTerminalPunctuation()
 testSplitKeepsDecimalsAndEmailFragmentsTogether()
 testFormatDialogueKeepsSpeakerToneStable()
 testSpeakerToneResolverKeepsSameSpeakerConsistent()
+testSplitPairedDialogueSentencesKeepsTranslationUnderEnglish()
+testTimedDialogueSentencesStayInsideOriginalCue()
 console.log("knowledge dialogue format tests passed.")

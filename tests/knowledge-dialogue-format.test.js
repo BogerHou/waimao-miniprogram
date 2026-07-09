@@ -61,8 +61,35 @@ function testSpeakerToneResolverKeepsSameSpeakerConsistent() {
     strict_1.default.equal(first, third);
     strict_1.default.notEqual(first, second);
 }
+function testSplitPairedDialogueSentencesKeepsTranslationUnderEnglish() {
+    strict_1.default.deepEqual((0, dialogue_format_1.splitPairedDialogueSentences)("Great, appreciate that! If you have any questions, feel free to call.", "太好了，十分感谢！如果你有任何问题，请随时联系我。"), [
+        {
+            text: "Great, appreciate that!",
+            translation: "太好了，十分感谢！",
+        },
+        {
+            text: "If you have any questions, feel free to call.",
+            translation: "如果你有任何问题，请随时联系我。",
+        },
+    ]);
+}
+function testTimedDialogueSentencesStayInsideOriginalCue() {
+    const segments = (0, dialogue_format_1.buildTimedDialogueSentences)({
+        text: "Great, appreciate that! If you have any questions, feel free to call.",
+        translation: "太好了，十分感谢！如果你有任何问题，请随时联系我。",
+        start: 10,
+        end: 16,
+    });
+    strict_1.default.equal(segments.length, 2);
+    strict_1.default.equal(segments[0].start, 10);
+    strict_1.default.equal(segments[1].end, 16);
+    strict_1.default.ok(segments[0].end > segments[0].start);
+    strict_1.default.equal(segments[0].end, segments[1].start);
+}
 testSplitDialogueSentencesByTerminalPunctuation();
 testSplitKeepsDecimalsAndEmailFragmentsTogether();
 testFormatDialogueKeepsSpeakerToneStable();
 testSpeakerToneResolverKeepsSameSpeakerConsistent();
+testSplitPairedDialogueSentencesKeepsTranslationUnderEnglish();
+testTimedDialogueSentencesStayInsideOriginalCue();
 console.log("knowledge dialogue format tests passed.");
