@@ -1,5 +1,5 @@
-export const DEVELOPMENT_API_BASE_URL = 'http://127.0.0.1:4000'
 export const PRODUCTION_API_BASE_URL = 'https://englishecho.site'
+export const DEVELOPMENT_API_BASE_URL = PRODUCTION_API_BASE_URL
 
 type MiniProgramEnvVersion = 'develop' | 'trial' | 'release' | string | null
 

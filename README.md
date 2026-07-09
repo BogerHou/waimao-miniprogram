@@ -26,7 +26,7 @@ npm run dev
 npm run dev:backend
 ```
 
-微信开发者工具处于 `develop` 环境时，小程序默认请求 `http://127.0.0.1:4000`；体验版和正式版默认请求线上 `https://englishecho.site`。
+微信开发者工具、体验版和正式版默认都请求线上 `https://englishecho.site`，避免开发者工具误连本地接口。
 
 ```sh
 npm run typecheck
@@ -47,6 +47,6 @@ npm run waimao-mini:generate
 
 - `project.config.json` 已配置外贸小程序 appid；切换发布账号前需要再次确认。
 - 后端正式环境需要配置 `WAIMAO_MINI_WECHAT_APPID` / `WAIMAO_MINI_WECHAT_SECRET`，不要复用 EnglishPod 的微信密钥。
-- 线上发布前需要先部署后端 `/api/waimao-mini/*`，否则体验版/正式版会请求线上接口并返回 404。
+- 线上发布前需要先部署后端 `/api/waimao-mini/*`，否则小程序会请求线上接口并返回 404。
 - 第一版音频走服务端静态资源 `/static/waimao-mini/audio/*`，未上 CDN；上线后需要评估 CDN/R2 优化。
 - 不接微信支付；会员购买通过添加微信完成，小程序内只负责展示二维码和兑换会员邀请码，邀请码权益为全部章节 1 年访问权。

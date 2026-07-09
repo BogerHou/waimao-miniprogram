@@ -191,3 +191,9 @@
 
 - 解锁页改为顶部导航栏固定、正文 `scroll-view` 独立滚动，避免拉到底部后返回键和标题栏消失。
 - 后端新增小程序邀请码渠道标签表和管理接口，支持先添加标签、生成邀请码时选择标签，并按标签统计 unused/used/disabled 数量。
+
+### 🔧 Follow-up: 小程序默认线上接口与解锁状态刷新
+
+- 小程序开发者工具、体验版和正式版默认都请求线上 `https://englishecho.site`，避免开发者工具误连本地接口。
+- 首页新增 `onShow` 课程刷新，用户从解锁页返回后会重新拉取 entitlement、进度和章节锁定状态。
+- 解锁提示 tab 继续由服务端 `unlockPromptEnabled` 和本地 `fullAccess` 共同控制；兑换邀请码获得 full access 后首页会隐藏解锁提示并开放后续章节。

@@ -52,6 +52,11 @@ Page({
         await this.initializePage();
         this.maybeShowPracticeGuide();
     },
+    async onShow() {
+        if (!this.data.chapters.length || this.data.loading)
+            return;
+        await this.loadCourses(true);
+    },
     onShareAppMessage() {
         return (0, share_1.buildAppMessageShare)({
             title: '外贸英语影子跟读',

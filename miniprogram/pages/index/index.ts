@@ -106,6 +106,10 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
     await this.initializePage()
     this.maybeShowPracticeGuide()
   },
+  async onShow() {
+    if (!this.data.chapters.length || this.data.loading) return
+    await this.loadCourses(true)
+  },
   onShareAppMessage() {
     return buildAppMessageShare({
       title: '外贸英语影子跟读',

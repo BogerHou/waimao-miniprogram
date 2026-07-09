@@ -37,7 +37,7 @@ npm run dev:backend
 ## 运行注意
 
 - `npm run waimao-mini:generate` 会从外贸 Web 数据源生成章节、课程详情和静态音频。
-- 微信开发者工具 `develop` 环境默认请求 `http://127.0.0.1:4000`，体验版/正式版默认请求线上 `https://englishecho.site`。
+- 微信开发者工具、体验版和正式版默认都请求线上 `https://englishecho.site`；需要本地联调时再临时切换 `DEVELOPMENT_API_BASE_URL`。
 - 线上音频仍走 server static，后续应接 CDN/R2 并加入可用性监控。
 - AI 讲解会在外贸知识点上下文存在时启用外贸沟通语境提示；普通 EnglishPod 接口不应受影响。
 
@@ -45,4 +45,4 @@ npm run dev:backend
 
 - 暂无小程序端真机自动化测试。
 - 暂无音频 CDN 和断点续播跨设备同步；商业化链路为添加微信购买邀请码，不接小程序支付。
-- 线上接口 `/api/waimao-mini/*` 未部署前，体验版/正式版会出现 404；本地开发需先运行后端。
+- 线上接口 `/api/waimao-mini/*` 未部署前，小程序会出现 404；本地后端只作为临时联调用途。

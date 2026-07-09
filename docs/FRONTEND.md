@@ -11,7 +11,7 @@ npm test
 
 `npm test` 会运行 `tsc` 生成 `.js`，再执行 `tests/run-all.js`。微信开发者工具打开本仓库时使用 `project.config.json`，发布前需替换真实 appid。
 
-本地调试前先在 `/Users/simon/Documents/code/englishpod-server/server` 运行 `npm run dev`。开发者工具 `develop` 环境默认请求 `http://127.0.0.1:4000`，体验版/正式版默认请求线上 `https://englishecho.site`。
+开发者工具、体验版和正式版默认都请求线上 `https://englishecho.site`，避免开发者工具误连本地接口。需要本地联调时，再临时改 `miniprogram/config/env.ts` 的 `DEVELOPMENT_API_BASE_URL`。
 
 也可以在本仓库直接运行 `npm run dev:backend` 启动同一个后端。
 
@@ -49,6 +49,6 @@ npm test
 - AI 弹层渲染工具。
 - 知识点内容格式化：词汇行解析、换行续行合并、Chinglish/Native 分组和标题清理。
 - 页面 JSON 不包含当前开发者工具不支持的分享开关字段。
-- API 环境选择：开发环境走本地后端，体验版/正式版走线上后端。
+- API 环境选择：默认全环境走线上后端；本地后端只作为临时联调开关。
 
 播放体验仍需要微信开发者工具或真机检查，尤其是 Shadow 模式是否只播放当前小节范围。

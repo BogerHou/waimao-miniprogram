@@ -1,9 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PAGE_SIZE_DEFAULT = exports.API_BASE_URL = exports.PRODUCTION_API_BASE_URL = exports.DEVELOPMENT_API_BASE_URL = void 0;
+exports.PAGE_SIZE_DEFAULT = exports.API_BASE_URL = exports.DEVELOPMENT_API_BASE_URL = exports.PRODUCTION_API_BASE_URL = void 0;
 exports.resolveApiBaseUrl = resolveApiBaseUrl;
-exports.DEVELOPMENT_API_BASE_URL = 'http://127.0.0.1:4000';
 exports.PRODUCTION_API_BASE_URL = 'https://englishecho.site';
+exports.DEVELOPMENT_API_BASE_URL = exports.PRODUCTION_API_BASE_URL;
 function getMiniProgramEnvVersion() {
     if (typeof wx === 'undefined' || typeof wx.getAccountInfoSync !== 'function') {
         return null;
