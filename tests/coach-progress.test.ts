@@ -51,6 +51,7 @@ function testSceneSessionKeepsLatestStage() {
     sceneTitle: '电话跟进',
     stage: 'summary',
     cueIndex: 4,
+    batchStart: 8,
     completedAt: now + 10,
   }, now + 10)
   state = saveSceneSessionProgress(state, {
@@ -63,6 +64,7 @@ function testSceneSessionKeepsLatestStage() {
 
   assert.equal(state.sessions.length, 1)
   assert.equal(state.sessions[0].stage, 'listen')
+  assert.equal(state.sessions[0].batchStart, 8)
   assert.equal(state.sessions[0].completedAt, now + 10)
   assert.equal(getCoachSummary(state, now + 20).completedSceneCount, 1)
 }

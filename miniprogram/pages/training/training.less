@@ -66,6 +66,16 @@
 .audio-panel__time { flex-shrink: 0; color: @faint; font-family: Arial, sans-serif; font-size: 19rpx; font-variant-numeric: tabular-nums; }
 .audio-panel__track { height: 7rpx; margin-top: 18rpx; overflow: hidden; border-radius: 4rpx; background: #e9edf3; }
 .audio-panel__fill { height: 100%; border-radius: inherit; background: @primary; transition: width .12s linear; }
+.transcript-gate { display: flex; align-items: center; gap: 18rpx; margin-top: 14rpx; padding: 20rpx; border-left: 6rpx solid @primary; background: @primary-soft; }
+.transcript-gate__copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5rpx; }
+.transcript-gate__title { color: @text; font-size: 24rpx; font-weight: 720; }
+.transcript-gate__desc { color: @muted; font-size: 21rpx; line-height: 1.46; }
+.transcript-gate__action, .transcript-toolbar__action { flex-shrink: 0; margin: 0; padding: 0; background: transparent; color: @primary-dark; font-size: 21rpx; font-weight: 700; }
+.transcript-gate__action { width: 126rpx; height: 58rpx; line-height: 58rpx; }
+.transcript-toolbar { min-height: 62rpx; display: flex; align-items: center; justify-content: space-between; gap: 16rpx; margin-top: 12rpx; padding: 0 4rpx; }
+.transcript-toolbar__state { color: @muted; font-size: 20rpx; line-height: 1.4; }
+.transcript-toolbar__action { width: 104rpx; height: 54rpx; line-height: 54rpx; }
+.transcript-gate__action::after, .transcript-toolbar__action::after { border: none; }
 .dialogue-list, .shadow-dialogue { display: flex; flex-direction: column; gap: 10rpx; margin-top: 14rpx; }
 .dialogue-cue, .shadow-cue { padding: 17rpx 18rpx; border: 1rpx solid @line; border-left: 6rpx solid @primary; border-radius: 12rpx; background: #fff; transition: background .15s ease, border-color .15s ease; }
 .dialogue-cue--customer, .shadow-cue.dialogue-cue--customer { border-left-color: @customer; }
@@ -80,6 +90,9 @@
 .cue-progress__track { flex: 1; height: 7rpx; overflow: hidden; border-radius: 4rpx; background: #e7ebf1; }
 .cue-progress__fill { height: 100%; border-radius: inherit; background: @primary; }
 .response-workspace, .practice-workspace { padding: 22rpx; border: 1rpx solid @line; border-radius: 14rpx; background: #fff; }
+.response-goal { margin: -2rpx -2rpx 20rpx; padding: 14rpx 16rpx; border-left: 6rpx solid @primary; background: @primary-soft; }
+.response-goal__label { display: block; color: @primary-dark; font-size: 18rpx; font-weight: 730; }
+.response-goal__text { display: block; margin-top: 4rpx; color: @text; font-size: 22rpx; font-weight: 620; line-height: 1.48; }
 .customer-prompt { padding-bottom: 20rpx; border-bottom: 1rpx solid @line; }
 .customer-prompt__speaker { display: block; color: @customer; font-size: 20rpx; font-weight: 730; }
 .customer-prompt__text { display: block; margin-top: 9rpx; color: @text; font-size: 30rpx; font-weight: 710; line-height: 1.42; }
@@ -131,6 +144,14 @@
 .speed-option { min-width: 70rpx; height: 48rpx; padding: 0 9rpx; border-radius: 7rpx; color: @muted; font-size: 19rpx; font-weight: 700; line-height: 48rpx; text-align: center; box-sizing: border-box; }
 .speed-option--active { background: #fff; color: @primary-dark; box-shadow: 0 2rpx 7rpx rgba(30,41,59,.08); }
 .translation-toggle { width: 130rpx; height: 56rpx; margin: 0; padding: 0; border-radius: 9rpx; background: #fff; color: @muted; font-size: 20rpx; font-weight: 650; line-height: 56rpx; }
+.shadow-status { min-height: 72rpx; display: flex; align-items: center; gap: 13rpx; margin-top: 13rpx; padding: 13rpx 16rpx; border: 1rpx solid @line; border-radius: 12rpx; background: #fff; box-sizing: border-box; }
+.shadow-status__mark { width: 28rpx; height: 28rpx; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border: 3rpx solid #cbd5e1; border-radius: 50%; box-sizing: border-box; }
+.shadow-status__copy { min-width: 0; display: flex; flex-direction: column; gap: 3rpx; }
+.shadow-status__title { color: @text; font-size: 21rpx; font-weight: 690; }
+.shadow-status__desc { color: @faint; font-size: 18rpx; line-height: 1.4; }
+.shadow-status--done { border-color: #a7f3d0; background: #ecfdf5; }
+.shadow-status--done .shadow-status__mark { border-color: @success; background: @success; }
+.shadow-status__icon { width: 19rpx; height: 19rpx; }
 
 .summary-hero { display: flex; flex-direction: column; align-items: center; padding: 17rpx 10rpx 25rpx; text-align: center; }
 .summary-hero__check { width: 82rpx; height: 82rpx; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: @success; box-shadow: 0 8rpx 20rpx rgba(5,150,105,.2); }

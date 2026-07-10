@@ -136,6 +136,17 @@ export function resolveBusinessGoal(course: Pick<CourseDetailResponse, 'title' |
   return '在真实外贸沟通中组织清楚的回应，并推动对话进入下一步。'
 }
 
+export function resolveCoachSceneRange(course: CourseDetailResponse, plan?: CoachScenePlan | null) {
+  const scopedCues = plan?.mode === 'phrase-drill' && plan.practiceCues.length
+    ? plan.practiceCues
+    : course.subtitles
+  const first = scopedCues[0]
+  const last = scopedCues[scopedCues.length - 1]
+  const start = Number(plan?.mode === 'phrase-drill' ? first?.start ?? 0 : course.range?.start ?? first?.start ?? 0)
+  const end = Number(plan?.mode === 'phrase-drill' ? last?.end : course.range?.end ?? last?.end ?? start + 1)
+  return { start, end: Math.max(start + 0.1, end) }
+}
+
 function resolveLearnerSpeaker(subtitles: SubtitleEntry[]) {
   const preferred = subtitles.find(item => normalizeSpeaker(item.speaker) === 'yibing')?.speaker
   if (preferred) return preferred

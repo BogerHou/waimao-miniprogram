@@ -110,6 +110,13 @@ function testSplitsPhraseLibraryIntoBatches() {
     strict_1.default.equal(plan.practiceCues[7].id, '16');
     strict_1.default.equal(plan.challenges.length, 3);
     strict_1.default.equal(plan.hasNextBatch, true);
+    strict_1.default.deepEqual((0, coach_model_1.resolveCoachSceneRange)({
+        id: 'scene-batches',
+        title: '外贸高频表达',
+        audio: '/audio.mp3',
+        subtitles,
+        range: { start: 0, end: 18.8 },
+    }, plan), { start: 8, end: 15.8 });
     const finalPlan = (0, coach_model_1.buildCoachScenePlan)({
         id: 'scene-batches',
         title: '外贸高频表达',

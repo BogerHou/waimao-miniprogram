@@ -17,12 +17,20 @@ const STAGE_LABELS = {
     summary: '训练完成',
 };
 const STAGE_PROGRESS = {
-    overview: 8,
-    listen: 24,
-    respond: 45,
-    practice: 68,
-    shadow: 88,
+    overview: 0,
+    listen: 20,
+    respond: 40,
+    practice: 60,
+    shadow: 80,
     summary: 100,
+};
+const STAGE_STEPS = {
+    overview: 1,
+    listen: 2,
+    respond: 3,
+    practice: 4,
+    shadow: 5,
+    summary: 5,
 };
 Page({
     storeUnsubscribe: undefined,
@@ -36,7 +44,7 @@ Page({
         isAuthenticated: false,
         authLoading: false,
         fullAccess: false,
-        membershipText: '第一章免费试学',
+        membershipText: '可学习第一章，其余 6 章需解锁',
         chapters: [],
         expandedChapterId: 'chapter-01',
         todayScene: null,
@@ -60,8 +68,12 @@ Page({
         loginModalDescription: '同步课程进度与会员权益',
         loginError: '',
     },
-    async onLoad() {
+    async onLoad(options = {}) {
         (0, share_1.enablePageShareMenu)();
+        if (options.tab && ['today', 'scenes', 'review', 'me'].includes(options.tab)) {
+            this.setData({ activeTab: options.tab });
+        }
+        ;
         this.storeUnsubscribe = (0, index_1.subscribe)(state => this.handleStoreUpdate(state));
         const app = getApp();
         if (app.globalData.readyPromise) {
@@ -148,7 +160,7 @@ Page({
             fullAccess: state.fullAccess,
             membershipText: state.fullAccess
                 ? (0, util_1.formatEntitlementExpiry)(state.entitlement?.expiresAt)
-                : '第一章免费试学',
+                : '可学习第一章，其余 6 章需解锁',
             showUnlockPrompt: Boolean(state.appConfig.home.unlockPromptEnabled) && !state.fullAccess,
         });
         this.refreshCoachData(chapters);
@@ -391,16 +403,19 @@ function buildTodayScene(chapters, progress, sessions) {
     const session = sessions.find(item => item.sceneId === selected.scene.id);
     const stage = session?.stage ?? 'overview';
     const isPhraseDrill = selected.scene.id.startsWith('chapter-07-');
+    const batchStart = isPhraseDrill ? session?.batchStart ?? 0 : 0;
+    const batchNumber = Math.floor(batchStart / 8) + 1;
     return {
         id: selected.scene.id,
-        chapterLabel: selected.chapter.label,
+        chapterLabel: isPhraseDrill ? `${selected.chapter.label} · 第 ${batchNumber} 组` : selected.chapter.label,
         title: selected.scene.title,
         goal: (0, coach_model_1.resolveBusinessGoal)({ title: selected.scene.title }),
         estimatedMinutes: isPhraseDrill
-            ? Math.max(10, Math.min(30, Math.ceil(4 + selected.scene.cueCount * 0.45)))
+            ? 10
             : Math.max(6, Math.min(15, Math.ceil(4 + selected.scene.cueCount * 0.45))),
         actionText: session && stage !== 'summary' ? '继续训练' : stage === 'summary' ? '再练一次' : '开始训练',
         stageLabel: STAGE_LABELS[stage],
+        stepLabel: `${STAGE_STEPS[stage]} / 5`,
         progressPercent: STAGE_PROGRESS[stage],
     };
 }

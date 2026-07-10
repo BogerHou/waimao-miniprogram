@@ -9,6 +9,7 @@ import { API_BASE_URL } from '../../config/env'
 import { getState as getStoreState, setProgress as updateProgressInStore } from '../../store/index'
 import {
   buildCoachScenePlan,
+  resolveCoachSceneRange,
   type CoachChallenge,
   type CoachSceneMode,
   type CoachScenePlan,
@@ -43,6 +44,7 @@ type TrainingPageData = {
   title: string
   chapterLabel: string
   sceneMode: CoachSceneMode
+  reviewMode: boolean
   stage: CoachStage
   stageNumber: number
   stageTitle: string
@@ -52,6 +54,8 @@ type TrainingPageData = {
   customerSpeaker: string
   estimatedMinutes: number
   keyExpressions: string[]
+  batchLabel: string
+  hasNextBatch: boolean
   dialogue: DialogueCue[]
   challengeCount: number
   currentChallengeIndex: number
@@ -71,6 +75,10 @@ type TrainingPageData = {
   currentSubtitleId: string
   playbackRate: number
   currentAssessment: CoachSentenceStatus | ''
+  assessmentMadeThisRun: boolean
+  listenTranscriptVisible: boolean
+  listenCompleted: boolean
+  shadowCompleted: boolean
   masteredCount: number
   reviewCount: number
   summaryReviewItems: Array<{ key: string; text: string; translation: string }>
@@ -99,6 +107,7 @@ const PHRASE_STAGE_META: Record<CoachStage, { number: number; title: string; des
 Page<TrainingPageData, WechatMiniprogram.IAnyObject>({
   courseId: '',
   reviewCueId: '',
+  requestedBatchStart: null as number | null,
   scenePlan: null as CoachScenePlan | null,
   sourceAudio: null as WechatMiniprogram.InnerAudioContext | null,
   recordingAudio: null as WechatMiniprogram.InnerAudioContext | null,
@@ -115,6 +124,7 @@ Page<TrainingPageData, WechatMiniprogram.IAnyObject>({
     title: '场景训练',
     chapterLabel: '',
     sceneMode: 'dialogue',
+    reviewMode: false,
     stage: 'overview',
     stageNumber: 1,
     stageTitle: STAGE_META.overview.title,
@@ -124,6 +134,8 @@ Page<TrainingPageData, WechatMiniprogram.IAnyObject>({
     customerSpeaker: '',
     estimatedMinutes: 8,
     keyExpressions: [],
+    batchLabel: '',
+    hasNextBatch: false,
     dialogue: [],
     challengeCount: 0,
     currentChallengeIndex: 0,
@@ -143,16 +155,21 @@ Page<TrainingPageData, WechatMiniprogram.IAnyObject>({
     currentSubtitleId: '',
     playbackRate: 1,
     currentAssessment: '',
+    assessmentMadeThisRun: false,
+    listenTranscriptVisible: false,
+    listenCompleted: false,
+    shadowCompleted: false,
     masteredCount: 0,
     reviewCount: 0,
     summaryReviewItems: [],
     showTranslation: true,
     microphoneError: '',
   },
-  async onLoad(options: { id?: string; reviewCue?: string; restart?: string }) {
+  async onLoad(options: { id?: string; reviewCue?: string; restart?: string; batchStart?: string }) {
     enablePageShareMenu()
     ;(this as any).courseId = options.id || ''
     ;(this as any).reviewCueId = options.reviewCue || ''
+    ;(this as any).requestedBatchStart = parseBatchStart(options.batchStart)
     ;(this as any).pageAlive = true
     this.initializeAudio()
     this.initializeRecorder()
@@ -186,40 +203,53 @@ Page<TrainingPageData, WechatMiniprogram.IAnyObject>({
     try {
       const course = await fetchCourseDetail((this as any).courseId, forceRefresh)
       if (!(this as any).pageAlive) return
-      const scenePlan = buildCoachScenePlan(course)
+      const savedSession = readCoachProgress().sessions.find(item => item.sceneId === course.id)
+      const requestedBatchStart = (this as any).requestedBatchStart as number | null
+      const reviewCueId = (this as any).reviewCueId as string
+      const baseScenePlan = buildCoachScenePlan(course, {
+        phraseBatchStart: requestedBatchStart ?? savedSession?.batchStart ?? 0,
+      })
+      const scenePlan = reviewCueId
+        ? scopePlanToReviewCue(baseScenePlan, course, reviewCueId)
+        : baseScenePlan
       ;(this as any).scenePlan = scenePlan
       const learner = normalizeSpeaker(scenePlan.learnerSpeaker)
-      const dialogue: DialogueCue[] = course.subtitles.map((cue, cueIndex) => {
+      const dialogueSource: Array<SubtitleEntry & { cueIndex: number }> = reviewCueId || scenePlan.mode === 'phrase-drill'
+        ? scenePlan.practiceCues
+        : course.subtitles.map((cue, cueIndex) => ({ ...cue, cueIndex }))
+      const dialogue: DialogueCue[] = dialogueSource.map(cue => {
         const isLearner = scenePlan.mode === 'phrase-drill' || normalizeSpeaker(cue.speaker) === learner
         return {
           ...cue,
-          cueIndex,
           isLearner,
           speakerLabel: scenePlan.mode === 'phrase-drill'
-            ? `表达 ${cueIndex + 1}`
+            ? `表达 ${cue.cueIndex + 1}`
             : `${isLearner ? '你 · ' : ''}${cue.speaker || scenePlan.customerSpeaker}`,
           toneClass: isLearner ? 'dialogue-cue--self' : 'dialogue-cue--customer',
         }
       })
-      const range = resolveSceneRange(course)
-      const savedSession = readCoachProgress().sessions.find(item => item.sceneId === course.id)
-      const reviewCueId = (this as any).reviewCueId as string
+      const range = resolveCoachSceneRange(course, scenePlan)
       const initialStage: CoachStage = reviewCueId
         ? 'practice'
-        : savedSession && savedSession.stage !== 'summary'
-          ? savedSession.stage
-          : 'overview'
+        : requestedBatchStart !== null
+          ? 'overview'
+          : savedSession && savedSession.stage !== 'summary'
+            ? savedSession.stage
+            : 'overview'
       this.setData({
         loading: false,
         course,
         title: course.title,
         chapterLabel: course.chapterLabel || '',
         sceneMode: scenePlan.mode,
+        reviewMode: Boolean(reviewCueId),
         businessGoal: scenePlan.businessGoal,
         learnerSpeaker: scenePlan.learnerSpeaker,
         customerSpeaker: scenePlan.customerSpeaker,
         estimatedMinutes: scenePlan.estimatedMinutes,
         keyExpressions: scenePlan.keyExpressions,
+        batchLabel: buildBatchLabel(scenePlan),
+        hasNextBatch: scenePlan.hasNextBatch,
         dialogue,
         challengeCount: scenePlan.challenges.length,
         practiceCount: scenePlan.practiceCues.length,
@@ -227,7 +257,9 @@ Page<TrainingPageData, WechatMiniprogram.IAnyObject>({
       })
       const initialIndex = reviewCueId
         ? Math.max(0, scenePlan.practiceCues.findIndex(item => item.id === reviewCueId))
-        : savedSession?.cueIndex ?? 0
+        : (savedSession?.batchStart ?? 0) === scenePlan.batchStart
+          ? savedSession?.cueIndex ?? 0
+          : 0
       this.applyStage(initialStage, initialIndex, false)
       this.refreshSceneCounts()
     } catch (error) {
@@ -333,16 +365,18 @@ Page<TrainingPageData, WechatMiniprogram.IAnyObject>({
   handleScenePlay() {
     if (this.data.playingSource === 'scene') {
       ;(this as any).sourceAudio?.pause()
+      ;(this as any).activeAudioMode = ''
       this.setData({ playingSource: '' })
       return
     }
     if (!this.data.course) return
-    const range = resolveSceneRange(this.data.course)
+    const range = resolveCoachSceneRange(this.data.course, (this as any).scenePlan)
     this.playSourceRange(range.start, range.end, 'scene')
   },
   handleOriginalPlay() {
     if (this.data.playingSource === 'original') {
       ;(this as any).sourceAudio?.pause()
+      ;(this as any).activeAudioMode = ''
       this.setData({ playingSource: '' })
       return
     }
@@ -404,17 +438,34 @@ Page<TrainingPageData, WechatMiniprogram.IAnyObject>({
     if (current >= end - 0.04) {
       audio.pause()
       audio.seek(start)
-      this.setData({ playingSource: '', audioProgress: 100 })
+      this.completeActiveSourcePlayback()
     }
   },
   handleSourceEnded() {
     if (!(this as any).pageAlive) return
-    this.setData({ playingSource: '', audioProgress: 100 })
+    this.completeActiveSourcePlayback()
+  },
+  completeActiveSourcePlayback() {
+    const activeAudioMode = (this as any).activeAudioMode as '' | 'scene' | 'original'
+    ;(this as any).activeAudioMode = ''
+    const updates: Partial<TrainingPageData> = {
+      playingSource: '',
+      audioProgress: 100,
+    }
+    if (activeAudioMode === 'scene' && this.data.stage === 'listen') {
+      updates.listenCompleted = true
+      updates.listenTranscriptVisible = true
+    }
+    if (activeAudioMode === 'scene' && this.data.stage === 'shadow') {
+      updates.shadowCompleted = true
+    }
+    this.setData(updates)
   },
   stopAllAudio() {
     this.clearPlayStartTimer()
     ;(this as any).sourceAudio?.pause()
     ;(this as any).recordingAudio?.pause()
+    ;(this as any).activeAudioMode = ''
     if ((this as any).pageAlive) this.setData({ playingSource: '' })
   },
   clearPlayStartTimer() {
@@ -461,11 +512,14 @@ Page<TrainingPageData, WechatMiniprogram.IAnyObject>({
   revealAnswer() {
     this.setData({ answerRevealed: true })
   },
+  toggleListenTranscript() {
+    this.setData({ listenTranscriptVisible: !this.data.listenTranscriptVisible })
+  },
   handleAssessment(event: WechatMiniprogram.BaseEvent) {
     const { status } = event.currentTarget.dataset as { status?: CoachSentenceStatus }
     if (status !== 'review' && status !== 'mastered') return
     this.persistActiveSentence(status, this.data.recordingPath)
-    this.setData({ currentAssessment: status })
+    this.setData({ currentAssessment: status, assessmentMadeThisRun: true })
     this.refreshSceneCounts()
   },
   nextChallenge() {
@@ -480,6 +534,10 @@ Page<TrainingPageData, WechatMiniprogram.IAnyObject>({
   nextPracticeCue() {
     const nextIndex = this.data.currentPracticeIndex + 1
     if (nextIndex >= this.data.practiceCount) {
+      if (this.data.reviewMode) {
+        this.completeReview()
+        return
+      }
       this.startShadow()
       return
     }
@@ -499,18 +557,25 @@ Page<TrainingPageData, WechatMiniprogram.IAnyObject>({
     this.setData({ showTranslation: !this.data.showTranslation })
   },
   async completeTraining() {
+    if (!this.data.shadowCompleted) {
+      wx.showToast({ title: '请先完整跟读一遍', icon: 'none' })
+      return
+    }
     this.stopAllAudio()
     this.applyStage('summary', Math.max(0, this.data.practiceCount - 1), false)
     const now = Date.now()
+    const plan = (this as any).scenePlan as CoachScenePlan | null
+    const continuesWithNextBatch = Boolean(plan?.mode === 'phrase-drill' && plan.hasNextBatch)
     updateCoachSceneSession({
       sceneId: (this as any).courseId,
       sceneTitle: this.data.title,
-      stage: 'summary',
-      cueIndex: Math.max(0, this.data.practiceCount - 1),
-      completedAt: now,
+      stage: continuesWithNextBatch ? 'overview' : 'summary',
+      cueIndex: continuesWithNextBatch ? 0 : Math.max(0, this.data.practiceCount - 1),
+      batchStart: continuesWithNextBatch ? plan?.batchEnd ?? 0 : plan?.batchStart ?? 0,
+      completedAt: continuesWithNextBatch ? null : now,
     }, now)
     this.refreshSceneCounts()
-    if (getStoreState().token && this.data.course) {
+    if (!continuesWithNextBatch && getStoreState().token && this.data.course) {
       try {
         const totalCues = this.data.course.subtitles.length
         const response = await updateUserProgress(this.data.course.id, 'completed', {
@@ -524,12 +589,33 @@ Page<TrainingPageData, WechatMiniprogram.IAnyObject>({
       }
     }
   },
+  completeReview() {
+    this.stopAllAudio()
+    const assessment = this.data.currentAssessment
+    this.applyStage('summary', this.data.currentPracticeIndex, false)
+    this.setData({ currentAssessment: assessment })
+    this.refreshSceneCounts()
+  },
   restartTraining() {
     this.stopAllAudio()
-    this.applyStage('overview', 0)
+    this.applyStage(this.data.reviewMode ? 'practice' : 'overview', 0, !this.data.reviewMode)
   },
   returnHome() {
     wx.reLaunch({ url: '/pages/coach/coach' })
+  },
+  handleSummaryPrimary() {
+    if (this.data.reviewMode) {
+      wx.reLaunch({ url: '/pages/coach/coach?tab=review' })
+      return
+    }
+    const plan = (this as any).scenePlan as CoachScenePlan | null
+    if (plan?.mode === 'phrase-drill' && plan.hasNextBatch) {
+      wx.redirectTo({
+        url: `/pages/training/training?id=${encodeURIComponent((this as any).courseId)}&batchStart=${plan.batchEnd}&restart=1`,
+      })
+      return
+    }
+    this.returnHome()
   },
   openKnowledge() {
     if (!this.data.course) return
@@ -550,6 +636,10 @@ Page<TrainingPageData, WechatMiniprogram.IAnyObject>({
       stageDescription: meta.description,
       answerRevealed: false,
       currentAssessment: '',
+      assessmentMadeThisRun: false,
+      listenTranscriptVisible: false,
+      listenCompleted: false,
+      shadowCompleted: false,
       recordingPath: '',
       hasRecording: false,
       audioProgress: 0,
@@ -574,7 +664,8 @@ Page<TrainingPageData, WechatMiniprogram.IAnyObject>({
       answerRevealed: false,
       recordingPath: record?.recordingPath || '',
       hasRecording: Boolean(record?.recordingPath),
-      currentAssessment: record?.status || '',
+      currentAssessment: '',
+      assessmentMadeThisRun: false,
     })
   },
   setPracticeCue(index: number) {
@@ -591,7 +682,8 @@ Page<TrainingPageData, WechatMiniprogram.IAnyObject>({
       answerRevealed: true,
       recordingPath: record?.recordingPath || '',
       hasRecording: Boolean(record?.recordingPath),
-      currentAssessment: record?.status || '',
+      currentAssessment: '',
+      assessmentMadeThisRun: false,
     })
   },
   getActiveCue(): SubtitleEntry | null {
@@ -630,15 +722,19 @@ Page<TrainingPageData, WechatMiniprogram.IAnyObject>({
       sceneTitle: this.data.course.title,
       stage,
       cueIndex,
+      batchStart: ((this as any).scenePlan as CoachScenePlan | null)?.batchStart ?? 0,
       completedAt: null,
     })
   },
   refreshSceneCounts() {
     const courseId = (this as any).courseId as string
     const state = readCoachProgress()
-    const sceneRecords = state.sentences.filter(item => item.sceneId === courseId)
+    const plan = (this as any).scenePlan as CoachScenePlan | null
+    const focusCueIds = new Set(plan?.practiceCues.map(item => item.id) ?? [])
+    const isActiveCue = (sentenceId: string) => !focusCueIds.size || focusCueIds.has(sentenceId)
+    const sceneRecords = state.sentences.filter(item => item.sceneId === courseId && isActiveCue(item.sentenceId))
     const summaryReviewItems = getReviewItems(state)
-      .filter(item => item.sceneId === courseId)
+      .filter(item => item.sceneId === courseId && isActiveCue(item.sentenceId))
       .map(item => ({ key: item.key, text: item.text, translation: item.translation }))
     this.setData({
       masteredCount: sceneRecords.filter(item => item.status === 'mastered').length,
@@ -653,12 +749,38 @@ function resolveAudioUrl(value: string) {
   return `${API_BASE_URL}${value.startsWith('/') ? value : `/${value}`}`
 }
 
-function resolveSceneRange(course: CourseDetailResponse) {
-  const first = course.subtitles[0]
-  const last = course.subtitles[course.subtitles.length - 1]
-  const start = Number(course.range?.start ?? first?.start ?? 0)
-  const end = Number(course.range?.end ?? last?.end ?? start + 1)
-  return { start, end: Math.max(start + 0.1, end) }
+function parseBatchStart(value?: string) {
+  if (value === undefined || value === '') return null
+  const parsed = Math.floor(Number(value))
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null
+}
+
+function buildBatchLabel(plan: CoachScenePlan) {
+  if (plan.mode !== 'phrase-drill') return ''
+  const groupNumber = Math.floor(plan.batchStart / 8) + 1
+  return `第 ${groupNumber} 组 · ${plan.batchStart + 1}-${plan.batchEnd} / ${plan.totalPracticeCueCount}`
+}
+
+function scopePlanToReviewCue(
+  plan: CoachScenePlan,
+  course: CourseDetailResponse,
+  reviewCueId: string,
+): CoachScenePlan {
+  const cueIndex = course.subtitles.findIndex(item => item.id === reviewCueId)
+  const cue = course.subtitles[cueIndex]
+  if (!cue) return plan
+  const practiceCue = { ...cue, cueIndex }
+  return {
+    ...plan,
+    estimatedMinutes: 3,
+    keyExpressions: [cue.text],
+    challenges: [],
+    practiceCues: [practiceCue],
+    batchStart: 0,
+    batchEnd: 1,
+    totalPracticeCueCount: 1,
+    hasNextBatch: false,
+  }
 }
 
 function normalizeSpeaker(value?: string) {

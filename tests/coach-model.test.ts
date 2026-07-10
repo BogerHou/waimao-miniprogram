@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict'
 
-import { buildCoachScenePlan, resolveBusinessGoal } from '../miniprogram/utils/coach-model'
+import {
+  buildCoachScenePlan,
+  resolveBusinessGoal,
+  resolveCoachSceneRange,
+} from '../miniprogram/utils/coach-model'
 
 function testBuildsBusinessChallengesFromLearnerTurns() {
   const plan = buildCoachScenePlan({
@@ -116,6 +120,13 @@ function testSplitsPhraseLibraryIntoBatches() {
   assert.equal(plan.practiceCues[7].id, '16')
   assert.equal(plan.challenges.length, 3)
   assert.equal(plan.hasNextBatch, true)
+  assert.deepEqual(resolveCoachSceneRange({
+    id: 'scene-batches',
+    title: '外贸高频表达',
+    audio: '/audio.mp3',
+    subtitles,
+    range: { start: 0, end: 18.8 },
+  }, plan), { start: 8, end: 15.8 })
 
   const finalPlan = buildCoachScenePlan({
     id: 'scene-batches',

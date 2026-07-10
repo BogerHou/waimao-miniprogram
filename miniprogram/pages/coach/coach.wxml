@@ -44,7 +44,7 @@
           <view class="today-task__progress">
             <view class="today-task__progress-head">
               <text>{{todayScene.stageLabel}}</text>
-              <text>{{todayScene.progressPercent}}%</text>
+              <text>第 {{todayScene.stepLabel}} 步</text>
             </view>
             <view class="today-task__track"><view class="today-task__fill" style="width: {{todayScene.progressPercent}}%;"></view></view>
           </view>
@@ -181,7 +181,7 @@
         <view class="membership-panel">
           <view class="membership-panel__copy">
             <text class="membership-panel__eyebrow">{{fullAccess ? '会员权益' : '当前权益'}}</text>
-            <text class="membership-panel__title">{{fullAccess ? '全部场景已解锁' : '第一章免费试学'}}</text>
+            <text class="membership-panel__title">{{fullAccess ? '全部场景已解锁' : '第一章可直接学习'}}</text>
             <text class="membership-panel__desc">{{membershipText}}</text>
           </view>
           <button wx:if="{{!fullAccess}}" class="membership-panel__button" bindtap="goToUnlock">去解锁</button>

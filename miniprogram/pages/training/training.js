@@ -25,6 +25,7 @@ const PHRASE_STAGE_META = {
 Page({
     courseId: '',
     reviewCueId: '',
+    requestedBatchStart: null,
     scenePlan: null,
     sourceAudio: null,
     recordingAudio: null,
@@ -41,6 +42,7 @@ Page({
         title: '场景训练',
         chapterLabel: '',
         sceneMode: 'dialogue',
+        reviewMode: false,
         stage: 'overview',
         stageNumber: 1,
         stageTitle: STAGE_META.overview.title,
@@ -50,6 +52,8 @@ Page({
         customerSpeaker: '',
         estimatedMinutes: 8,
         keyExpressions: [],
+        batchLabel: '',
+        hasNextBatch: false,
         dialogue: [],
         challengeCount: 0,
         currentChallengeIndex: 0,
@@ -69,6 +73,10 @@ Page({
         currentSubtitleId: '',
         playbackRate: 1,
         currentAssessment: '',
+        assessmentMadeThisRun: false,
+        listenTranscriptVisible: false,
+        listenCompleted: false,
+        shadowCompleted: false,
         masteredCount: 0,
         reviewCount: 0,
         summaryReviewItems: [],
@@ -79,6 +87,7 @@ Page({
         (0, share_1.enablePageShareMenu)();
         this.courseId = options.id || '';
         this.reviewCueId = options.reviewCue || '';
+        this.requestedBatchStart = parseBatchStart(options.batchStart);
         this.pageAlive = true;
         this.initializeAudio();
         this.initializeRecorder();
@@ -115,40 +124,53 @@ Page({
             const course = await (0, api_1.fetchCourseDetail)(this.courseId, forceRefresh);
             if (!this.pageAlive)
                 return;
-            const scenePlan = (0, coach_model_1.buildCoachScenePlan)(course);
+            const savedSession = (0, coach_progress_1.readCoachProgress)().sessions.find(item => item.sceneId === course.id);
+            const requestedBatchStart = this.requestedBatchStart;
+            const reviewCueId = this.reviewCueId;
+            const baseScenePlan = (0, coach_model_1.buildCoachScenePlan)(course, {
+                phraseBatchStart: requestedBatchStart ?? savedSession?.batchStart ?? 0,
+            });
+            const scenePlan = reviewCueId
+                ? scopePlanToReviewCue(baseScenePlan, course, reviewCueId)
+                : baseScenePlan;
             this.scenePlan = scenePlan;
             const learner = normalizeSpeaker(scenePlan.learnerSpeaker);
-            const dialogue = course.subtitles.map((cue, cueIndex) => {
+            const dialogueSource = reviewCueId || scenePlan.mode === 'phrase-drill'
+                ? scenePlan.practiceCues
+                : course.subtitles.map((cue, cueIndex) => ({ ...cue, cueIndex }));
+            const dialogue = dialogueSource.map(cue => {
                 const isLearner = scenePlan.mode === 'phrase-drill' || normalizeSpeaker(cue.speaker) === learner;
                 return {
                     ...cue,
-                    cueIndex,
                     isLearner,
                     speakerLabel: scenePlan.mode === 'phrase-drill'
-                        ? `表达 ${cueIndex + 1}`
+                        ? `表达 ${cue.cueIndex + 1}`
                         : `${isLearner ? '你 · ' : ''}${cue.speaker || scenePlan.customerSpeaker}`,
                     toneClass: isLearner ? 'dialogue-cue--self' : 'dialogue-cue--customer',
                 };
             });
-            const range = resolveSceneRange(course);
-            const savedSession = (0, coach_progress_1.readCoachProgress)().sessions.find(item => item.sceneId === course.id);
-            const reviewCueId = this.reviewCueId;
+            const range = (0, coach_model_1.resolveCoachSceneRange)(course, scenePlan);
             const initialStage = reviewCueId
                 ? 'practice'
-                : savedSession && savedSession.stage !== 'summary'
-                    ? savedSession.stage
-                    : 'overview';
+                : requestedBatchStart !== null
+                    ? 'overview'
+                    : savedSession && savedSession.stage !== 'summary'
+                        ? savedSession.stage
+                        : 'overview';
             this.setData({
                 loading: false,
                 course,
                 title: course.title,
                 chapterLabel: course.chapterLabel || '',
                 sceneMode: scenePlan.mode,
+                reviewMode: Boolean(reviewCueId),
                 businessGoal: scenePlan.businessGoal,
                 learnerSpeaker: scenePlan.learnerSpeaker,
                 customerSpeaker: scenePlan.customerSpeaker,
                 estimatedMinutes: scenePlan.estimatedMinutes,
                 keyExpressions: scenePlan.keyExpressions,
+                batchLabel: buildBatchLabel(scenePlan),
+                hasNextBatch: scenePlan.hasNextBatch,
                 dialogue,
                 challengeCount: scenePlan.challenges.length,
                 practiceCount: scenePlan.practiceCues.length,
@@ -156,7 +178,9 @@ Page({
             });
             const initialIndex = reviewCueId
                 ? Math.max(0, scenePlan.practiceCues.findIndex(item => item.id === reviewCueId))
-                : savedSession?.cueIndex ?? 0;
+                : (savedSession?.batchStart ?? 0) === scenePlan.batchStart
+                    ? savedSession?.cueIndex ?? 0
+                    : 0;
             this.applyStage(initialStage, initialIndex, false);
             this.refreshSceneCounts();
         }
@@ -271,18 +295,20 @@ Page({
         if (this.data.playingSource === 'scene') {
             ;
             this.sourceAudio?.pause();
+            this.activeAudioMode = '';
             this.setData({ playingSource: '' });
             return;
         }
         if (!this.data.course)
             return;
-        const range = resolveSceneRange(this.data.course);
+        const range = (0, coach_model_1.resolveCoachSceneRange)(this.data.course, this.scenePlan);
         this.playSourceRange(range.start, range.end, 'scene');
     },
     handleOriginalPlay() {
         if (this.data.playingSource === 'original') {
             ;
             this.sourceAudio?.pause();
+            this.activeAudioMode = '';
             this.setData({ playingSource: '' });
             return;
         }
@@ -353,18 +379,35 @@ Page({
         if (current >= end - 0.04) {
             audio.pause();
             audio.seek(start);
-            this.setData({ playingSource: '', audioProgress: 100 });
+            this.completeActiveSourcePlayback();
         }
     },
     handleSourceEnded() {
         if (!this.pageAlive)
             return;
-        this.setData({ playingSource: '', audioProgress: 100 });
+        this.completeActiveSourcePlayback();
+    },
+    completeActiveSourcePlayback() {
+        const activeAudioMode = this.activeAudioMode;
+        this.activeAudioMode = '';
+        const updates = {
+            playingSource: '',
+            audioProgress: 100,
+        };
+        if (activeAudioMode === 'scene' && this.data.stage === 'listen') {
+            updates.listenCompleted = true;
+            updates.listenTranscriptVisible = true;
+        }
+        if (activeAudioMode === 'scene' && this.data.stage === 'shadow') {
+            updates.shadowCompleted = true;
+        }
+        this.setData(updates);
     },
     stopAllAudio() {
         this.clearPlayStartTimer();
         this.sourceAudio?.pause();
         this.recordingAudio?.pause();
+        this.activeAudioMode = '';
         if (this.pageAlive)
             this.setData({ playingSource: '' });
     },
@@ -415,12 +458,15 @@ Page({
     revealAnswer() {
         this.setData({ answerRevealed: true });
     },
+    toggleListenTranscript() {
+        this.setData({ listenTranscriptVisible: !this.data.listenTranscriptVisible });
+    },
     handleAssessment(event) {
         const { status } = event.currentTarget.dataset;
         if (status !== 'review' && status !== 'mastered')
             return;
         this.persistActiveSentence(status, this.data.recordingPath);
-        this.setData({ currentAssessment: status });
+        this.setData({ currentAssessment: status, assessmentMadeThisRun: true });
         this.refreshSceneCounts();
     },
     nextChallenge() {
@@ -435,6 +481,10 @@ Page({
     nextPracticeCue() {
         const nextIndex = this.data.currentPracticeIndex + 1;
         if (nextIndex >= this.data.practiceCount) {
+            if (this.data.reviewMode) {
+                this.completeReview();
+                return;
+            }
             this.startShadow();
             return;
         }
@@ -456,18 +506,25 @@ Page({
         this.setData({ showTranslation: !this.data.showTranslation });
     },
     async completeTraining() {
+        if (!this.data.shadowCompleted) {
+            wx.showToast({ title: '请先完整跟读一遍', icon: 'none' });
+            return;
+        }
         this.stopAllAudio();
         this.applyStage('summary', Math.max(0, this.data.practiceCount - 1), false);
         const now = Date.now();
+        const plan = this.scenePlan;
+        const continuesWithNextBatch = Boolean(plan?.mode === 'phrase-drill' && plan.hasNextBatch);
         (0, coach_progress_1.updateCoachSceneSession)({
             sceneId: this.courseId,
             sceneTitle: this.data.title,
-            stage: 'summary',
-            cueIndex: Math.max(0, this.data.practiceCount - 1),
-            completedAt: now,
+            stage: continuesWithNextBatch ? 'overview' : 'summary',
+            cueIndex: continuesWithNextBatch ? 0 : Math.max(0, this.data.practiceCount - 1),
+            batchStart: continuesWithNextBatch ? plan?.batchEnd ?? 0 : plan?.batchStart ?? 0,
+            completedAt: continuesWithNextBatch ? null : now,
         }, now);
         this.refreshSceneCounts();
-        if ((0, index_1.getState)().token && this.data.course) {
+        if (!continuesWithNextBatch && (0, index_1.getState)().token && this.data.course) {
             try {
                 const totalCues = this.data.course.subtitles.length;
                 const response = await (0, api_1.updateUserProgress)(this.data.course.id, 'completed', {
@@ -483,12 +540,33 @@ Page({
             }
         }
     },
+    completeReview() {
+        this.stopAllAudio();
+        const assessment = this.data.currentAssessment;
+        this.applyStage('summary', this.data.currentPracticeIndex, false);
+        this.setData({ currentAssessment: assessment });
+        this.refreshSceneCounts();
+    },
     restartTraining() {
         this.stopAllAudio();
-        this.applyStage('overview', 0);
+        this.applyStage(this.data.reviewMode ? 'practice' : 'overview', 0, !this.data.reviewMode);
     },
     returnHome() {
         wx.reLaunch({ url: '/pages/coach/coach' });
+    },
+    handleSummaryPrimary() {
+        if (this.data.reviewMode) {
+            wx.reLaunch({ url: '/pages/coach/coach?tab=review' });
+            return;
+        }
+        const plan = this.scenePlan;
+        if (plan?.mode === 'phrase-drill' && plan.hasNextBatch) {
+            wx.redirectTo({
+                url: `/pages/training/training?id=${encodeURIComponent(this.courseId)}&batchStart=${plan.batchEnd}&restart=1`,
+            });
+            return;
+        }
+        this.returnHome();
     },
     openKnowledge() {
         if (!this.data.course)
@@ -510,6 +588,10 @@ Page({
             stageDescription: meta.description,
             answerRevealed: false,
             currentAssessment: '',
+            assessmentMadeThisRun: false,
+            listenTranscriptVisible: false,
+            listenCompleted: false,
+            shadowCompleted: false,
             recordingPath: '',
             hasRecording: false,
             audioProgress: 0,
@@ -538,7 +620,8 @@ Page({
             answerRevealed: false,
             recordingPath: record?.recordingPath || '',
             hasRecording: Boolean(record?.recordingPath),
-            currentAssessment: record?.status || '',
+            currentAssessment: '',
+            assessmentMadeThisRun: false,
         });
     },
     setPracticeCue(index) {
@@ -555,7 +638,8 @@ Page({
             answerRevealed: true,
             recordingPath: record?.recordingPath || '',
             hasRecording: Boolean(record?.recordingPath),
-            currentAssessment: record?.status || '',
+            currentAssessment: '',
+            assessmentMadeThisRun: false,
         });
     },
     getActiveCue() {
@@ -597,15 +681,19 @@ Page({
             sceneTitle: this.data.course.title,
             stage,
             cueIndex,
+            batchStart: this.scenePlan?.batchStart ?? 0,
             completedAt: null,
         });
     },
     refreshSceneCounts() {
         const courseId = this.courseId;
         const state = (0, coach_progress_1.readCoachProgress)();
-        const sceneRecords = state.sentences.filter(item => item.sceneId === courseId);
+        const plan = this.scenePlan;
+        const focusCueIds = new Set(plan?.practiceCues.map(item => item.id) ?? []);
+        const isActiveCue = (sentenceId) => !focusCueIds.size || focusCueIds.has(sentenceId);
+        const sceneRecords = state.sentences.filter(item => item.sceneId === courseId && isActiveCue(item.sentenceId));
         const summaryReviewItems = (0, coach_progress_1.getReviewItems)(state)
-            .filter(item => item.sceneId === courseId)
+            .filter(item => item.sceneId === courseId && isActiveCue(item.sentenceId))
             .map(item => ({ key: item.key, text: item.text, translation: item.translation }));
         this.setData({
             masteredCount: sceneRecords.filter(item => item.status === 'mastered').length,
@@ -619,12 +707,35 @@ function resolveAudioUrl(value) {
         return value;
     return `${env_1.API_BASE_URL}${value.startsWith('/') ? value : `/${value}`}`;
 }
-function resolveSceneRange(course) {
-    const first = course.subtitles[0];
-    const last = course.subtitles[course.subtitles.length - 1];
-    const start = Number(course.range?.start ?? first?.start ?? 0);
-    const end = Number(course.range?.end ?? last?.end ?? start + 1);
-    return { start, end: Math.max(start + 0.1, end) };
+function parseBatchStart(value) {
+    if (value === undefined || value === '')
+        return null;
+    const parsed = Math.floor(Number(value));
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+function buildBatchLabel(plan) {
+    if (plan.mode !== 'phrase-drill')
+        return '';
+    const groupNumber = Math.floor(plan.batchStart / 8) + 1;
+    return `第 ${groupNumber} 组 · ${plan.batchStart + 1}-${plan.batchEnd} / ${plan.totalPracticeCueCount}`;
+}
+function scopePlanToReviewCue(plan, course, reviewCueId) {
+    const cueIndex = course.subtitles.findIndex(item => item.id === reviewCueId);
+    const cue = course.subtitles[cueIndex];
+    if (!cue)
+        return plan;
+    const practiceCue = { ...cue, cueIndex };
+    return {
+        ...plan,
+        estimatedMinutes: 3,
+        keyExpressions: [cue.text],
+        challenges: [],
+        practiceCues: [practiceCue],
+        batchStart: 0,
+        batchEnd: 1,
+        totalPracticeCueCount: 1,
+        hasNextBatch: false,
+    };
 }
 function normalizeSpeaker(value) {
     return String(value || '').trim().toLowerCase();

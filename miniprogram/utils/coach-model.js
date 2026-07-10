@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildCoachScenePlan = buildCoachScenePlan;
 exports.resolveBusinessGoal = resolveBusinessGoal;
+exports.resolveCoachSceneRange = resolveCoachSceneRange;
 const DEFAULT_PHRASE_BATCH_SIZE = 8;
 const TITLE_GOALS = [
     { pattern: /报价|价格/, goal: '自然确认客户是否看过报价，并推动对方给出明确的下一步。' },
@@ -94,6 +95,16 @@ function resolveBusinessGoal(course) {
         return truncateText(background, 76);
     }
     return '在真实外贸沟通中组织清楚的回应，并推动对话进入下一步。';
+}
+function resolveCoachSceneRange(course, plan) {
+    const scopedCues = plan?.mode === 'phrase-drill' && plan.practiceCues.length
+        ? plan.practiceCues
+        : course.subtitles;
+    const first = scopedCues[0];
+    const last = scopedCues[scopedCues.length - 1];
+    const start = Number(plan?.mode === 'phrase-drill' ? first?.start ?? 0 : course.range?.start ?? first?.start ?? 0);
+    const end = Number(plan?.mode === 'phrase-drill' ? last?.end : course.range?.end ?? last?.end ?? start + 1);
+    return { start, end: Math.max(start + 0.1, end) };
 }
 function resolveLearnerSpeaker(subtitles) {
     const preferred = subtitles.find(item => normalizeSpeaker(item.speaker) === 'yibing')?.speaker;

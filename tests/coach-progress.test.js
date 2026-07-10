@@ -45,6 +45,7 @@ function testSceneSessionKeepsLatestStage() {
         sceneTitle: '电话跟进',
         stage: 'summary',
         cueIndex: 4,
+        batchStart: 8,
         completedAt: now + 10,
     }, now + 10);
     state = (0, coach_progress_1.saveSceneSessionProgress)(state, {
@@ -56,6 +57,7 @@ function testSceneSessionKeepsLatestStage() {
     }, now + 20);
     strict_1.default.equal(state.sessions.length, 1);
     strict_1.default.equal(state.sessions[0].stage, 'listen');
+    strict_1.default.equal(state.sessions[0].batchStart, 8);
     strict_1.default.equal(state.sessions[0].completedAt, now + 10);
     strict_1.default.equal((0, coach_progress_1.getCoachSummary)(state, now + 20).completedSceneCount, 1);
 }

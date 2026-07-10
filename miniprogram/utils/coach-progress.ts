@@ -22,6 +22,7 @@ export type CoachSceneSession = {
   sceneTitle: string
   stage: CoachStage
   cueIndex: number
+  batchStart?: number
   completedAt: number | null
   updatedAt: number
 }
@@ -98,6 +99,7 @@ export function saveSceneSessionProgress(
   const existing = state.sessions.find(item => item.sceneId === input.sceneId)
   const next: CoachSceneSession = {
     ...input,
+    batchStart: input.batchStart ?? existing?.batchStart ?? 0,
     completedAt: input.completedAt ?? existing?.completedAt ?? null,
     updatedAt: now,
   }
