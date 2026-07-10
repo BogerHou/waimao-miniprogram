@@ -56,7 +56,12 @@ function upsertSentenceProgress(state, input, now = Date.now()) {
     };
 }
 function saveSceneSessionProgress(state, input, now = Date.now()) {
-    const next = { ...input, updatedAt: now };
+    const existing = state.sessions.find(item => item.sceneId === input.sceneId);
+    const next = {
+        ...input,
+        completedAt: input.completedAt ?? existing?.completedAt ?? null,
+        updatedAt: now,
+    };
     return {
         ...state,
         sessions: [next, ...state.sessions.filter(item => item.sceneId !== input.sceneId)],

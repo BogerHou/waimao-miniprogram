@@ -53,10 +53,18 @@ function testSceneSessionKeepsLatestStage() {
     cueIndex: 4,
     completedAt: now + 10,
   }, now + 10)
+  state = saveSceneSessionProgress(state, {
+    sceneId: 'scene-1',
+    sceneTitle: '电话跟进',
+    stage: 'listen',
+    cueIndex: 0,
+    completedAt: null,
+  }, now + 20)
 
   assert.equal(state.sessions.length, 1)
-  assert.equal(state.sessions[0].stage, 'summary')
-  assert.equal(getCoachSummary(state, now + 10).completedSceneCount, 1)
+  assert.equal(state.sessions[0].stage, 'listen')
+  assert.equal(state.sessions[0].completedAt, now + 10)
+  assert.equal(getCoachSummary(state, now + 20).completedSceneCount, 1)
 }
 
 function testRecordingUpdateDoesNotDoubleCountPractice() {

@@ -95,7 +95,12 @@ export function saveSceneSessionProgress(
   input: Omit<CoachSceneSession, 'updatedAt'>,
   now = Date.now(),
 ): CoachProgressState {
-  const next: CoachSceneSession = { ...input, updatedAt: now }
+  const existing = state.sessions.find(item => item.sceneId === input.sceneId)
+  const next: CoachSceneSession = {
+    ...input,
+    completedAt: input.completedAt ?? existing?.completedAt ?? null,
+    updatedAt: now,
+  }
   return {
     ...state,
     sessions: [next, ...state.sessions.filter(item => item.sceneId !== input.sceneId)],
