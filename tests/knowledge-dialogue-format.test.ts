@@ -3,6 +3,7 @@ import assert from "node:assert/strict"
 import {
   buildTimedDialogueSentences,
   formatKnowledgeDialogue,
+  formatKnowledgeDialogueFromSubtitles,
   resolveSpeakerToneClass,
   splitPairedDialogueSentences,
   splitDialogueSentences,
@@ -67,6 +68,13 @@ function testFormatDialogueKeepsSpeakerToneStable() {
     "我明白。",
     "那我们分批发货怎么样？",
   ])
+  assert.deepEqual(dialogue[0].sentences.map(sentence => ({
+    text: sentence.text,
+    translation: sentence.translation,
+  })), [
+    { text: "I understand.", translation: "我明白。" },
+    { text: "What if we split the shipment?", translation: "那我们分批发货怎么样？" },
+  ])
 }
 
 function testSpeakerToneResolverKeepsSameSpeakerConsistent() {
@@ -77,6 +85,44 @@ function testSpeakerToneResolverKeepsSameSpeakerConsistent() {
 
   assert.equal(first, third)
   assert.notEqual(first, second)
+}
+
+function testSubtitleDialogueKeepsBackendTranslationPairs() {
+  const dialogue = formatKnowledgeDialogueFromSubtitles([
+    {
+      id: '1',
+      speaker: 'Carol',
+      text: "Hi Yibing, I'm Carol, and I work closely with Bob.",
+      translation: '你好，毅冰。我是 Carol，我和 Bob 一起工作。',
+    },
+    {
+      id: '2',
+      speaker: 'Carol',
+      text: "He's been checking his emails while he's away.",
+      translation: '他出差期间一直都会查收邮件。',
+    },
+    {
+      id: '3',
+      speaker: 'Yibing',
+      text: 'Thanks, Carol!',
+      translation: '谢谢你，Carol！',
+    },
+  ])
+
+  assert.equal(dialogue.length, 2)
+  assert.deepEqual(dialogue[0].sentences.map(sentence => ({
+    text: sentence.text,
+    translation: sentence.translation,
+  })), [
+    {
+      text: "Hi Yibing, I'm Carol, and I work closely with Bob.",
+      translation: '你好，毅冰。我是 Carol，我和 Bob 一起工作。',
+    },
+    {
+      text: "He's been checking his emails while he's away.",
+      translation: '他出差期间一直都会查收邮件。',
+    },
+  ])
 }
 
 function testSplitPairedDialogueSentencesKeepsTranslationUnderEnglish() {
@@ -117,6 +163,7 @@ testSplitDialogueSentencesByTerminalPunctuation()
 testSplitKeepsDecimalsAndEmailFragmentsTogether()
 testFormatDialogueKeepsSpeakerToneStable()
 testSpeakerToneResolverKeepsSameSpeakerConsistent()
+testSubtitleDialogueKeepsBackendTranslationPairs()
 testSplitPairedDialogueSentencesKeepsTranslationUnderEnglish()
 testTimedDialogueSentencesStayInsideOriginalCue()
 console.log("knowledge dialogue format tests passed.")

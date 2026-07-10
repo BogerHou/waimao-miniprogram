@@ -6,6 +6,7 @@ import {
 } from '../../utils/share'
 import {
   formatKnowledgeDialogue,
+  formatKnowledgeDialogueFromSubtitles,
   type KnowledgeDialogueItem,
 } from '../../utils/dialogue-format'
 import {
@@ -20,6 +21,7 @@ type KnowledgePageData = {
   courseTitle: string
   loading: boolean
   error: string
+  isEmpty: boolean
   backgroundParagraphs: KnowledgeTextLine[]
   phraseItems: KnowledgePhraseItem[]
   correction: KnowledgeCorrectionBlock
@@ -34,6 +36,7 @@ Page<KnowledgePageData, WechatMiniprogram.IAnyObject>({
     courseTitle: '知识点',
     loading: true,
     error: '',
+    isEmpty: false,
     backgroundParagraphs: [],
     phraseItems: [],
     correction: {
@@ -57,6 +60,7 @@ Page<KnowledgePageData, WechatMiniprogram.IAnyObject>({
       this.setData({
         loading: false,
         error: '小节ID未找到',
+        isEmpty: false,
       })
       return
     }
@@ -67,6 +71,7 @@ Page<KnowledgePageData, WechatMiniprogram.IAnyObject>({
     this.setData({
       loading: true,
       error: '',
+      isEmpty: false,
     })
     try {
       const detail = await fetchCourseDetail(courseId)
@@ -76,6 +81,7 @@ Page<KnowledgePageData, WechatMiniprogram.IAnyObject>({
       this.setData({
         loading: false,
         error: message,
+        isEmpty: false,
       })
     }
   },
@@ -87,14 +93,18 @@ Page<KnowledgePageData, WechatMiniprogram.IAnyObject>({
       correction: knowledge?.correction,
       notes: knowledge?.notes,
     })
-    const dialogue = formatKnowledgeDialogue(knowledge?.dialogue ?? [])
+    const dialogue = detail.subtitles.length
+      ? formatKnowledgeDialogueFromSubtitles(detail.subtitles)
+      : formatKnowledgeDialogue(knowledge?.dialogue ?? [])
+    const hasContent = formattedKnowledge.hasKnowledgeContent || dialogue.length > 0
 
     this.setData({
       courseTitle: detail.title || this.data.courseTitle,
       ...formattedKnowledge,
       dialogue,
       loading: false,
-      error: formattedKnowledge.hasKnowledgeContent || dialogue.length ? '' : '暂无知识点内容',
+      error: '',
+      isEmpty: !hasContent,
     })
   },
   handleRetry() {

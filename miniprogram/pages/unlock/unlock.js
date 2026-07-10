@@ -4,6 +4,7 @@ const api_1 = require("../../utils/api");
 const env_1 = require("../../config/env");
 const share_1 = require("../../utils/share");
 const index_1 = require("../../store/index");
+const util_1 = require("../../utils/util");
 Page({
     storeUnsubscribe: undefined,
     data: {
@@ -15,6 +16,8 @@ Page({
         contactQrUrl: '',
         contactTitle: index_1.DEFAULT_HOME_AD.contactTitle,
         contactTip: index_1.DEFAULT_HOME_AD.contactTip,
+        codeError: '',
+        expiresAtLabel: '1 年访问权限已生效',
     },
     onLoad() {
         (0, share_1.enablePageShareMenu)();
@@ -45,11 +48,13 @@ Page({
             contactQrUrl: resolveAssetUrl(ad.contactQrUrl || index_1.DEFAULT_HOME_AD.contactQrUrl),
             contactTitle: ad.contactTitle || index_1.DEFAULT_HOME_AD.contactTitle,
             contactTip: ad.contactTip || index_1.DEFAULT_HOME_AD.contactTip,
+            expiresAtLabel: (0, util_1.formatEntitlementExpiry)(state.entitlement?.expiresAt),
         });
     },
     handleCodeInput(event) {
         this.setData({
             code: event.detail.value.trim(),
+            codeError: '',
         });
     },
     async requireLogin() {
@@ -70,7 +75,7 @@ Page({
             return;
         }
         wx.showToast({
-            title: '请先登录后解锁',
+            title: '请先在首页完成微信登录',
             icon: 'none',
         });
         setTimeout(() => {
@@ -88,13 +93,10 @@ Page({
             return;
         const code = this.data.code.trim();
         if (!code) {
-            wx.showToast({
-                title: '请输入邀请码',
-                icon: 'none',
-            });
+            this.setData({ codeError: '请输入会员邀请码' });
             return;
         }
-        this.setData({ submitting: true });
+        this.setData({ submitting: true, codeError: '' });
         try {
             const state = (0, index_1.getState)();
             if (!state.token || !state.user) {
@@ -110,27 +112,15 @@ Page({
             if (response.progress) {
                 (0, index_1.setProgress)(response.progress);
             }
-            (0, index_1.setFullAccess)(Boolean(response.fullAccess));
-            wx.showToast({
-                title: '已解锁全部章节',
-                icon: 'success',
-            });
-            setTimeout(() => {
-                const pages = getCurrentPages();
-                if (pages.length > 1) {
-                    wx.navigateBack();
-                }
-                else {
-                    wx.redirectTo({ url: '/pages/index/index' });
-                }
-            }, 700);
+            if (response.entitlement) {
+                (0, index_1.setEntitlement)(response.entitlement);
+            }
+            else {
+                (0, index_1.setFullAccess)(Boolean(response.fullAccess));
+            }
         }
         catch (error) {
-            const message = error instanceof Error ? error.message : '解锁失败，请稍后重试';
-            wx.showToast({
-                title: message,
-                icon: 'none',
-            });
+            this.setData({ codeError: (0, util_1.formatInviteErrorMessage)(error) });
         }
         finally {
             this.setData({ submitting: false });

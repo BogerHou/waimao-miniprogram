@@ -11,11 +11,16 @@ import {
   getState as getStoreState,
   subscribe,
   setFullAccess as updateFullAccessInStore,
+  setEntitlement as updateEntitlementInStore,
   setProgress as updateProgressInStore,
   setToken as updateTokenInStore,
   setUser as updateUserInStore,
   type StoreState,
 } from '../../store/index'
+import {
+  formatEntitlementExpiry,
+  formatInviteErrorMessage,
+} from '../../utils/util'
 
 type UnlockPageData = {
   code: string
@@ -26,6 +31,8 @@ type UnlockPageData = {
   contactQrUrl: string
   contactTitle: string
   contactTip: string
+  codeError: string
+  expiresAtLabel: string
 }
 
 Page<UnlockPageData, WechatMiniprogram.IAnyObject>({
@@ -39,6 +46,8 @@ Page<UnlockPageData, WechatMiniprogram.IAnyObject>({
     contactQrUrl: '',
     contactTitle: DEFAULT_HOME_AD.contactTitle,
     contactTip: DEFAULT_HOME_AD.contactTip,
+    codeError: '',
+    expiresAtLabel: '1 年访问权限已生效',
   },
   onLoad() {
     enablePageShareMenu()
@@ -71,11 +80,13 @@ Page<UnlockPageData, WechatMiniprogram.IAnyObject>({
       contactQrUrl: resolveAssetUrl(ad.contactQrUrl || DEFAULT_HOME_AD.contactQrUrl),
       contactTitle: ad.contactTitle || DEFAULT_HOME_AD.contactTitle,
       contactTip: ad.contactTip || DEFAULT_HOME_AD.contactTip,
+      expiresAtLabel: formatEntitlementExpiry(state.entitlement?.expiresAt),
     })
   },
   handleCodeInput(event: WechatMiniprogram.Input) {
     this.setData({
       code: event.detail.value.trim(),
+      codeError: '',
     })
   },
   async requireLogin() {
@@ -97,7 +108,7 @@ Page<UnlockPageData, WechatMiniprogram.IAnyObject>({
     }
 
     wx.showToast({
-      title: '请先登录后解锁',
+      title: '请先在首页完成微信登录',
       icon: 'none',
     })
     setTimeout(() => {
@@ -114,14 +125,11 @@ Page<UnlockPageData, WechatMiniprogram.IAnyObject>({
 
     const code = this.data.code.trim()
     if (!code) {
-      wx.showToast({
-        title: '请输入邀请码',
-        icon: 'none',
-      })
+      this.setData({ codeError: '请输入会员邀请码' })
       return
     }
 
-    this.setData({ submitting: true })
+    this.setData({ submitting: true, codeError: '' })
     try {
       const state = getStoreState()
       if (!state.token || !state.user) {
@@ -137,27 +145,13 @@ Page<UnlockPageData, WechatMiniprogram.IAnyObject>({
       if (response.progress) {
         updateProgressInStore(response.progress)
       }
-      updateFullAccessInStore(Boolean(response.fullAccess))
-
-      wx.showToast({
-        title: '已解锁全部章节',
-        icon: 'success',
-      })
-
-      setTimeout(() => {
-        const pages = getCurrentPages()
-        if (pages.length > 1) {
-          wx.navigateBack()
-        } else {
-          wx.redirectTo({ url: '/pages/index/index' })
-        }
-      }, 700)
+      if (response.entitlement) {
+        updateEntitlementInStore(response.entitlement)
+      } else {
+        updateFullAccessInStore(Boolean(response.fullAccess))
+      }
     } catch (error) {
-      const message = error instanceof Error ? error.message : '解锁失败，请稍后重试'
-      wx.showToast({
-        title: message,
-        icon: 'none',
-      })
+      this.setData({ codeError: formatInviteErrorMessage(error) })
     } finally {
       this.setData({ submitting: false })
     }

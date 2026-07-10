@@ -53,11 +53,12 @@ import {
   resolveSpeakerToneClass,
 } from '../../utils/dialogue-format'
 
-const BACKGROUND_AUDIO_COVER_URL = `${API_BASE_URL}/static/images/icon.png`
+const BACKGROUND_AUDIO_COVER_URL = `${API_BASE_URL}/static/waimao-mini/icon.png`
 const COURSE_SHARE_CANVAS_ID = 'course-share-canvas'
 const COURSE_SHARE_CANVAS_WIDTH = 600
 const COURSE_SHARE_CANVAS_HEIGHT = 840
 const COURSE_DEBUG_STORAGE_KEY = 'waimao_mini_debug_logs'
+const COURSE_PRACTICE_HINT_SEEN_KEY = 'waimao_course_practice_hint_seen_v1'
 
 type CourseWindowInfo = {
   windowWidth: number
@@ -282,6 +283,7 @@ type CoursePageData = {
   showModeSelector: boolean
   showShadowMode: boolean
   showPracticeControls: boolean
+  showPracticeHint: boolean
 }
 
 type SubtitleLike = Pick<SubtitleEntry, 'id' | 'start' | 'end'>
@@ -349,6 +351,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     showModeSelector: true,
     showShadowMode: true,
     showPracticeControls: false,
+    showPracticeHint: false,
   },
   courseId: '' as string,
   // InnerAudioContext (用于 Shadow 模式)
@@ -453,7 +456,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     void this.markSceneCompleted('scene-end')
     if (showToast) {
       wx.showToast({
-        title: '本小节播放完成',
+        title: '本小节已完成，进度已保存',
         icon: 'success',
       })
     }
@@ -876,6 +879,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
         showModeSelector: modePresentation.showModeSelector,
         showShadowMode: modePresentation.showShadowMode,
         showPracticeControls: modePresentation.showPracticeControls,
+        showPracticeHint: modePresentation.showPracticeControls && !hasSeenCoursePracticeHint(),
         playMode: modePresentation.effectivePlayMode,
       })
 
@@ -903,8 +907,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
         }, 500)
       }
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Failed to load course, please retry.'
+      const message = error instanceof Error ? error.message : '课程加载失败，请重试'
       this.setData({
         loading: false,
         error: message,
@@ -1947,6 +1950,9 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
       showModeSelector: modePresentation.showModeSelector,
       showShadowMode: modePresentation.showShadowMode,
       showPracticeControls: modePresentation.showPracticeControls,
+      showPracticeHint: modePresentation.showPracticeControls
+        ? this.data.showPracticeHint || !hasSeenCoursePracticeHint()
+        : false,
       playMode: modePresentation.effectivePlayMode,
       playing: modePresentation.showPracticeControls ? this.data.playing : false,
       isRepeating: modePresentation.showPracticeControls ? this.data.isRepeating : false,
@@ -2035,6 +2041,8 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
       return
     }
 
+    this.hidePracticeHint()
+
     console.log(`\n============== 用户点击段落 ==============`)
     console.log(`索引: ${index}`)
     console.log(`ID: ${target.id}`)
@@ -2051,6 +2059,14 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
 
       // 使用节流版本的播放函数（避免快速点击）
       ; (this as any).throttledPlaySubtitle(target)
+  },
+
+  hidePracticeHint() {
+    if (!this.data.showPracticeHint) {
+      return
+    }
+    markCoursePracticeHintSeen()
+    this.setData({ showPracticeHint: false })
   },
 
   handleWordLongPress(event: WechatMiniprogram.BaseEvent) {
@@ -3337,6 +3353,22 @@ function buildKnowledgeContext(detail: CourseDetailResponse) {
   ].filter(Boolean)
 
   return parts.join('\n')
+}
+
+function hasSeenCoursePracticeHint() {
+  try {
+    return Boolean(wx.getStorageSync(COURSE_PRACTICE_HINT_SEEN_KEY))
+  } catch (_error) {
+    return false
+  }
+}
+
+function markCoursePracticeHintSeen() {
+  try {
+    wx.setStorageSync(COURSE_PRACTICE_HINT_SEEN_KEY, true)
+  } catch (_error) {
+    // A storage failure should not block practice.
+  }
 }
 
 function normalizeAudioUrl(audio: string): string {

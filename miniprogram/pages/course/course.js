@@ -11,11 +11,12 @@ const audio_source_fallback_1 = require("./audio-source-fallback");
 const course_share_card_1 = require("./course-share-card");
 const course_mode_config_1 = require("./course-mode-config");
 const dialogue_format_1 = require("../../utils/dialogue-format");
-const BACKGROUND_AUDIO_COVER_URL = `${env_1.API_BASE_URL}/static/images/icon.png`;
+const BACKGROUND_AUDIO_COVER_URL = `${env_1.API_BASE_URL}/static/waimao-mini/icon.png`;
 const COURSE_SHARE_CANVAS_ID = 'course-share-canvas';
 const COURSE_SHARE_CANVAS_WIDTH = 600;
 const COURSE_SHARE_CANVAS_HEIGHT = 840;
 const COURSE_DEBUG_STORAGE_KEY = 'waimao_mini_debug_logs';
+const COURSE_PRACTICE_HINT_SEEN_KEY = 'waimao_course_practice_hint_seen_v1';
 function getCourseWindowInfo() {
     const wxCompat = wx;
     return wxCompat.getWindowInfo?.() ?? wx.getSystemInfoSync();
@@ -182,6 +183,7 @@ Page({
         showModeSelector: true,
         showShadowMode: true,
         showPracticeControls: false,
+        showPracticeHint: false,
     },
     courseId: '',
     // InnerAudioContext (用于 Shadow 模式)
@@ -279,7 +281,7 @@ Page({
         void this.markSceneCompleted('scene-end');
         if (showToast) {
             wx.showToast({
-                title: '本小节播放完成',
+                title: '本小节已完成，进度已保存',
                 icon: 'success',
             });
         }
@@ -657,6 +659,7 @@ Page({
                 showModeSelector: modePresentation.showModeSelector,
                 showShadowMode: modePresentation.showShadowMode,
                 showPracticeControls: modePresentation.showPracticeControls,
+                showPracticeHint: modePresentation.showPracticeControls && !hasSeenCoursePracticeHint(),
                 playMode: modePresentation.effectivePlayMode,
             });
             // 只读模式不初始化课程音频，避免隐藏播放入口时仍产生音频请求。
@@ -684,7 +687,7 @@ Page({
             }
         }
         catch (error) {
-            const message = error instanceof Error ? error.message : 'Failed to load course, please retry.';
+            const message = error instanceof Error ? error.message : '课程加载失败，请重试';
             this.setData({
                 loading: false,
                 error: message,
@@ -1632,6 +1635,9 @@ Page({
             showModeSelector: modePresentation.showModeSelector,
             showShadowMode: modePresentation.showShadowMode,
             showPracticeControls: modePresentation.showPracticeControls,
+            showPracticeHint: modePresentation.showPracticeControls
+                ? this.data.showPracticeHint || !hasSeenCoursePracticeHint()
+                : false,
             playMode: modePresentation.effectivePlayMode,
             playing: modePresentation.showPracticeControls ? this.data.playing : false,
             isRepeating: modePresentation.showPracticeControls ? this.data.isRepeating : false,
@@ -1715,6 +1721,7 @@ Page({
         if (!target) {
             return;
         }
+        this.hidePracticeHint();
         console.log(`\n============== 用户点击段落 ==============`);
         console.log(`索引: ${index}`);
         console.log(`ID: ${target.id}`);
@@ -1730,6 +1737,13 @@ Page({
         // 使用节流版本的播放函数（避免快速点击）
         ;
         this.throttledPlaySubtitle(target);
+    },
+    hidePracticeHint() {
+        if (!this.data.showPracticeHint) {
+            return;
+        }
+        markCoursePracticeHintSeen();
+        this.setData({ showPracticeHint: false });
     },
     handleWordLongPress(event) {
         const dataset = event.currentTarget.dataset;
@@ -2869,6 +2883,22 @@ function buildKnowledgeContext(detail) {
         knowledge.notes ? `讲解备注：${knowledge.notes}` : '',
     ].filter(Boolean);
     return parts.join('\n');
+}
+function hasSeenCoursePracticeHint() {
+    try {
+        return Boolean(wx.getStorageSync(COURSE_PRACTICE_HINT_SEEN_KEY));
+    }
+    catch (_error) {
+        return false;
+    }
+}
+function markCoursePracticeHintSeen() {
+    try {
+        wx.setStorageSync(COURSE_PRACTICE_HINT_SEEN_KEY, true);
+    }
+    catch (_error) {
+        // A storage failure should not block practice.
+    }
 }
 function normalizeAudioUrl(audio) {
     console.log(`[normalizeAudioUrl] 输入: "${audio}"`);

@@ -4,6 +4,13 @@ export type RawKnowledgeDialogueItem = {
   translation?: string
 }
 
+export type RawKnowledgeDialogueSubtitle = {
+  id?: string
+  speaker?: string
+  text: string
+  translation?: string
+}
+
 export type KnowledgeDialogueSegment = {
   id: string
   text: string
@@ -13,8 +20,13 @@ export type KnowledgeDialogueItem = {
   id: string
   speaker: string
   toneClass: string
+  sentences: KnowledgeDialogueSentence[]
   textSegments: KnowledgeDialogueSegment[]
   translationSegments: KnowledgeDialogueSegment[]
+}
+
+export type KnowledgeDialogueSentence = PairedDialogueSentence & {
+  id: string
 }
 
 export type PairedDialogueSentence = {
@@ -50,15 +62,71 @@ export function formatKnowledgeDialogue(
     .map((item, itemIndex) => {
       const speaker = String(item.speaker || 'Speaker').trim() || 'Speaker'
       const speakerKey = normalizeSpeakerKey(speaker)
+      const sentences = splitPairedDialogueSentences(item.text, item.translation ?? '')
+        .map((sentence, sentenceIndex) => ({
+          id: `${itemIndex}-sentence-${sentenceIndex}`,
+          ...sentence,
+        }))
 
       return {
         id: `${speakerKey}-${itemIndex}`,
         speaker,
         toneClass: resolveSpeakerToneClass(speaker, speakerToneIndexes),
+        sentences,
         textSegments: buildSegments(item.text, `${itemIndex}-text`),
         translationSegments: buildSegments(item.translation ?? '', `${itemIndex}-translation`),
       }
     })
+}
+
+export function formatKnowledgeDialogueFromSubtitles(
+  items: RawKnowledgeDialogueSubtitle[] = [],
+): KnowledgeDialogueItem[] {
+  const speakerToneIndexes = new Map<string, number>()
+  const groups: KnowledgeDialogueItem[] = []
+
+  items.forEach((item, itemIndex) => {
+    const text = String(item?.text ?? '').trim()
+    if (!text) {
+      return
+    }
+    const speaker = String(item.speaker || 'Speaker').trim() || 'Speaker'
+    const speakerKey = normalizeSpeakerKey(speaker)
+    const translation = String(item.translation ?? '').trim()
+    const previous = groups[groups.length - 1]
+    const group = previous && normalizeSpeakerKey(previous.speaker) === speakerKey
+      ? previous
+      : {
+          id: `${speakerKey}-subtitle-group-${groups.length}`,
+          speaker,
+          toneClass: resolveSpeakerToneClass(speaker, speakerToneIndexes),
+          sentences: [],
+          textSegments: [],
+          translationSegments: [],
+        }
+    if (group !== previous) {
+      groups.push(group)
+    }
+
+    const segmentId = item.id || `${itemIndex}`
+    group.sentences.push({
+      id: `subtitle-sentence-${segmentId}`,
+      text,
+      translation,
+    })
+    group.textSegments.push({
+      id: `subtitle-text-${segmentId}`,
+      text,
+    })
+    if (translation) {
+      group.translationSegments.push({
+        id: `subtitle-translation-${segmentId}`,
+        text: translation,
+      })
+    }
+  })
+
+  return groups
 }
 
 export function resolveSpeakerToneClass(

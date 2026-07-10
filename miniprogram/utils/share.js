@@ -3,8 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.enablePageShareMenu = enablePageShareMenu;
 exports.buildAppMessageShare = buildAppMessageShare;
 exports.buildTimelineShare = buildTimelineShare;
-const env_1 = require("../config/env");
-const DEFAULT_SHARE_IMAGE = `${env_1.API_BASE_URL}/static/images/icon.png`;
+const DEFAULT_SHARE_IMAGE = '/assets/images/icon.png';
 function enablePageShareMenu() {
     if (typeof wx.showShareMenu !== 'function') {
         return;

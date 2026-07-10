@@ -1,32 +1,24 @@
+<view class="app-page">
 <navigation-bar title="交流与反馈" back="{{true}}" color="black" background="#FFF"></navigation-bar>
 
-<view class="container">
-  <view class="contact-card">
-    <view class="card-header">
-      <image class="header-icon" src="/assets/images/icon.png" mode="aspectFill"></image>
-      <text class="header-title">加入外贸英语打卡群</text>
-      <text class="header-desc">一起练外贸沟通场景，持续打卡影子跟读</text>
-    </view>
-    
-    <view class="qr-section">
-      <image 
-        class="qr-code" 
-        src="{{qrCodeUrl}}" 
-        mode="widthFix"
-        show-menu-by-longpress="{{true}}"
-        bindtap="previewQRCode"
-      />
-      <text class="qr-tip">点击预览，长按识别加入交流群</text>
+<scroll-view class="contact-scroll" scroll-y>
+  <view class="contact-page">
+    <view class="contact-heading">
+      <image class="contact-heading__icon" src="/assets/images/icon.png" mode="aspectFill"></image>
+      <text class="contact-heading__title">加入外贸英语交流群</text>
+      <text class="contact-heading__desc">交流外贸场景表达，分享跟读打卡</text>
     </view>
 
-    <view class="action-section">
-      <button class="btn btn-primary" bindtap="previewQRCode">查看二维码</button>
+    <view class="contact-qr" bindtap="previewQRCode" aria-role="button" aria-label="查看交流群二维码">
+      <image class="contact-qr__image" src="{{qrCodeUrl}}" mode="widthFix" show-menu-by-longpress="{{true}}" />
     </view>
+    <text class="contact-qr__tip">点击放大，长按识别二维码</text>
   </view>
-</view>
+</scroll-view>
 
 <canvas
   canvas-id="contact-share-canvas"
   class="share-poster-canvas"
   style="width: 600px; height: 840px;"
 ></canvas>
+</view>

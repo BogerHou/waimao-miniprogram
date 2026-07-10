@@ -15,6 +15,7 @@ require("./pdf-image-scan.test");
 require("./progress-payload.test");
 require("./shadow-background-handoff.test");
 require("./share-card.test");
+require("./unlock-format.test");
 app_config_sync_test_1.appConfigSyncTestDone
     .then(() => {
     console.log("all miniprogram tests passed.");

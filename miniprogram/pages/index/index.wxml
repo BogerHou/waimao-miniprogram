@@ -1,3 +1,4 @@
+<view class="app-page">
 <navigation-bar
   title="外贸英语影子跟读"
   back="{{false}}"
@@ -8,74 +9,69 @@
 <view class="page-content">
   <view class="hero">
     <view class="hero__profile-card {{showPracticeHelp ? 'hero__profile-card--help' : ''}}">
-      <view wx:if="{{showPracticeHelp}}" class="hero__help-button" bindtap="goToPracticeHelp">
+      <view wx:if="{{showPracticeHelp}}" class="hero__help-button" bindtap="goToPracticeHelp" aria-role="button" aria-label="练习帮助">
         <text class="hero__help-icon">?</text>
         <text class="hero__help-text">帮助</text>
       </view>
-      <view class="hero__profile">
-        <view wx:if="{{isAuthenticated}}" class="hero__avatar-wrapper">
-          <view class="hero__avatar {{avatarUrl ? 'hero__avatar--image' : ''}}">
-            <image
-              wx:if="{{avatarUrl}}"
-              class="hero__avatar-image"
-              src="{{avatarUrl}}"
-              mode="aspectFill"
-            />
-            <text wx:else class="hero__avatar-text">{{avatarInitial}}</text>
+
+      <view wx:if="{{isAuthenticated}}" class="hero__profile">
+        <view class="hero__avatar {{avatarUrl ? 'hero__avatar--image' : ''}}">
+          <image wx:if="{{avatarUrl}}" class="hero__avatar-image" src="{{avatarUrl}}" mode="aspectFill" />
+          <text wx:else class="hero__avatar-text">{{avatarInitial}}</text>
+        </view>
+        <view class="hero__info">
+          <text class="hero__greeting">{{userNickname}}</text>
+          <view class="hero__membership">
+            <view class="hero__membership-dot"></view>
+            <text>{{fullAccess ? '全部课程已解锁' : '第一章免费试学'}}</text>
           </view>
         </view>
-        <view wx:if="{{isAuthenticated}}" class="hero__info">
-          <text class="hero__greeting">Hi, {{userNickname}}</text>
+      </view>
+
+      <view wx:else class="hero__login">
+        <view class="hero__login-copy">
+          <text class="hero__login-title">第一章免费试学</text>
+          <text class="hero__login-tip">登录后保存学习进度</text>
         </view>
-        <view wx:else class="hero__login">
-          <button
-            class="hero__login-button"
-            type="primary"
-            size="mini"
-            bindtap="showLoginDialog"
-            loading="{{authLoading}}"
-            disabled="{{authLoading}}"
-          >
-            授权登录
-          </button>
-          <text class="hero__login-tip">第一章可先试学，登录后记录进度</text>
-        </view>
+        <button
+          class="hero__login-button"
+          bindtap="handleLoginTap"
+          loading="{{authLoading}}"
+          disabled="{{authLoading}}"
+        >微信登录</button>
       </view>
     </view>
-
   </view>
 
-  <view wx:if="{{continueScene}}" class="continue-card" data-id="{{continueScene.id}}" bindtap="goToDetail">
-    <view class="continue-card__mark">
-      <text class="continue-card__mark-text">▶</text>
-    </view>
+  <view wx:if="{{continueScene}}" class="continue-card" data-id="{{continueScene.id}}" bindtap="goToDetail" aria-role="button">
+    <view class="continue-card__mark"><view class="play-triangle"></view></view>
     <view class="continue-card__content">
       <text class="continue-card__eyebrow">继续学习</text>
-      <text class="continue-card__title">{{continueScene.chapterLabel}} {{continueScene.title}}</text>
+      <text class="continue-card__title">{{continueScene.chapterLabel}} · {{continueScene.title}}</text>
       <text class="continue-card__desc">{{continueScene.statusText}}</text>
     </view>
-    <view class="continue-card__cta">
-      <text>继续</text>
-      <text class="continue-card__arrow">→</text>
-    </view>
+    <text class="continue-card__arrow">›</text>
   </view>
 
-  <view wx:if="{{showUnlockPrompt}}" class="unlock-prompt" bindtap="goToUnlock">
+  <view wx:if="{{showUnlockPrompt}}" class="unlock-prompt" bindtap="goToUnlock" aria-role="button">
+    <view class="unlock-prompt__icon" aria-hidden="true">
+      <view class="lock-icon__shackle"></view>
+      <view class="lock-icon__body"></view>
+    </view>
     <view class="unlock-prompt__content">
-      <text class="unlock-prompt__eyebrow">会员权益</text>
       <text class="unlock-prompt__title">{{unlockPromptTitle}}</text>
       <text class="unlock-prompt__desc">{{unlockPromptDescription}}</text>
     </view>
     <view class="unlock-prompt__cta">
       <text>{{unlockPromptCta}}</text>
-      <text class="unlock-prompt__arrow">→</text>
+      <text class="unlock-prompt__arrow">›</text>
     </view>
   </view>
 
   <view class="courses-section">
     <view class="section-header">
       <text class="section-title">课程章节</text>
-      <text class="section-subtitle">7章外贸场景训练</text>
+      <text class="section-subtitle">7 章外贸场景训练</text>
     </view>
 
     <scroll-view
@@ -94,47 +90,67 @@
               class="chapter-card {{item.locked ? 'chapter-card--locked' : ''}}"
               id="chapter-{{item.id}}"
             >
-              <view class="chapter-card__header" data-id="{{item.id}}" bindtap="toggleChapter">
+              <view class="chapter-card__header" data-id="{{item.id}}" bindtap="toggleChapter" aria-role="button">
                 <view class="chapter-card__main">
-                  <view class="chapter-card__meta">
-                    <text class="chapter-card__label">{{item.label}}</text>
-                  </view>
+                  <text class="chapter-card__label">{{item.label}}</text>
                   <text class="chapter-card__title">{{item.title}}</text>
                 </view>
                 <view class="chapter-card__side">
-                  <view wx:if="{{item.locked}}" class="chapter-card__lock">🔒</view>
-                  <view wx:elif="{{item.free}}" class="chapter-card__free">免费</view>
-                  <view wx:else class="chapter-card__free chapter-card__free--unlocked">已解锁</view>
-                  <text class="chapter-card__chevron">{{expandedChapterId === item.id ? '⌃' : '⌄'}}</text>
+                  <text wx:if="{{item.free}}" class="chapter-card__state chapter-card__state--free">免费</text>
+                  <text wx:elif="{{!item.locked}}" class="chapter-card__state chapter-card__state--open">已解锁</text>
+                  <view wx:else class="chapter-card__lock" aria-label="已锁定">
+                    <view class="mini-lock__shackle"></view>
+                    <view class="mini-lock__body"></view>
+                  </view>
+                  <view class="chapter-card__chevron {{expandedChapterId === item.id ? 'chapter-card__chevron--open' : ''}}"></view>
                 </view>
               </view>
 
               <view wx:if="{{expandedChapterId === item.id}}" class="scene-list">
-	                <view
-	                  wx:for="{{item.scenes}}"
-	                  wx:for-item="scene"
-	                  wx:key="id"
-	                  class="scene-item {{scene.status === 'completed' ? 'scene-item--completed' : ''}} {{scene.locked ? 'scene-item--locked' : ''}} {{scene.isCurrent ? 'scene-item--current' : ''}}"
-	                  data-id="{{scene.id}}"
-	                  bindtap="goToDetail"
-	                  id="course-{{scene.id}}"
+                <view
+                  wx:for="{{item.scenes}}"
+                  wx:for-item="scene"
+                  wx:key="id"
+                  class="scene-item {{scene.status === 'completed' ? 'scene-item--completed' : ''}} {{scene.locked ? 'scene-item--locked' : ''}} {{scene.isCurrent ? 'scene-item--current' : ''}}"
+                  data-id="{{scene.id}}"
+                  bindtap="goToDetail"
+                  id="course-{{scene.id}}"
+                  aria-role="button"
                 >
-	                  <view class="scene-item__index">{{scene.index}}</view>
-	                  <view class="scene-item__body">
-	                    <text class="scene-item__title">{{scene.title}}</text>
-	                    <text wx:if="{{scene.isCurrent && scene.status !== 'completed'}}" class="scene-item__badge">上次学到</text>
-	                  </view>
-                  <view wx:if="{{scene.status === 'completed'}}" class="scene-item__status scene-item__status--done">✓</view>
-                  <view wx:elif="{{scene.locked}}" class="scene-item__status scene-item__status--locked">🔒</view>
-                  <text wx:else class="scene-item__arrow">→</text>
+                  <view class="scene-item__index">{{scene.index}}</view>
+                  <view class="scene-item__body">
+                    <text class="scene-item__title">{{scene.title}}</text>
+                    <text wx:if="{{scene.isCurrent && scene.status !== 'completed'}}" class="scene-item__badge">上次学到</text>
+                  </view>
+                  <icon wx:if="{{scene.status === 'completed'}}" type="success_no_circle" size="20" color="#10b981" />
+                  <view wx:elif="{{scene.locked}}" class="scene-item__lock" aria-label="已锁定">
+                    <view class="mini-lock__shackle"></view>
+                    <view class="mini-lock__body"></view>
+                  </view>
+                  <text wx:else class="scene-item__arrow">›</text>
                 </view>
               </view>
             </view>
           </view>
         </block>
-        <view wx:elif="{{loading}}" class="state-text">加载课程中...</view>
-        <view wx:elif="{{error}}" class="state-text state-text--error">{{error}}</view>
-        <view wx:else class="state-text">暂无课程</view>
+
+        <view wx:elif="{{loading}}" class="chapter-skeleton-list" aria-label="课程加载中">
+          <view class="chapter-skeleton"><view class="skeleton-line skeleton-line--short"></view><view class="skeleton-line"></view></view>
+          <view class="chapter-skeleton"><view class="skeleton-line skeleton-line--short"></view><view class="skeleton-line"></view></view>
+          <view class="chapter-skeleton"><view class="skeleton-line skeleton-line--short"></view><view class="skeleton-line"></view></view>
+        </view>
+
+        <view wx:elif="{{error}}" class="page-state">
+          <view class="page-state__mark">!</view>
+          <text class="page-state__title">课程加载失败</text>
+          <text class="page-state__desc">{{error}}</text>
+          <button class="page-state__button" bindtap="handleRetry">重新加载</button>
+        </view>
+
+        <view wx:else class="page-state">
+          <text class="page-state__title">暂无课程</text>
+          <text class="page-state__desc">课程准备好后会显示在这里</text>
+        </view>
       </view>
     </scroll-view>
   </view>
@@ -142,79 +158,62 @@
 
 <view wx:if="{{showLoginModal}}" class="login-modal">
   <view class="login-modal__mask" bindtap="hideLoginDialog"></view>
-  <view class="login-modal__content">
+  <view class="login-modal__sheet">
+    <view class="login-modal__handle"></view>
     <view class="login-modal__header">
-      <text class="login-modal__title">完善个人信息</text>
-      <view class="login-modal__close" bindtap="hideLoginDialog">×</view>
+      <view class="login-modal__heading">
+        <text class="login-modal__title">{{loginModalTitle}}</text>
+        <text class="login-modal__desc">{{loginModalDescription}}</text>
+      </view>
+      <view class="login-modal__close" bindtap="hideLoginDialog" aria-role="button" aria-label="关闭">
+        <image class="close-icon" src="/assets/icons/x.svg" mode="aspectFit"></image>
+      </view>
     </view>
+
     <view class="login-modal__body">
-      <view class="login-form-item">
-        <text class="login-form-label">头像</text>
-        <button class="login-avatar-button" open-type="chooseAvatar" bind:chooseavatar="onChooseAvatar">
-          <image wx:if="{{loginAvatarUrl}}" class="login-avatar-image" src="{{loginAvatarUrl}}"></image>
+      <view class="login-profile-picker">
+        <button class="login-avatar-button" open-type="chooseAvatar" bind:chooseavatar="onChooseAvatar" aria-label="选择微信头像">
+          <image wx:if="{{loginAvatarUrl}}" class="login-avatar-image" src="{{loginAvatarUrl}}" mode="aspectFill"></image>
           <view wx:else class="login-avatar-placeholder">
-            <text class="login-avatar-icon">👤</text>
+            <image class="login-avatar-placeholder__icon" src="/assets/icons/user-round.svg" mode="aspectFit"></image>
+          </view>
+          <view class="login-avatar-edit">
+            <image class="login-avatar-edit__icon" src="/assets/icons/camera-white.svg" mode="aspectFit"></image>
           </view>
         </button>
+        <text class="login-avatar-caption">{{loginAvatarUrl ? '更换头像' : '选择头像'}}</text>
       </view>
+
       <view class="login-form-item">
         <text class="login-form-label">昵称</text>
         <input
           class="login-nickname-input"
           type="nickname"
           value="{{loginNickname}}"
-          placeholder="请输入昵称"
+          placeholder="输入你的昵称"
+          aria-label="昵称"
           bind:input="onNicknameInput"
           bind:blur="onNicknameBlur"
         />
       </view>
+
+      <text wx:if="{{loginError}}" class="login-form-error">{{loginError}}</text>
     </view>
+
     <view class="login-modal__footer">
       <button
-        class="login-confirm-button"
+        class="login-confirm-button {{!canLogin ? 'login-confirm-button--disabled' : ''}}"
         bindtap="handleLoginConfirm"
         disabled="{{!canLogin}}"
         loading="{{authLoading}}"
-      >
-        确认登录
-      </button>
+      >{{loginConfirmText}}</button>
+      <text class="login-privacy-tip">仅用于本小程序内的学习档案</text>
     </view>
   </view>
 </view>
 
-<view wx:if="{{showPracticeGuide}}" class="practice-guide-modal">
-  <view class="practice-guide-modal__mask"></view>
-  <view class="practice-guide-card">
-    <view class="practice-guide-card__badge">第一次练习前</view>
-    <text class="practice-guide-card__title">先花 1 分钟了解练习方法</text>
-    <text class="practice-guide-card__desc">Echo 模式适合逐句模仿，影子跟读适合练节奏和流畅度。照着流程练一节课，上手会快很多。</text>
-
-    <view class="practice-guide-points">
-      <view class="practice-guide-point">
-        <text class="practice-guide-point__label">1</text>
-        <text class="practice-guide-point__text">先听懂句子和场景</text>
-      </view>
-      <view class="practice-guide-point">
-        <text class="practice-guide-point__label">2</text>
-        <text class="practice-guide-point__text">再逐句 Echo 打磨发音</text>
-      </view>
-      <view class="practice-guide-point">
-        <text class="practice-guide-point__label">3</text>
-        <text class="practice-guide-point__text">最后影子跟读追上原声</text>
-      </view>
-    </view>
-
-    <view class="practice-guide-actions">
-      <button class="practice-guide-action practice-guide-action--primary" bindtap="startPracticeHelpFromGuide">查看练习帮助</button>
-      <button class="practice-guide-action practice-guide-action--secondary" bindtap="hidePracticeGuide">先看课程</button>
-    </view>
-  </view>
-</view>
-
-<view class="fab-container" bindtap="goToContact" aria-label="交流与反馈">
-  <view class="fab-button">
-    <text class="fab-icon">💬</text>
-  </view>
+<view class="fab-container" bindtap="goToContact" aria-role="button" aria-label="交流与反馈">
+  <view class="fab-button"><view class="message-icon"></view></view>
 </view>
 
 <canvas
@@ -222,3 +221,4 @@
   class="share-poster-canvas"
   style="width: 600px; height: 840px;"
 ></canvas>
+</view>

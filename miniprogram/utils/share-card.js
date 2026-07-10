@@ -45,10 +45,10 @@ function buildContactShareCardModel() {
 }
 function buildPracticeHelpShareCardModel() {
     return {
-        title: 'Echo 法与影子跟读练习指南',
+        title: '逐句跟读与影子跟读练习指南',
         badge: '练习帮助',
         highlight: '先听懂，再跟上',
-        snippet: '用一节课学会 Echo 模式和影子跟读模式的练习节奏。',
+        snippet: '用一节课掌握逐句跟读和影子跟读的练习节奏。',
     };
 }
 function buildPdfShareCardModel(options) {

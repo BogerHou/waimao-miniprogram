@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SPEAKER_TONE_CLASSES = void 0;
 exports.formatKnowledgeDialogue = formatKnowledgeDialogue;
+exports.formatKnowledgeDialogueFromSubtitles = formatKnowledgeDialogueFromSubtitles;
 exports.resolveSpeakerToneClass = resolveSpeakerToneClass;
 exports.splitDialogueSentences = splitDialogueSentences;
 exports.splitPairedDialogueSentences = splitPairedDialogueSentences;
@@ -24,14 +25,64 @@ function formatKnowledgeDialogue(items = []) {
         .map((item, itemIndex) => {
         const speaker = String(item.speaker || 'Speaker').trim() || 'Speaker';
         const speakerKey = normalizeSpeakerKey(speaker);
+        const sentences = splitPairedDialogueSentences(item.text, item.translation ?? '')
+            .map((sentence, sentenceIndex) => ({
+            id: `${itemIndex}-sentence-${sentenceIndex}`,
+            ...sentence,
+        }));
         return {
             id: `${speakerKey}-${itemIndex}`,
             speaker,
             toneClass: resolveSpeakerToneClass(speaker, speakerToneIndexes),
+            sentences,
             textSegments: buildSegments(item.text, `${itemIndex}-text`),
             translationSegments: buildSegments(item.translation ?? '', `${itemIndex}-translation`),
         };
     });
+}
+function formatKnowledgeDialogueFromSubtitles(items = []) {
+    const speakerToneIndexes = new Map();
+    const groups = [];
+    items.forEach((item, itemIndex) => {
+        const text = String(item?.text ?? '').trim();
+        if (!text) {
+            return;
+        }
+        const speaker = String(item.speaker || 'Speaker').trim() || 'Speaker';
+        const speakerKey = normalizeSpeakerKey(speaker);
+        const translation = String(item.translation ?? '').trim();
+        const previous = groups[groups.length - 1];
+        const group = previous && normalizeSpeakerKey(previous.speaker) === speakerKey
+            ? previous
+            : {
+                id: `${speakerKey}-subtitle-group-${groups.length}`,
+                speaker,
+                toneClass: resolveSpeakerToneClass(speaker, speakerToneIndexes),
+                sentences: [],
+                textSegments: [],
+                translationSegments: [],
+            };
+        if (group !== previous) {
+            groups.push(group);
+        }
+        const segmentId = item.id || `${itemIndex}`;
+        group.sentences.push({
+            id: `subtitle-sentence-${segmentId}`,
+            text,
+            translation,
+        });
+        group.textSegments.push({
+            id: `subtitle-text-${segmentId}`,
+            text,
+        });
+        if (translation) {
+            group.translationSegments.push({
+                id: `subtitle-translation-${segmentId}`,
+                text: translation,
+            });
+        }
+    });
+    return groups;
 }
 function resolveSpeakerToneClass(speaker, speakerToneIndexes) {
     const speakerKey = normalizeSpeakerKey(speaker);

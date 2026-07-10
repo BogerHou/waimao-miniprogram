@@ -24,7 +24,7 @@ function testFallsBackToLeadText() {
         currentText: "",
         leadText: "My name is Marco.",
     });
-    strict_1.default.equal(model.modeLabel, "Echo模式");
+    strict_1.default.equal(model.modeLabel, "逐句跟读");
     strict_1.default.equal(model.snippet, "My name is Marco.");
 }
 function testNormalizesWhitespaceAndTruncatesLongSnippet() {

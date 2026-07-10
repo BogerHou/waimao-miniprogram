@@ -6,6 +6,7 @@ exports.setToken = setToken;
 exports.setUser = setUser;
 exports.setProgress = setProgress;
 exports.setFullAccess = setFullAccess;
+exports.setEntitlement = setEntitlement;
 exports.setAppConfig = setAppConfig;
 exports.subscribe = subscribe;
 exports.initializeStore = initializeStore;
@@ -33,22 +34,22 @@ exports.DEFAULT_HOME_AD = {
         features: [],
         note: '',
     },
-    trialTitle: '全部章节开放 1 年',
-    trialDescription: '添加微信购买邀请码，输入后解锁后 6 章。',
+    trialTitle: '解锁全部课程',
+    trialDescription: '后 6 章开放，1 年内不限次学习。',
     targetUrl: '',
     ctaText: '去解锁',
     contactQrUrl: '/static/images/waimao-purchase-wechat-qr.jpg',
-    contactTitle: '扫码添加微信购买邀请码',
-    contactDescription: '添加微信购买会员邀请码，输入后开通全部章节 1 年访问权。',
-    contactTip: '点击预览，长按识别二维码',
+    contactTitle: '添加微信获取邀请码',
+    contactDescription: '添加后说明购买外贸英语影子跟读会员。',
+    contactTip: '点击放大，长按识别二维码',
 };
 exports.DEFAULT_APP_CONFIG = {
     home: {
         bannerEnabled: false,
         practiceHelpEnabled: false,
         unlockPromptEnabled: true,
-        unlockPromptTitle: '全部章节开放 1 年',
-        unlockPromptDescription: '添加微信购买邀请码，解锁后 6 章。',
+        unlockPromptTitle: '解锁全部课程',
+        unlockPromptDescription: '后 6 章开放，1 年内不限次学习',
         unlockPromptCta: '去解锁',
         activeAdId: exports.DEFAULT_HOME_AD.id,
         ads: [exports.DEFAULT_HOME_AD],
@@ -71,6 +72,7 @@ const state = {
     user: null,
     progress: null,
     fullAccess: false,
+    entitlement: null,
     appConfig: exports.DEFAULT_APP_CONFIG,
 };
 const listeners = new Set();
@@ -109,6 +111,16 @@ function setProgress(progress, notify = true) {
 }
 function setFullAccess(fullAccess, notify = true) {
     state.fullAccess = fullAccess;
+    if (!fullAccess) {
+        state.entitlement = null;
+    }
+    if (notify) {
+        emit();
+    }
+}
+function setEntitlement(entitlement, notify = true) {
+    state.entitlement = entitlement;
+    state.fullAccess = Boolean(entitlement?.fullAccess);
     if (notify) {
         emit();
     }
@@ -136,7 +148,10 @@ function initializeStore(initial) {
     state.token = initial?.token ?? (0, storage_1.getToken)();
     state.user = initial?.user ?? null;
     state.progress = initial?.progress ?? null;
-    state.fullAccess = initial?.fullAccess ?? false;
+    state.entitlement = initial?.entitlement ?? null;
+    state.fullAccess = state.entitlement
+        ? Boolean(state.entitlement.fullAccess)
+        : initial?.fullAccess ?? false;
     state.appConfig = initial?.appConfig
         ? {
             home: normalizeHomeConfig(initial.appConfig.home),

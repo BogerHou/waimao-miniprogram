@@ -76,6 +76,18 @@ function testSetAppConfigUpdatesShadowModeFlag() {
     strict_1.default.equal((0, index_1.getState)().appConfig.home.activeAdId, "custom-ad");
     strict_1.default.equal((0, index_1.getState)().appConfig.home.ads?.[0]?.id, "custom-ad");
 }
+function testInitializeStoreDerivesAccessFromEntitlement() {
+    (0, index_1.initializeStore)({
+        token: "",
+        fullAccess: false,
+        entitlement: {
+            fullAccess: true,
+            expiresAt: Date.now() + 86400000,
+        },
+    });
+    strict_1.default.equal((0, index_1.getState)().fullAccess, true);
+}
 testInitializeStoreDefaultsShadowModeToInvisible();
 testSetAppConfigUpdatesShadowModeFlag();
+testInitializeStoreDerivesAccessFromEntitlement();
 console.log("app config store tests passed.");

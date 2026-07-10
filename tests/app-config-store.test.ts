@@ -77,6 +77,20 @@ function testSetAppConfigUpdatesShadowModeFlag() {
   assert.equal(getState().appConfig.home.ads?.[0]?.id, "custom-ad")
 }
 
+function testInitializeStoreDerivesAccessFromEntitlement() {
+  initializeStore({
+    token: "",
+    fullAccess: false,
+    entitlement: {
+      fullAccess: true,
+      expiresAt: Date.now() + 86_400_000,
+    },
+  })
+
+  assert.equal(getState().fullAccess, true)
+}
+
 testInitializeStoreDefaultsShadowModeToInvisible()
 testSetAppConfigUpdatesShadowModeFlag()
+testInitializeStoreDerivesAccessFromEntitlement()
 console.log("app config store tests passed.")

@@ -46,7 +46,7 @@ function testBuildPdfShareCardModelUsesImageCount() {
 function testBuildPracticeHelpShareCardModelUsesGuideText() {
   const model = buildPracticeHelpShareCardModel()
 
-  assert.equal(model.title, "Echo 法与影子跟读练习指南")
+  assert.equal(model.title, "逐句跟读与影子跟读练习指南")
   assert.equal(model.badge, "练习帮助")
   assert.equal(model.highlight, "先听懂，再跟上")
 }

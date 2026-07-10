@@ -10,6 +10,7 @@ Page({
         courseTitle: '知识点',
         loading: true,
         error: '',
+        isEmpty: false,
         backgroundParagraphs: [],
         phraseItems: [],
         correction: {
@@ -32,6 +33,7 @@ Page({
             this.setData({
                 loading: false,
                 error: '小节ID未找到',
+                isEmpty: false,
             });
             return;
         }
@@ -41,6 +43,7 @@ Page({
         this.setData({
             loading: true,
             error: '',
+            isEmpty: false,
         });
         try {
             const detail = await (0, api_1.fetchCourseDetail)(courseId);
@@ -51,6 +54,7 @@ Page({
             this.setData({
                 loading: false,
                 error: message,
+                isEmpty: false,
             });
         }
     },
@@ -62,13 +66,17 @@ Page({
             correction: knowledge?.correction,
             notes: knowledge?.notes,
         });
-        const dialogue = (0, dialogue_format_1.formatKnowledgeDialogue)(knowledge?.dialogue ?? []);
+        const dialogue = detail.subtitles.length
+            ? (0, dialogue_format_1.formatKnowledgeDialogueFromSubtitles)(detail.subtitles)
+            : (0, dialogue_format_1.formatKnowledgeDialogue)(knowledge?.dialogue ?? []);
+        const hasContent = formattedKnowledge.hasKnowledgeContent || dialogue.length > 0;
         this.setData({
             courseTitle: detail.title || this.data.courseTitle,
             ...formattedKnowledge,
             dialogue,
             loading: false,
-            error: formattedKnowledge.hasKnowledgeContent || dialogue.length ? '' : '暂无知识点内容',
+            error: '',
+            isEmpty: !hasContent,
         });
     },
     handleRetry() {

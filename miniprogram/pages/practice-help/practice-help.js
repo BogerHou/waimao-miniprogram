@@ -26,7 +26,7 @@ Page({
         shadowSteps: [
             {
                 label: '1',
-                title: '先用 Echo 熟悉内容',
+                title: '先用逐句跟读熟悉内容',
                 desc: '影子跟读前先听懂大意，避免一边猜意思一边追音频。',
             },
             {
@@ -48,7 +48,7 @@ Page({
             },
             {
                 label: 'B',
-                title: '第二遍：逐句 Echo',
+                title: '第二遍：逐句跟读',
                 desc: '重点练发音、停顿、弱读和连读，遇到长句拆开练。',
             },
             {
@@ -78,14 +78,14 @@ Page({
     },
     onShareAppMessage() {
         return (0, share_1.buildAppMessageShare)({
-            title: 'Echo 法与影子跟读练习指南',
+            title: '逐句跟读与影子跟读练习指南',
             path: '/pages/practice-help/practice-help',
             imageUrl: this.data.shareImageUrl || undefined,
         });
     },
     onShareTimeline() {
         return (0, share_1.buildTimelineShare)({
-            title: 'Echo 法与影子跟读练习指南',
+            title: '逐句跟读与影子跟读练习指南',
             imageUrl: this.data.shareImageUrl || undefined,
         });
     },

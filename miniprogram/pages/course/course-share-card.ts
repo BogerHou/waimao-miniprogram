@@ -43,7 +43,7 @@ export function buildCourseShareCardModel(options: CourseShareCardOptions): Cour
   return {
     title: normalizeText(options.title) || '外贸英语影子跟读',
     tagLabel: normalizeText(options.tag) || '外贸英语',
-    modeLabel: options.playMode === 'shadow' ? '影子跟读' : 'Echo模式',
+    modeLabel: options.playMode === 'shadow' ? '影子跟读' : '逐句跟读',
     snippet: truncateText(snippetSource, maxSnippetLength),
   }
 }

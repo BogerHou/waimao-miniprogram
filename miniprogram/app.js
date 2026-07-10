@@ -197,7 +197,12 @@ App({
         };
         (0, index_1.setToken)(loginResult.token);
         (0, index_1.setUser)(mergedUser);
-        (0, index_1.setFullAccess)(Boolean(loginResult.fullAccess));
+        if (loginResult.entitlement) {
+            (0, index_1.setEntitlement)(loginResult.entitlement);
+        }
+        else {
+            (0, index_1.setFullAccess)(Boolean(loginResult.fullAccess));
+        }
         try {
             const progress = loginResult.progress ?? await (0, api_1.fetchUserProgress)();
             (0, index_1.setProgress)(progress);
@@ -214,7 +219,12 @@ App({
         }
         const profile = await (0, api_1.fetchCurrentUser)();
         (0, index_1.setUser)(profile.user);
-        (0, index_1.setFullAccess)(Boolean(profile.fullAccess));
+        if (profile.entitlement) {
+            (0, index_1.setEntitlement)(profile.entitlement);
+        }
+        else {
+            (0, index_1.setFullAccess)(Boolean(profile.fullAccess));
+        }
         try {
             const progress = profile.progress ?? await (0, api_1.fetchUserProgress)();
             (0, index_1.setProgress)(progress);

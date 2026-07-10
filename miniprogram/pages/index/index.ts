@@ -12,7 +12,7 @@ import {
   getState as getStoreState,
   setAppConfig as updateAppConfigInStore,
   setProgress as updateProgressInStore,
-  setFullAccess as updateFullAccessInStore,
+  setEntitlement as updateEntitlementInStore,
 } from '../../store/index'
 import { API_BASE_URL } from '../../config/env'
 import {
@@ -25,8 +25,6 @@ import { renderSharePoster } from '../../utils/share-poster'
 
 const DEFAULT_NICKNAME = 'Learner'
 const DEFAULT_AVATAR_INITIAL = 'L'
-const PRACTICE_HELP_GUIDE_SEEN_KEY = 'waimao_practice_help_guide_seen_v1'
-
 type ContinueScene = {
   id: string
   chapterLabel: string
@@ -52,6 +50,10 @@ type IndexPageData = {
   loginNickname: string
   loginAvatarUrl: string
   canLogin: boolean
+  loginModalTitle: string
+  loginModalDescription: string
+  loginConfirmText: string
+  loginError: string
   shareImageUrl: string
   fullAccess: boolean
   expandedChapterId: string
@@ -60,7 +62,6 @@ type IndexPageData = {
   unlockPromptDescription: string
   unlockPromptCta: string
   showPracticeHelp: boolean
-  showPracticeGuide: boolean
   scrollWithAnimation: boolean
 }
 
@@ -86,15 +87,18 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
     loginNickname: '',
     loginAvatarUrl: '',
     canLogin: false,
+    loginModalTitle: '登录后保存学习进度',
+    loginModalDescription: '换设备也能从上次的位置继续',
+    loginConfirmText: '登录并继续',
+    loginError: '',
     shareImageUrl: '',
     fullAccess: false,
     expandedChapterId: 'chapter-01',
     showUnlockPrompt: true,
-    unlockPromptTitle: '全部章节开放 1 年',
-    unlockPromptDescription: '添加微信购买邀请码，解锁后 6 章。',
+    unlockPromptTitle: '解锁全部课程',
+    unlockPromptDescription: '后 6 章开放，1 年内不限次学习',
     unlockPromptCta: '去解锁',
     showPracticeHelp: false,
-    showPracticeGuide: false,
     scrollWithAnimation: true,
   },
   scheduleShareImage: debounce(function (this: any) {
@@ -104,7 +108,6 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
     enablePageShareMenu()
     ;(this as any).storeUnsubscribe = subscribe(state => this.handleStoreUpdate(state))
     await this.initializePage()
-    this.maybeShowPracticeGuide()
   },
   async onShow() {
     if (!this.data.chapters.length || this.data.loading) return
@@ -171,7 +174,7 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
         updateAppConfigInStore(response.appConfig)
       }
       if (response.entitlement) {
-        updateFullAccessInStore(Boolean(response.entitlement.fullAccess))
+        updateEntitlementInStore(response.entitlement)
       }
 
       const chapters = normalizeChapters(response.data)
@@ -186,14 +189,10 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
       this.handleStoreUpdate(getStoreState(), sceneCount, chapters)
       this.scheduleShareImage()
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to load courses'
+      const message = error instanceof Error ? error.message : '课程加载失败，请重试'
       this.setData({
         error: message,
         loading: false,
-      })
-      wx.showToast({
-        title: message,
-        icon: 'none',
       })
     }
   },
@@ -229,19 +228,12 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
       unlockPromptDescription: home.unlockPromptDescription || this.data.unlockPromptDescription,
       unlockPromptCta: home.unlockPromptCta || this.data.unlockPromptCta,
       showPracticeHelp: Boolean(home.practiceHelpEnabled),
-      showPracticeGuide: home.practiceHelpEnabled ? this.data.showPracticeGuide : false,
       shareImageUrl: this.data.shareImageUrl,
     })
     this.scheduleShareImage()
   },
-  maybeShowPracticeGuide() {
-    if (!getStoreState().appConfig.home.practiceHelpEnabled) {
-      return
-    }
-    if (hasSeenPracticeGuide()) {
-      return
-    }
-    this.setData({ showPracticeGuide: true })
+  handleRetry() {
+    void this.loadCourses(true)
   },
   handleCourseScroll(event: WechatMiniprogram.ScrollViewScroll) {
     this.courseScrollLastTop = event.detail.scrollTop ?? 0
@@ -259,11 +251,6 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
 
     const scene = findScene(this.data.chapters, id)
     if (scene?.locked) {
-      wx.showToast({
-        title: '解锁后可学习后续章节',
-        icon: 'none',
-        duration: 1800,
-      })
       this.goToUnlock()
       return
     }
@@ -292,22 +279,9 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
     })
   },
   goToPracticeHelp() {
-    markPracticeGuideSeen()
-    this.setData({ showPracticeGuide: false })
     wx.navigateTo({
       url: '/pages/practice-help/practice-help',
     })
-  },
-  startPracticeHelpFromGuide() {
-    markPracticeGuideSeen()
-    this.setData({ showPracticeGuide: false })
-    wx.navigateTo({
-      url: '/pages/practice-help/practice-help',
-    })
-  },
-  hidePracticeGuide() {
-    markPracticeGuideSeen()
-    this.setData({ showPracticeGuide: false })
   },
   handleLoginTap() {
     this.showLoginDialog()
@@ -315,11 +289,18 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
   showLoginDialog(force = false) {
     const forceOpen = force === true
     if (this.data.isAuthenticated && !forceOpen) return
+    const unlocking = Boolean((this as any).pendingUnlockAfterLogin)
     this.setData({
       showLoginModal: true,
       loginNickname: '',
       loginAvatarUrl: '',
       canLogin: false,
+      loginModalTitle: unlocking ? '登录后解锁全部课程' : '登录后保存学习进度',
+      loginModalDescription: unlocking
+        ? '完成登录后，继续填写会员邀请码'
+        : '换设备也能从上次的位置继续',
+      loginConfirmText: '登录并继续',
+      loginError: '',
     })
   },
   hideLoginDialog() {
@@ -329,6 +310,7 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
       loginNickname: '',
       loginAvatarUrl: '',
       canLogin: false,
+      loginError: '',
     })
   },
   onChooseAvatar(e: WechatMiniprogram.CustomEvent<{ avatarUrl: string }>) {
@@ -336,6 +318,7 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
     this.setData({
       loginAvatarUrl: avatarUrl,
       canLogin: Boolean(avatarUrl && this.data.loginNickname),
+      loginError: '',
     })
   },
   onNicknameInput(e: WechatMiniprogram.Input) {
@@ -343,6 +326,7 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
     this.setData({
       loginNickname: nickname,
       canLogin: Boolean(nickname && this.data.loginAvatarUrl),
+      loginError: '',
     })
   },
   onNicknameBlur(e: WechatMiniprogram.InputBlur) {
@@ -350,6 +334,7 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
     this.setData({
       loginNickname: nickname,
       canLogin: Boolean(nickname && this.data.loginAvatarUrl),
+      loginError: '',
     })
   },
   async handleLoginConfirm() {
@@ -399,23 +384,24 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
         loginNickname: '',
         loginAvatarUrl: '',
         canLogin: false,
+        loginError: '',
       })
       ;(this as any).pendingUnlockAfterLogin = false
       await this.loadCourses(true)
-      wx.showToast({
-        title: '登录成功',
-        icon: 'success',
-      })
       if (shouldOpenUnlock) {
         wx.navigateTo({
           url: '/pages/unlock/unlock',
         })
+      } else {
+        wx.showToast({
+          title: '登录成功',
+          icon: 'success',
+        })
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : '登录失败，请稍后重试'
-      wx.showToast({
-        title: message,
-        icon: 'none',
+      this.setData({
+        loginError: message || '登录失败，请稍后重试',
       })
     } finally {
       this.setData({ authLoading: false })
@@ -537,10 +523,21 @@ function findContinueScene(chapters: ChapterListItem[], sceneId: string | null):
       id: scene.id,
       chapterLabel: chapter.label,
       title: scene.title,
-      statusText: scene.status === 'completed' ? '上次完成，可复习' : '上次学到这里',
+      statusText: buildContinueStatusText(scene),
     }
   }
   return null
+}
+
+function buildContinueStatusText(scene: ChapterSceneItem) {
+  if (scene.status === 'completed') {
+    return '已完成，可再次练习'
+  }
+  const progress = scene.progress
+  if (progress && progress.completedCueCount > 0) {
+    return `上次学到第 ${Math.max(1, progress.cueIndex + 1)} 句`
+  }
+  return '上次学到这里'
 }
 
 function countScenes(chapters: ChapterListItem[]) {
@@ -553,20 +550,4 @@ function findScene(chapters: ChapterListItem[], id: string) {
     if (scene) return scene
   }
   return null
-}
-
-function hasSeenPracticeGuide() {
-  try {
-    return Boolean(wx.getStorageSync(PRACTICE_HELP_GUIDE_SEEN_KEY))
-  } catch (_error) {
-    return false
-  }
-}
-
-function markPracticeGuideSeen() {
-  try {
-    wx.setStorageSync(PRACTICE_HELP_GUIDE_SEEN_KEY, true)
-  } catch (_error) {
-    // ignore
-  }
 }

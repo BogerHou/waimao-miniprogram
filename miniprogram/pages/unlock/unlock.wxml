@@ -1,3 +1,4 @@
+<view class="app-page">
 <navigation-bar
   title="解锁课程"
   back="{{true}}"
@@ -7,79 +8,89 @@
 
 <scroll-view class="unlock-scroll" scroll-y>
   <view class="unlock-page">
-    <view wx:if="{{fullAccess}}" class="unlock-card unlock-card--success">
-      <view class="unlock-card__icon">✓</view>
-      <view class="unlock-card__body">
-        <text class="unlock-card__title">已解锁全部课程</text>
-        <text class="unlock-card__desc">全部 7 章 · 1 年访问权限</text>
-      </view>
-      <button class="unlock-card__button" bindtap="goHome">返回首页</button>
+    <view wx:if="{{fullAccess}}" class="unlock-success">
+      <view class="unlock-success__mark"><icon type="success_no_circle" size="36" color="#10b981" /></view>
+      <text class="unlock-success__eyebrow">会员已生效</text>
+      <text class="unlock-success__title">全部课程已解锁</text>
+      <text class="unlock-success__desc">全部 7 章课程均可学习</text>
+      <view class="unlock-success__expiry">{{expiresAtLabel}}</view>
+      <button class="unlock-primary" bindtap="goHome">返回首页开始学习</button>
     </view>
 
-    <view wx:else class="unlock-card">
+    <block wx:else>
       <view class="unlock-hero">
-        <text class="unlock-hero__badge">会员权益</text>
-        <text class="unlock-hero__title">解锁完整外贸英语影子跟读</text>
-        <text class="unlock-hero__desc">开通后 1 年内学习全部 7 章，从外贸场景对话到 Shadow 跟读完整开放。</text>
+        <text class="unlock-hero__eyebrow">会员权益</text>
+        <text class="unlock-hero__title">解锁全部课程</text>
+        <text class="unlock-hero__desc">开通后 365 天内可学习全部 7 章</text>
       </view>
 
       <view class="member-benefits">
         <view class="member-benefit">
-          <text class="member-benefit__mark">01</text>
+          <icon class="member-benefit__icon" type="success_no_circle" size="18" color="#6366f1" />
           <view class="member-benefit__body">
-            <text class="member-benefit__value">全部课程开放</text>
-            <text class="member-benefit__label">解锁后 6 章，完整学习 7 章外贸场景。</text>
+            <text class="member-benefit__title">后 6 章全部开放</text>
+            <text class="member-benefit__desc">覆盖询盘、报价、订单、物流和售后场景</text>
           </view>
         </view>
         <view class="member-benefit">
-          <text class="member-benefit__mark">02</text>
+          <icon class="member-benefit__icon" type="success_no_circle" size="18" color="#6366f1" />
           <view class="member-benefit__body">
-            <text class="member-benefit__value">1 年访问权限</text>
-            <text class="member-benefit__label">365 天内不限次数复习，学习进度持续保留。</text>
+            <text class="member-benefit__title">完整跟读功能</text>
+            <text class="member-benefit__desc">逐句跟读、影子跟读、讲解和知识点完整使用</text>
           </view>
         </view>
         <view class="member-benefit">
-          <text class="member-benefit__mark">03</text>
+          <icon class="member-benefit__icon" type="success_no_circle" size="18" color="#6366f1" />
           <view class="member-benefit__body">
-            <text class="member-benefit__value">完整跟读体验</text>
-            <text class="member-benefit__label">短句播放、角色分色、知识点和 Shadow 跟读同步使用。</text>
+            <text class="member-benefit__title">学习进度持续保存</text>
+            <text class="member-benefit__desc">1 年内不限次数学习和复习</text>
           </view>
         </view>
       </view>
 
-      <view class="unlock-divider"></view>
-
-      <view class="wechat-card">
-        <view class="wechat-card__qr-wrap" bindtap="previewContactQr">
-          <image
-            wx:if="{{contactQrUrl}}"
-            class="wechat-card__qr"
-            src="{{contactQrUrl}}"
-            mode="widthFix"
-            show-menu-by-longpress="{{true}}"
-          />
-          <view wx:else class="wechat-card__qr-placeholder">微信二维码</view>
+      <view class="unlock-section">
+        <view class="unlock-section__heading">
+          <text class="unlock-section__step">1</text>
+          <view class="unlock-section__copy">
+            <text class="unlock-section__title">{{contactTitle}}</text>
+            <text class="unlock-section__desc">添加后说明购买小程序会员</text>
+          </view>
         </view>
-        <text class="wechat-card__title">{{contactTitle}}</text>
-        <text class="wechat-card__tip">{{contactTip}}</text>
+
+        <view class="wechat-qr" bindtap="previewContactQr" aria-role="button">
+          <image wx:if="{{contactQrUrl}}" class="wechat-qr__image" src="{{contactQrUrl}}" mode="widthFix" show-menu-by-longpress="{{true}}" />
+          <view wx:else class="wechat-qr__placeholder">二维码暂未配置</view>
+        </view>
+        <text class="wechat-qr__tip">{{contactTip}}</text>
       </view>
 
-      <input
-        class="unlock-input"
-        value="{{code}}"
-        placeholder="输入会员邀请码"
-        bindinput="handleCodeInput"
-        confirm-type="done"
-      />
+      <view class="unlock-section unlock-section--redeem">
+        <view class="unlock-section__heading">
+          <text class="unlock-section__step">2</text>
+          <view class="unlock-section__copy">
+            <text class="unlock-section__title">输入会员邀请码</text>
+            <text class="unlock-section__desc">购买后将收到一个小程序专用邀请码</text>
+          </view>
+        </view>
 
-      <button
-        class="unlock-primary"
-        bindtap="handleRedeem"
-        loading="{{submitting || authLoading}}"
-        disabled="{{submitting || authLoading}}"
-      >
-        解锁全部课程
-      </button>
-    </view>
+        <input
+          class="unlock-input {{codeError ? 'unlock-input--error' : ''}}"
+          value="{{code}}"
+          placeholder="请输入会员邀请码"
+          bindinput="handleCodeInput"
+          confirm-type="done"
+          maxlength="40"
+        />
+        <text wx:if="{{codeError}}" class="unlock-error">{{codeError}}</text>
+
+        <button
+          class="unlock-primary {{!code || submitting || authLoading ? 'unlock-primary--disabled' : ''}}"
+          bindtap="handleRedeem"
+          loading="{{submitting || authLoading}}"
+          disabled="{{!code || submitting || authLoading}}"
+        >解锁全部课程</button>
+      </view>
+    </block>
   </view>
 </scroll-view>
+</view>

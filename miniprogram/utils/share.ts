@@ -1,5 +1,3 @@
-import { API_BASE_URL } from '../config/env'
-
 type ShareOptions = {
   title: string
   path?: string
@@ -7,7 +5,7 @@ type ShareOptions = {
   imageUrl?: string
 }
 
-const DEFAULT_SHARE_IMAGE = `${API_BASE_URL}/static/images/icon.png`
+const DEFAULT_SHARE_IMAGE = '/assets/images/icon.png'
 
 export function enablePageShareMenu() {
   if (typeof wx.showShareMenu !== 'function') {

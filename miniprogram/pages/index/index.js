@@ -9,7 +9,6 @@ const share_card_1 = require("../../utils/share-card");
 const share_poster_1 = require("../../utils/share-poster");
 const DEFAULT_NICKNAME = 'Learner';
 const DEFAULT_AVATAR_INITIAL = 'L';
-const PRACTICE_HELP_GUIDE_SEEN_KEY = 'waimao_practice_help_guide_seen_v1';
 Page({
     storeUnsubscribe: undefined,
     courseScrollLastTop: null,
@@ -32,15 +31,18 @@ Page({
         loginNickname: '',
         loginAvatarUrl: '',
         canLogin: false,
+        loginModalTitle: '登录后保存学习进度',
+        loginModalDescription: '换设备也能从上次的位置继续',
+        loginConfirmText: '登录并继续',
+        loginError: '',
         shareImageUrl: '',
         fullAccess: false,
         expandedChapterId: 'chapter-01',
         showUnlockPrompt: true,
-        unlockPromptTitle: '全部章节开放 1 年',
-        unlockPromptDescription: '添加微信购买邀请码，解锁后 6 章。',
+        unlockPromptTitle: '解锁全部课程',
+        unlockPromptDescription: '后 6 章开放，1 年内不限次学习',
         unlockPromptCta: '去解锁',
         showPracticeHelp: false,
-        showPracticeGuide: false,
         scrollWithAnimation: true,
     },
     scheduleShareImage: (0, storage_1.debounce)(function () {
@@ -50,7 +52,6 @@ Page({
         (0, share_1.enablePageShareMenu)();
         this.storeUnsubscribe = (0, index_1.subscribe)(state => this.handleStoreUpdate(state));
         await this.initializePage();
-        this.maybeShowPracticeGuide();
     },
     async onShow() {
         if (!this.data.chapters.length || this.data.loading)
@@ -113,7 +114,7 @@ Page({
                 (0, index_1.setAppConfig)(response.appConfig);
             }
             if (response.entitlement) {
-                (0, index_1.setFullAccess)(Boolean(response.entitlement.fullAccess));
+                (0, index_1.setEntitlement)(response.entitlement);
             }
             const chapters = normalizeChapters(response.data);
             const sceneCount = countScenes(chapters);
@@ -126,14 +127,10 @@ Page({
             this.scheduleShareImage();
         }
         catch (error) {
-            const message = error instanceof Error ? error.message : 'Failed to load courses';
+            const message = error instanceof Error ? error.message : '课程加载失败，请重试';
             this.setData({
                 error: message,
                 loading: false,
-            });
-            wx.showToast({
-                title: message,
-                icon: 'none',
             });
         }
     },
@@ -168,19 +165,12 @@ Page({
             unlockPromptDescription: home.unlockPromptDescription || this.data.unlockPromptDescription,
             unlockPromptCta: home.unlockPromptCta || this.data.unlockPromptCta,
             showPracticeHelp: Boolean(home.practiceHelpEnabled),
-            showPracticeGuide: home.practiceHelpEnabled ? this.data.showPracticeGuide : false,
             shareImageUrl: this.data.shareImageUrl,
         });
         this.scheduleShareImage();
     },
-    maybeShowPracticeGuide() {
-        if (!(0, index_1.getState)().appConfig.home.practiceHelpEnabled) {
-            return;
-        }
-        if (hasSeenPracticeGuide()) {
-            return;
-        }
-        this.setData({ showPracticeGuide: true });
+    handleRetry() {
+        void this.loadCourses(true);
     },
     handleCourseScroll(event) {
         this.courseScrollLastTop = event.detail.scrollTop ?? 0;
@@ -199,11 +189,6 @@ Page({
             return;
         const scene = findScene(this.data.chapters, id);
         if (scene?.locked) {
-            wx.showToast({
-                title: '解锁后可学习后续章节',
-                icon: 'none',
-                duration: 1800,
-            });
             this.goToUnlock();
             return;
         }
@@ -231,22 +216,9 @@ Page({
         });
     },
     goToPracticeHelp() {
-        markPracticeGuideSeen();
-        this.setData({ showPracticeGuide: false });
         wx.navigateTo({
             url: '/pages/practice-help/practice-help',
         });
-    },
-    startPracticeHelpFromGuide() {
-        markPracticeGuideSeen();
-        this.setData({ showPracticeGuide: false });
-        wx.navigateTo({
-            url: '/pages/practice-help/practice-help',
-        });
-    },
-    hidePracticeGuide() {
-        markPracticeGuideSeen();
-        this.setData({ showPracticeGuide: false });
     },
     handleLoginTap() {
         this.showLoginDialog();
@@ -255,11 +227,18 @@ Page({
         const forceOpen = force === true;
         if (this.data.isAuthenticated && !forceOpen)
             return;
+        const unlocking = Boolean(this.pendingUnlockAfterLogin);
         this.setData({
             showLoginModal: true,
             loginNickname: '',
             loginAvatarUrl: '',
             canLogin: false,
+            loginModalTitle: unlocking ? '登录后解锁全部课程' : '登录后保存学习进度',
+            loginModalDescription: unlocking
+                ? '完成登录后，继续填写会员邀请码'
+                : '换设备也能从上次的位置继续',
+            loginConfirmText: '登录并继续',
+            loginError: '',
         });
     },
     hideLoginDialog() {
@@ -270,6 +249,7 @@ Page({
             loginNickname: '',
             loginAvatarUrl: '',
             canLogin: false,
+            loginError: '',
         });
     },
     onChooseAvatar(e) {
@@ -277,6 +257,7 @@ Page({
         this.setData({
             loginAvatarUrl: avatarUrl,
             canLogin: Boolean(avatarUrl && this.data.loginNickname),
+            loginError: '',
         });
     },
     onNicknameInput(e) {
@@ -284,6 +265,7 @@ Page({
         this.setData({
             loginNickname: nickname,
             canLogin: Boolean(nickname && this.data.loginAvatarUrl),
+            loginError: '',
         });
     },
     onNicknameBlur(e) {
@@ -291,6 +273,7 @@ Page({
         this.setData({
             loginNickname: nickname,
             canLogin: Boolean(nickname && this.data.loginAvatarUrl),
+            loginError: '',
         });
     },
     async handleLoginConfirm() {
@@ -338,24 +321,26 @@ Page({
                 loginNickname: '',
                 loginAvatarUrl: '',
                 canLogin: false,
+                loginError: '',
             });
             this.pendingUnlockAfterLogin = false;
             await this.loadCourses(true);
-            wx.showToast({
-                title: '登录成功',
-                icon: 'success',
-            });
             if (shouldOpenUnlock) {
                 wx.navigateTo({
                     url: '/pages/unlock/unlock',
                 });
             }
+            else {
+                wx.showToast({
+                    title: '登录成功',
+                    icon: 'success',
+                });
+            }
         }
         catch (error) {
             const message = error instanceof Error ? error.message : '登录失败，请稍后重试';
-            wx.showToast({
-                title: message,
-                icon: 'none',
+            this.setData({
+                loginError: message || '登录失败，请稍后重试',
             });
         }
         finally {
@@ -469,10 +454,20 @@ function findContinueScene(chapters, sceneId) {
             id: scene.id,
             chapterLabel: chapter.label,
             title: scene.title,
-            statusText: scene.status === 'completed' ? '上次完成，可复习' : '上次学到这里',
+            statusText: buildContinueStatusText(scene),
         };
     }
     return null;
+}
+function buildContinueStatusText(scene) {
+    if (scene.status === 'completed') {
+        return '已完成，可再次练习';
+    }
+    const progress = scene.progress;
+    if (progress && progress.completedCueCount > 0) {
+        return `上次学到第 ${Math.max(1, progress.cueIndex + 1)} 句`;
+    }
+    return '上次学到这里';
 }
 function countScenes(chapters) {
     return chapters.reduce((sum, chapter) => sum + chapter.scenes.length, 0);
@@ -484,20 +479,4 @@ function findScene(chapters, id) {
             return scene;
     }
     return null;
-}
-function hasSeenPracticeGuide() {
-    try {
-        return Boolean(wx.getStorageSync(PRACTICE_HELP_GUIDE_SEEN_KEY));
-    }
-    catch (_error) {
-        return false;
-    }
-}
-function markPracticeGuideSeen() {
-    try {
-        wx.setStorageSync(PRACTICE_HELP_GUIDE_SEEN_KEY, true);
-    }
-    catch (_error) {
-        // ignore
-    }
 }

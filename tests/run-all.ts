@@ -13,6 +13,7 @@ import "./pdf-image-scan.test"
 import "./progress-payload.test"
 import "./shadow-background-handoff.test"
 import "./share-card.test"
+import "./unlock-format.test"
 
 appConfigSyncTestDone
   .then(() => {

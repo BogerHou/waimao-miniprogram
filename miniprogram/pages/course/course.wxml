@@ -1,71 +1,73 @@
 <wxs module="utils">
   var formatSpeed = function(speed) {
-    // 保留最多2位小数
-    var formatted = speed.toFixed(2)
-    // 移除末尾的0和小数点
-    // WXS 支持 getRegExp 创建正则表达式
-    formatted = formatted.replace(getRegExp('\\.?0+$'), '')
-    return formatted
+    if (speed % 1 === 0) return speed.toFixed(0)
+    if ((speed * 10) % 1 === 0) return speed.toFixed(1)
+    return speed.toFixed(2)
   }
-  module.exports = {
-    formatSpeed: formatSpeed
-  }
+  module.exports = { formatSpeed: formatSpeed }
 </wxs>
 
-<!-- 固定导航栏 -->
+<view class="app-page">
 <view class="course-navbar">
   <navigation-bar
-    title="{{course ? course.title : 'Course'}}"
+    title="{{course ? course.title : '课程练习'}}"
     back="{{true}}"
     color="black"
     background="#FFF"
   ></navigation-bar>
 </view>
 
-<!-- 页面内容 -->
 <view class="course-page">
-  <!-- Loading State -->
   <block wx:if="{{loading}}">
-    <view class="loading-container">
-      <view class="loading-spinner"></view>
-      <text class="loading-text">加载中...</text>
+    <view class="course-skeleton" aria-label="课程加载中">
+      <view class="course-skeleton__modes">
+        <view class="course-skeleton__mode"></view>
+        <view class="course-skeleton__mode"></view>
+      </view>
+      <view class="course-skeleton__list">
+        <view class="course-skeleton__item"><view class="skeleton-line"></view><view class="skeleton-line skeleton-line--translation"></view></view>
+        <view class="course-skeleton__item"><view class="skeleton-line skeleton-line--medium"></view><view class="skeleton-line skeleton-line--translation"></view></view>
+        <view class="course-skeleton__item"><view class="skeleton-line"></view><view class="skeleton-line skeleton-line--translation"></view></view>
+      </view>
     </view>
   </block>
 
-  <!-- Error State -->
   <block wx:elif="{{error}}">
     <view class="error-container">
-      <text class="error-icon">⚠️</text>
+      <view class="error-mark">!</view>
+      <text class="error-title">课程加载失败</text>
       <text class="error-text">{{error}}</text>
-      <button class="retry-btn" bindtap="handleRetry">重试</button>
+      <button class="retry-btn" bindtap="handleRetry">重新加载</button>
     </view>
   </block>
 
-  <!-- Main Content -->
   <block wx:else>
-    <!-- 固定的模式选择器 -->
     <view class="course-header" wx:if="{{course && showModeSelector}}">
-      <view class="mode-selector">
+      <view class="mode-selector" aria-label="练习模式">
         <view
           class="mode-btn {{playMode === 'shadow' ? 'active' : ''}}"
           bindtap="handleModeChange"
           data-mode="shadow"
+          aria-role="button"
         >
-          <text class="mode-icon">🎯</text>
           <text class="mode-text">影子跟读</text>
         </view>
         <view
           class="mode-btn {{playMode === 'echo' ? 'active' : ''}}"
           bindtap="handleModeChange"
           data-mode="echo"
+          aria-role="button"
         >
-          <text class="mode-icon">🔊</text>
-          <text class="mode-text">Echo模式</text>
+          <text class="mode-text">逐句跟读</text>
         </view>
+      </view>
+
+      <view wx:if="{{showPracticeHint}}" class="practice-hint">
+        <text class="practice-hint__text">点按句子播放，长按单词查释义</text>
+        <text class="practice-hint__action" bindtap="hidePracticeHint">知道了</text>
       </view>
     </view>
 
-    <!-- 可滚动的字幕列表区域 -->
     <view
       class="course-content"
       bindtouchstart="handleTouchStart"
@@ -89,6 +91,7 @@
               class="subtitle-item {{currentSubtitleId === item.id ? 'active' : ''}} {{item.toneClass}}"
               data-index="{{index}}"
               bindtap="handleSubtitleTap"
+              aria-role="button"
             >
               <view class="subtitle-text">
                 <block wx:if="{{item.tokens && item.tokens.length}}">
@@ -102,9 +105,7 @@
                       data-word-id="word-{{item.id}}-{{tokenIndex}}"
                       catchlongpress="handleWordLongPress"
                       catchtap=""
-                    >
-                      {{token.text}}
-                    </view>
+                    >{{token.text}}</view>
                     <text wx:else class="subtitle-token">{{token.text}}</text>
                   </block>
                 </block>
@@ -115,11 +116,12 @@
           </block>
 
           <view wx:else class="empty-state">
-            <text class="empty-text">暂无内容</text>
+            <text class="empty-title">暂无课程内容</text>
+            <text class="empty-text">稍后再试或返回选择其他课程</text>
           </view>
         </view>
-
       </scroll-view>
+
       <view
         wx:if="{{wordPopupVisible}}"
         class="word-popup {{wordPopupPlacement === 'bottom' ? 'word-popup-bottom' : ''}} {{wordPopupReady ? 'word-popup-ready' : 'word-popup-hidden'}}"
@@ -134,141 +136,91 @@
           <view class="word-phonetic">
             <text class="phonetic-label">美音</text>
             <text class="phonetic-text">{{wordPopupPhoneticUs}}</text>
-            <view
-              wx:if="{{wordPopupAudioUs}}"
-              class="phonetic-audio"
-              hover-class="phonetic-audio-active"
-              hover-stop-propagation
-              data-variant="us"
-              bindtap="handlePlayWordAudio"
-            >
-              🔊
+            <view wx:if="{{wordPopupAudioUs}}" class="phonetic-audio" hover-class="phonetic-audio-active" hover-stop-propagation data-variant="us" bindtap="handlePlayWordAudio">
+              <view class="sound-icon"><view class="sound-icon__wave sound-icon__wave--near"></view><view class="sound-icon__wave sound-icon__wave--far"></view></view>
             </view>
           </view>
           <view class="word-phonetic">
             <text class="phonetic-label">英音</text>
             <text class="phonetic-text">{{wordPopupPhoneticUk}}</text>
-            <view
-              wx:if="{{wordPopupAudioUk}}"
-              class="phonetic-audio"
-              hover-class="phonetic-audio-active"
-              hover-stop-propagation
-              data-variant="uk"
-              bindtap="handlePlayWordAudio"
-            >
-              🔊
+            <view wx:if="{{wordPopupAudioUk}}" class="phonetic-audio" hover-class="phonetic-audio-active" hover-stop-propagation data-variant="uk" bindtap="handlePlayWordAudio">
+              <view class="sound-icon"><view class="sound-icon__wave sound-icon__wave--near"></view><view class="sound-icon__wave sound-icon__wave--far"></view></view>
             </view>
           </view>
         </view>
         <scroll-view class="word-popup-body" scroll-y>
-          <block wx:if="{{wordPopupLoading}}">
-            <text class="word-popup-loading">加载中...</text>
-          </block>
-          <block wx:elif="{{wordPopupError}}">
-            <text class="word-popup-error">{{wordPopupError}}</text>
-          </block>
-          <block wx:else>
-            <text class="word-popup-definition">{{wordPopupDefinition}}</text>
-          </block>
+          <text wx:if="{{wordPopupLoading}}" class="word-popup-loading">正在查询...</text>
+          <text wx:elif="{{wordPopupError}}" class="word-popup-error">{{wordPopupError}}</text>
+          <text wx:else class="word-popup-definition">{{wordPopupDefinition}}</text>
         </scroll-view>
       </view>
     </view>
 
-    <!-- 固定的播放控制栏 -->
     <view class="playback-controls" wx:if="{{subtitles.length}}">
       <view class="controls-row">
-        <!-- Explanation Button -->
-        <view wx:if="{{showPracticeControls}}" class="control-item" bindtap="handleExplain">
-          <view class="control-icon-wrapper">
-             <text class="control-icon">💡</text>
+        <view wx:if="{{showPracticeControls}}" class="control-item" bindtap="handleExplain" aria-role="button">
+          <view class="control-visual">
+            <image class="control-line-icon" src="/assets/icons/lightbulb.svg" mode="aspectFit"></image>
           </view>
           <text class="control-label">讲解</text>
         </view>
 
-        <!-- Repeat Button -->
-        <view wx:if="{{showPracticeControls}}" class="control-item {{isRepeating ? 'control-item-active' : ''}}" bindtap="handleRepeat">
-          <view class="control-icon-wrapper {{isRepeating ? 'control-icon-repeat' : ''}}">
-            <text class="control-icon">🔁</text>
+        <view wx:if="{{showPracticeControls}}" class="control-item {{isRepeating ? 'control-item-active' : ''}}" bindtap="handleRepeat" aria-role="button">
+          <view class="control-visual">
+            <image class="control-line-icon" src="{{isRepeating ? '/assets/icons/repeat-2-active.svg' : '/assets/icons/repeat-2.svg'}}" mode="aspectFit"></image>
             <text wx:if="{{isRepeating}}" class="repeat-counter">{{repeatCount + 1}}/{{repeatTarget}}</text>
           </view>
           <text class="control-label">{{isRepeating ? '重复中' : '重复'}}</text>
         </view>
 
-        <!-- Speed Control -->
-        <view wx:if="{{showPracticeControls}}" class="control-item" bindtap="handleShowSpeedModal">
-          <view class="control-icon-wrapper">
-            <text class="control-icon">⚡</text>
-          </view>
+        <view wx:if="{{showPracticeControls}}" class="control-item" bindtap="handleShowSpeedModal" aria-role="button">
+          <view class="control-visual"><text class="control-value">{{utils.formatSpeed(playbackRate)}}×</text></view>
           <text class="control-label">速度</text>
         </view>
 
-        <!-- Language Control -->
-        <view class="control-item" bindtap="handleToggleLanguage">
-          <view class="control-icon-wrapper control-icon-lang mode-{{transcriptMode}}">
-             <text class="control-icon">{{transcriptMode === 'all' ? '双' : (transcriptMode === 'en' ? 'EN' : '中')}}</text>
+        <view class="control-item" bindtap="handleToggleLanguage" aria-role="button">
+          <view class="control-visual">
+            <image class="control-line-icon" src="/assets/icons/languages.svg" mode="aspectFit"></image>
           </view>
-          <text class="control-label">语言</text>
+          <text class="control-label">{{transcriptMode === 'all' ? '双语' : (transcriptMode === 'en' ? '英文' : '中文')}}</text>
         </view>
 
-        <!-- Play/Pause Button -->
-        <view wx:if="{{showPracticeControls}}" class="control-item" bindtap="handlePlayPause">
-          <view class="control-icon-wrapper control-icon-play {{playing ? 'playing' : ''}}">
-            <text class="control-icon">{{playing ? '⏸' : '▶'}}</text>
+        <view wx:if="{{showPracticeControls}}" class="control-item" bindtap="handlePlayPause" aria-role="button">
+          <view class="control-visual control-visual--play {{playing ? 'playing' : ''}}">
+            <view wx:if="{{playing}}" class="pause-symbol"><view class="pause-symbol__bar"></view><view class="pause-symbol__bar"></view></view>
+            <view wx:else class="play-symbol"></view>
           </view>
-          <text class="control-label">播放</text>
+          <text class="control-label">{{playing ? '暂停' : '播放'}}</text>
         </view>
       </view>
     </view>
 
-    <!-- Speed Adjustment Modal -->
-    <view class="speed-modal {{showSpeedModal ? 'show' : ''}}" bindtap="handleHideSpeedModal">
+    <view wx:if="{{showSpeedModal}}" class="speed-modal" bindtap="handleHideSpeedModal">
       <view class="speed-modal-content" catchtap="">
+        <view class="speed-modal-handle"></view>
         <view class="speed-modal-header">
           <text class="speed-modal-title">播放速度</text>
-          <text class="speed-modal-value">{{playbackRate}}x</text>
+          <text class="speed-modal-value">{{utils.formatSpeed(playbackRate)}}×</text>
         </view>
-        
         <view class="speed-slider-container">
-          <text class="speed-label">0.5x</text>
-          <slider 
-            class="speed-slider"
-            min="50" 
-            max="200" 
-            step="5"
-            value="{{playbackRate * 100}}" 
-            activeColor="#3B82F6"
-            block-size="20"
-            bindchange="handleSpeedChange"
-          />
-          <text class="speed-label">2x</text>
+          <text class="speed-label">0.5×</text>
+          <slider class="speed-slider" min="50" max="200" step="5" value="{{playbackRate * 100}}" activeColor="#6366F1" block-size="20" bindchange="handleSpeedChange" />
+          <text class="speed-label">2×</text>
         </view>
-        
         <view class="speed-presets">
-          <view 
-            wx:for="{{speedPresets}}" 
-            wx:key="*this"
-            class="speed-preset-btn {{playbackRate === item ? 'active' : ''}}"
-            data-speed="{{item}}"
-            bindtap="handleSpeedPreset"
-          >
-            {{item}}x
+          <view wx:for="{{speedPresets}}" wx:key="*this" class="speed-preset-btn {{playbackRate === item ? 'active' : ''}}" data-speed="{{item}}" bindtap="handleSpeedPreset">
+            {{utils.formatSpeed(item)}}×
           </view>
         </view>
       </view>
     </view>
 
-    <!-- Floating Knowledge Button -->
-    <view class="fab-pdf" bindtap="handleOpenPDFPage">
-      <text class="fab-icon">📖</text>
+    <view class="fab-pdf" bindtap="handleOpenPDFPage" aria-role="button" aria-label="知识点">
+      <image class="fab-book-icon" src="/assets/icons/book-open-text-primary.svg" mode="aspectFit"></image>
       <text class="fab-text">知识点</text>
     </view>
 
-    <ai-popup 
-      show="{{showAiPopup}}" 
-      text="{{aiText}}" 
-      context="{{aiContext}}"
-      bind:close="handleAiPopupClose" 
-    />
+    <ai-popup show="{{showAiPopup}}" text="{{aiText}}" context="{{aiContext}}" bind:close="handleAiPopupClose" />
   </block>
 </view>
 
@@ -277,3 +229,4 @@
   class="course-share-canvas"
   style="width: 600px; height: 840px;"
 ></canvas>
+</view>

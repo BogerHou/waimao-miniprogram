@@ -21,6 +21,7 @@ import {
   setToken as updateTokenInStore,
   setUser as updateUserInStore,
   setFullAccess as updateFullAccessInStore,
+  setEntitlement as updateEntitlementInStore,
   getState as getStoreState,
 } from './store/index'
 import { refreshAppConfig as syncAppConfig } from './utils/app-config-sync'
@@ -248,7 +249,11 @@ App<IAppOption>({
     }
     updateTokenInStore(loginResult.token)
     updateUserInStore(mergedUser)
-    updateFullAccessInStore(Boolean(loginResult.fullAccess))
+    if (loginResult.entitlement) {
+      updateEntitlementInStore(loginResult.entitlement)
+    } else {
+      updateFullAccessInStore(Boolean(loginResult.fullAccess))
+    }
 
     try {
       const progress = loginResult.progress ?? await fetchUserProgress()
@@ -265,7 +270,11 @@ App<IAppOption>({
     }
     const profile = await fetchCurrentUser()
     updateUserInStore(profile.user)
-    updateFullAccessInStore(Boolean(profile.fullAccess))
+    if (profile.entitlement) {
+      updateEntitlementInStore(profile.entitlement)
+    } else {
+      updateFullAccessInStore(Boolean(profile.fullAccess))
+    }
     try {
       const progress = profile.progress ?? await fetchUserProgress()
       updateProgressInStore(progress)

@@ -1,4 +1,10 @@
-import type { AppConfigResponse, AudioSourceProvider, UserProfile, UserProgress } from '../utils/api'
+import type {
+  AppConfigResponse,
+  AudioSourceProvider,
+  EntitlementInfo,
+  UserProfile,
+  UserProgress,
+} from '../utils/api'
 import {
   cacheProgress,
   cacheUser,
@@ -15,6 +21,7 @@ export type StoreState = {
   user: UserProfile | null
   progress: UserProgress | null
   fullAccess: boolean
+  entitlement: EntitlementInfo | null
   appConfig: AppConfigResponse
 }
 
@@ -41,14 +48,14 @@ export const DEFAULT_HOME_AD = {
     features: [],
     note: '',
   },
-  trialTitle: '全部章节开放 1 年',
-  trialDescription: '添加微信购买邀请码，输入后解锁后 6 章。',
+  trialTitle: '解锁全部课程',
+  trialDescription: '后 6 章开放，1 年内不限次学习。',
   targetUrl: '',
   ctaText: '去解锁',
   contactQrUrl: '/static/images/waimao-purchase-wechat-qr.jpg',
-  contactTitle: '扫码添加微信购买邀请码',
-  contactDescription: '添加微信购买会员邀请码，输入后开通全部章节 1 年访问权。',
-  contactTip: '点击预览，长按识别二维码',
+  contactTitle: '添加微信获取邀请码',
+  contactDescription: '添加后说明购买外贸英语影子跟读会员。',
+  contactTip: '点击放大，长按识别二维码',
 }
 
 export const DEFAULT_APP_CONFIG: AppConfigResponse = {
@@ -56,8 +63,8 @@ export const DEFAULT_APP_CONFIG: AppConfigResponse = {
     bannerEnabled: false,
     practiceHelpEnabled: false,
     unlockPromptEnabled: true,
-    unlockPromptTitle: '全部章节开放 1 年',
-    unlockPromptDescription: '添加微信购买邀请码，解锁后 6 章。',
+    unlockPromptTitle: '解锁全部课程',
+    unlockPromptDescription: '后 6 章开放，1 年内不限次学习',
     unlockPromptCta: '去解锁',
     activeAdId: DEFAULT_HOME_AD.id,
     ads: [DEFAULT_HOME_AD],
@@ -82,6 +89,7 @@ const state: StoreState = {
   user: null,
   progress: null,
   fullAccess: false,
+  entitlement: null,
   appConfig: DEFAULT_APP_CONFIG,
 }
 
@@ -125,6 +133,17 @@ export function setProgress(progress: UserProgress | null, notify = true) {
 
 export function setFullAccess(fullAccess: boolean, notify = true) {
   state.fullAccess = fullAccess
+  if (!fullAccess) {
+    state.entitlement = null
+  }
+  if (notify) {
+    emit()
+  }
+}
+
+export function setEntitlement(entitlement: EntitlementInfo | null, notify = true) {
+  state.entitlement = entitlement
+  state.fullAccess = Boolean(entitlement?.fullAccess)
   if (notify) {
     emit()
   }
@@ -155,7 +174,10 @@ export function initializeStore(initial?: Partial<StoreState>) {
   state.token = initial?.token ?? getToken()
   state.user = initial?.user ?? null
   state.progress = initial?.progress ?? null
-  state.fullAccess = initial?.fullAccess ?? false
+  state.entitlement = initial?.entitlement ?? null
+  state.fullAccess = state.entitlement
+    ? Boolean(state.entitlement.fullAccess)
+    : initial?.fullAccess ?? false
   state.appConfig = initial?.appConfig
     ? {
         home: normalizeHomeConfig(initial.appConfig.home),

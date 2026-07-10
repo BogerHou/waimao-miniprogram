@@ -26,7 +26,7 @@ function testFallsBackToLeadText() {
     leadText: "My name is Marco.",
   })
 
-  assert.equal(model.modeLabel, "Echo模式")
+  assert.equal(model.modeLabel, "逐句跟读")
   assert.equal(model.snippet, "My name is Marco.")
 }
 
