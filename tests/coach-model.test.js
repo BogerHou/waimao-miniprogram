@@ -23,6 +23,14 @@ function testBuildsBusinessChallengesFromLearnerTurns() {
     strict_1.default.equal(plan.challenges[0].promptSpeaker, '情境');
     strict_1.default.equal(plan.challenges[1].promptText, 'How can I help?');
     strict_1.default.equal(plan.challenges[1].referenceText, 'I wanted to follow up on my quotation.');
+    strict_1.default.match(plan.challenges[1].responseGoal, /跟进/);
+    strict_1.default.deepEqual(plan.challenges[1].contextTurns.map(item => item.text), [
+        'Hi Bob, this is Yibing.',
+        'How can I help?',
+    ]);
+    strict_1.default.equal(plan.challenges[1].contextTurns[0].isLearner, true);
+    strict_1.default.equal(plan.challenges[1].contextTurns[1].isLearner, false);
+    strict_1.default.equal(plan.challenges[1].thinkingTips.length, 3);
     strict_1.default.match(plan.businessGoal, /报价/);
 }
 function testPrefersLearnerRoleWhenCustomerSpeaksFirst() {
@@ -60,6 +68,9 @@ function testTreatsSentenceLibraryAsPhraseDrill() {
     strict_1.default.equal(plan.hasNextBatch, false);
     strict_1.default.equal(plan.challenges[0].promptSpeaker, '表达任务');
     strict_1.default.equal(plan.challenges[0].promptText, '还是老样子，忙忙碌碌的。');
+    strict_1.default.equal(plan.challenges[0].contextTurns.length, 0);
+    strict_1.default.match(plan.challenges[0].responseGoal, /英文表达/);
+    strict_1.default.equal(plan.challenges[0].thinkingTips.length, 3);
 }
 function testPrioritizesSubstantiveBusinessCues() {
     const plan = (0, coach_model_1.buildCoachScenePlan)({
@@ -85,6 +96,14 @@ function testPrioritizesSubstantiveBusinessCues() {
     ]);
     strict_1.default.equal(plan.challenges[0].promptSpeaker, '你刚刚说');
     strict_1.default.equal(plan.challenges[2].promptSpeaker, 'Bob');
+    strict_1.default.match(plan.challenges[0].situation, /继续把话题推进/);
+    strict_1.default.match(plan.challenges[2].responseGoal, /补充信息|沟通渠道/);
+    strict_1.default.deepEqual(plan.challenges[2].contextTurns.map(item => item.text), [
+        "How's it going?",
+        'I wanted to follow up on the quotation I sent on Monday.',
+        'Did you have a chance to take a look?',
+        'I need more time.',
+    ]);
 }
 function testSplitsPhraseLibraryIntoBatches() {
     const subtitles = Array.from({ length: 19 }, (_, index) => ({

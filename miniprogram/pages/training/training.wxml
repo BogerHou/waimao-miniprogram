@@ -91,14 +91,30 @@
         <view class="cue-progress"><text>回应 {{currentChallengeIndex + 1}} / {{challengeCount}}</text><view class="cue-progress__track"><view class="cue-progress__fill" style="width: {{cueProgressPercent}}%;"></view></view></view>
 
         <view wx:if="{{currentChallenge}}" class="response-workspace">
-          <view class="response-goal"><text class="response-goal__label">本轮要推动</text><text class="response-goal__text">{{businessGoal}}</text></view>
+          <view class="response-goal"><text class="response-goal__label">本轮目标</text><text class="response-goal__text">{{currentChallenge.responseGoal}}</text></view>
+
+          <view wx:if="{{sceneMode !== 'phrase-drill'}}" class="response-context">
+            <text class="response-context__label">场景脉络</text>
+            <text class="response-context__situation">{{currentChallenge.situation}}</text>
+            <view wx:if="{{currentChallenge.contextTurns.length}}" class="context-turns">
+              <view wx:for="{{currentChallenge.contextTurns}}" wx:key="text" class="context-turn {{item.isLearner ? 'context-turn--self' : 'context-turn--customer'}}">
+                <text class="context-turn__speaker">{{item.isLearner ? '你' : item.speaker}}</text>
+                <text class="context-turn__text">{{item.text}}</text>
+                <text wx:if="{{showTranslation && item.translation}}" class="context-turn__translation">{{item.translation}}</text>
+              </view>
+            </view>
+          </view>
+
           <view class="customer-prompt">
-            <text class="customer-prompt__speaker">{{currentChallenge.promptSpeaker}}</text>
-            <text class="customer-prompt__text">{{currentChallenge.promptText}}</text>
+            <text class="customer-prompt__speaker">{{sceneMode === 'phrase-drill' ? currentChallenge.promptSpeaker : '现在轮到你回应'}}</text>
+            <text class="customer-prompt__text">{{sceneMode === 'phrase-drill' ? currentChallenge.promptText : currentChallenge.promptSpeaker + '：' + currentChallenge.promptText}}</text>
             <text wx:if="{{showTranslation && currentChallenge.promptTranslation}}" class="customer-prompt__translation">{{currentChallenge.promptTranslation}}</text>
           </view>
 
-          <view class="thinking-line"><image class="thinking-line__icon" src="/assets/icons/brain-primary.svg" mode="aspectFit"></image><text>{{sceneMode === 'phrase-drill' ? '先别看英文。根据中文，用你会的方式完整说出来。' : '先别看范例。你会怎样回应，才能推动事情进入下一步？'}}</text></view>
+          <view class="thinking-card">
+            <view class="thinking-card__head"><image class="thinking-line__icon" src="/assets/icons/brain-primary.svg" mode="aspectFit"></image><text>{{sceneMode === 'phrase-drill' ? '开口前想一想' : '回应思路'}}</text></view>
+            <view class="thinking-tip" wx:for="{{currentChallenge.thinkingTips}}" wx:key="*this"><text class="thinking-tip__dot"></text><text>{{item}}</text></view>
+          </view>
 
           <view class="record-area">
             <button class="record-button {{recording ? 'record-button--active' : ''}}" bindtap="handleRecordToggle" aria-label="{{recording ? '结束录音' : '开始录音'}}">

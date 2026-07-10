@@ -3,6 +3,15 @@ import type { CourseDetailResponse, SubtitleEntry } from './api'
 export type CoachChallenge = {
   id: string
   cueIndex: number
+  situation: string
+  responseGoal: string
+  thinkingTips: string[]
+  contextTurns: Array<{
+    speaker: string
+    text: string
+    translation: string
+    isLearner: boolean
+  }>
   promptSpeaker: string
   promptText: string
   promptTranslation: string
@@ -71,41 +80,21 @@ export function buildCoachScenePlan(
     ? focusCues.slice(batchStart, batchStart + phraseBatchSize)
     : focusCues
   const batchEnd = batchStart + practiceCues.length
-  const challenges = practiceCues.slice(0, 3).map((cue, index) => {
-    const previous = subtitles[cue.cueIndex - 1]
-    const hasPreviousCue = mode === 'dialogue' && Boolean(previous)
-    const previousIsLearner = hasPreviousCue && normalizeSpeaker(previous.speaker) === normalizeSpeaker(learnerSpeaker)
-    return {
-      id: `${course.id}:${cue.id}`,
-      cueIndex: cue.cueIndex,
-      promptSpeaker: mode === 'phrase-drill'
-        ? '表达任务'
-        : hasPreviousCue
-          ? previousIsLearner ? '你刚刚说' : previous.speaker || customerSpeaker
-          : '情境',
-      promptText: mode === 'phrase-drill'
-        ? cue.translation || '请先用英语说出这条表达。'
-        : hasPreviousCue
-          ? previous.text
-          : index === 0
-            ? 'The customer has just answered your call.'
-            : 'The customer is waiting for your next point.',
-      promptTranslation: mode === 'phrase-drill'
-        ? '先用英语表达，再查看参考说法。'
-        : hasPreviousCue
-          ? previous.translation || ''
-          : index === 0
-            ? '客户刚刚接通电话，你准备怎样自然开场？'
-            : '客户正在等你继续推进，你会怎样表达？',
-      referenceSpeaker: cue.speaker || learnerSpeaker,
-      referenceText: cue.text,
-      referenceTranslation: cue.translation || '',
-    }
-  })
+  const businessGoal = resolveBusinessGoal(course)
+  const challenges = practiceCues.slice(0, 3).map((cue, index) => buildCoachChallenge({
+    courseId: course.id,
+    mode,
+    cue,
+    challengeIndex: index,
+    subtitles,
+    learnerSpeaker,
+    customerSpeaker,
+    businessGoal,
+  }))
 
   return {
     mode,
-    businessGoal: resolveBusinessGoal(course),
+    businessGoal,
     learnerSpeaker,
     customerSpeaker,
     estimatedMinutes: mode === 'phrase-drill'
@@ -119,6 +108,152 @@ export function buildCoachScenePlan(
     totalPracticeCueCount: focusCues.length,
     hasNextBatch: mode === 'phrase-drill' && batchEnd < focusCues.length,
   }
+}
+
+function buildCoachChallenge(params: {
+  courseId: string
+  mode: CoachSceneMode
+  cue: SubtitleEntry & { cueIndex: number }
+  challengeIndex: number
+  subtitles: SubtitleEntry[]
+  learnerSpeaker: string
+  customerSpeaker: string
+  businessGoal: string
+}): CoachChallenge {
+  const {
+    courseId,
+    mode,
+    cue,
+    challengeIndex,
+    subtitles,
+    learnerSpeaker,
+    customerSpeaker,
+    businessGoal,
+  } = params
+  const previous = subtitles[cue.cueIndex - 1]
+  const hasPreviousCue = mode === 'dialogue' && Boolean(previous)
+  const previousIsLearner = hasPreviousCue && normalizeSpeaker(previous.speaker) === normalizeSpeaker(learnerSpeaker)
+  const contextTurns = mode === 'dialogue'
+    ? buildContextTurns(subtitles, cue.cueIndex, learnerSpeaker)
+    : []
+
+  return {
+    id: `${courseId}:${cue.id}`,
+    cueIndex: cue.cueIndex,
+    situation: mode === 'phrase-drill'
+      ? '这是一个高频表达训练。你只需要先看中文意思，试着把英文完整说出来。'
+      : buildSituation(contextTurns, businessGoal, challengeIndex),
+    responseGoal: mode === 'phrase-drill'
+      ? '把中文意思转换成自然、完整的英文表达。'
+      : buildResponseGoal(cue.text, businessGoal),
+    thinkingTips: mode === 'phrase-drill'
+      ? buildPhraseThinkingTips(cue)
+      : buildDialogueThinkingTips(cue.text, previous, businessGoal),
+    contextTurns,
+    promptSpeaker: mode === 'phrase-drill'
+      ? '表达任务'
+      : hasPreviousCue
+        ? previousIsLearner ? '你刚刚说' : previous.speaker || customerSpeaker
+        : '情境',
+    promptText: mode === 'phrase-drill'
+      ? cue.translation || '请先用英语说出这条表达。'
+      : hasPreviousCue
+        ? previous.text
+        : challengeIndex === 0
+          ? 'The customer has just answered your call.'
+          : 'The customer is waiting for your next point.',
+    promptTranslation: mode === 'phrase-drill'
+      ? '先用英语表达，再查看参考说法。'
+      : hasPreviousCue
+        ? previous.translation || ''
+        : challengeIndex === 0
+          ? '客户刚刚接通电话，你准备怎样自然开场？'
+          : '客户正在等你继续推进，你会怎样表达？',
+    referenceSpeaker: cue.speaker || learnerSpeaker,
+    referenceText: cue.text,
+    referenceTranslation: cue.translation || '',
+  }
+}
+
+function buildContextTurns(subtitles: SubtitleEntry[], cueIndex: number, learnerSpeaker: string) {
+  const learner = normalizeSpeaker(learnerSpeaker)
+  return subtitles
+    .slice(Math.max(0, cueIndex - 4), cueIndex)
+    .filter(item => String(item.text || '').trim())
+    .map(item => ({
+      speaker: item.speaker || (normalizeSpeaker(item.speaker) === learner ? '你' : '对方'),
+      text: item.text,
+      translation: item.translation || '',
+      isLearner: normalizeSpeaker(item.speaker) === learner,
+    }))
+}
+
+function buildSituation(
+  contextTurns: CoachChallenge['contextTurns'],
+  businessGoal: string,
+  challengeIndex: number,
+) {
+  if (!contextTurns.length) {
+    return challengeIndex === 0
+      ? '对话刚开始，你需要自然开场，并尽快把话题带到业务目的上。'
+      : '对方正在等你继续说明，你需要让沟通往下一步推进。'
+  }
+
+  const lastTurn = contextTurns[contextTurns.length - 1]
+  if (lastTurn.isLearner) {
+    return '你已经完成了铺垫，现在要继续把话题推进到更具体的业务动作。'
+  }
+
+  return `对方刚给出回应。你的任务不是翻译句子，而是围绕“${businessGoal}”接住话题。`
+}
+
+function buildResponseGoal(referenceText: string, businessGoal: string) {
+  const text = String(referenceText || '')
+  if (/\?/.test(text)) {
+    return '问出一个具体问题，让对方给出明确反馈。'
+  }
+  if (/\b(follow[ -]?up|quote|quotation|price|pricing)\b/i.test(text)) {
+    return '说明你要跟进的事项，并把对话带到客户反馈上。'
+  }
+  if (/\b(email|details|information|send|share)\b/i.test(text)) {
+    return '给对方一个清楚的沟通渠道或补充信息方式。'
+  }
+  if (/\b(confirm|check|review|take a look)\b/i.test(text)) {
+    return '确认对方是否已经处理，并争取一个可执行的下一步。'
+  }
+  return truncateText(businessGoal, 54)
+}
+
+function buildDialogueThinkingTips(
+  referenceText: string,
+  previous: SubtitleEntry | undefined,
+  businessGoal: string,
+) {
+  const tips = [
+    previous ? '先回应对方刚才的话，不要直接背答案。' : '先用自然开场建立对话关系。',
+    '再说明你这一轮真正想推进的事情。',
+  ]
+  const reference = String(referenceText || '')
+  if (/\?/.test(reference)) {
+    tips.push('最后用一个问题把话语权交给对方。')
+  } else if (/\b(email|details|information|send|share)\b/i.test(reference)) {
+    tips.push('给出清楚的补充方式，让对方知道下一步怎么做。')
+  } else if (/\b(follow[ -]?up|confirm|check|review|take a look)\b/i.test(reference)) {
+    tips.push('把动作说具体，例如确认、查看、反馈或约定时间。')
+  } else {
+    tips.push(`说完后要能服务于目标：${truncateText(businessGoal, 34)}`)
+  }
+  return tips
+}
+
+function buildPhraseThinkingTips(cue: SubtitleEntry) {
+  const tips = ['先抓中文里的动作和对象。', '用完整句说出来，不只说关键词。']
+  if (/[?？]/.test(cue.translation || cue.text)) {
+    tips.push('注意这是疑问句，语气要自然上扬。')
+  } else {
+    tips.push('说完后再对照原声修正节奏。')
+  }
+  return tips
 }
 
 export function resolveBusinessGoal(course: Pick<CourseDetailResponse, 'title' | 'knowledge'>) {

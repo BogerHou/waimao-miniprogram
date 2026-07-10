@@ -84,3 +84,38 @@
 - `tests/coach-progress.test.ts`
 - `docs/DESIGN.md`
 - `docs/exec-plans/completed/2026-07-10-scenario-coach-product-review.md`
+
+## [2026-07-10 21:28] | Task: 增强思考回应上下文
+
+### 🤖 Execution Context
+
+- **Agent ID**: `Codex`
+- **Base Model**: `GPT-5`
+- **Runtime**: `Codex desktop`
+
+### 📥 User Query
+
+> 当前流程虽然在模拟对话，但思考回应缺少思路提示，只显示一句对话，上下文不清楚。
+
+### 🛠 Changes Overview
+
+**Scope:** 场景教练模型与训练页回应阶段。
+
+**Key Actions:**
+
+- **扩展回应模型**：每个 `CoachChallenge` 增加场景局面、本轮目标、三条思路提示和前 4 句上下文片段。
+- **重排回应页面**：回应阶段先显示本轮目标，再展示场景脉络和上下文，随后提示当前轮到用户回应。
+- **保留先开口原则**：思路提示只给结构化方向，不提前展示参考英文答案。
+- **补模型测试**：验证对话课上下文、角色归属、回应目标和表达库提示不会退回到单句提示。
+
+### 🧠 Design Intent (Why)
+
+用户练外贸口语时缺的不是“翻译下一句”，而是理解客户意图、判断自己要推动什么、再组织表达。回应阶段如果只给一句话，会把练习变成盲猜；加入上下文和思路提示后，训练更接近真实业务对话。
+
+### 📁 Files Modified
+
+- `miniprogram/utils/coach-model.ts`
+- `miniprogram/pages/training/training.wxml`
+- `miniprogram/pages/training/training.less`
+- `tests/coach-model.test.ts`
+- `docs/DESIGN.md`

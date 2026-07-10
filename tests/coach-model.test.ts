@@ -25,6 +25,14 @@ function testBuildsBusinessChallengesFromLearnerTurns() {
   assert.equal(plan.challenges[0].promptSpeaker, '情境')
   assert.equal(plan.challenges[1].promptText, 'How can I help?')
   assert.equal(plan.challenges[1].referenceText, 'I wanted to follow up on my quotation.')
+  assert.match(plan.challenges[1].responseGoal, /跟进/)
+  assert.deepEqual(plan.challenges[1].contextTurns.map(item => item.text), [
+    'Hi Bob, this is Yibing.',
+    'How can I help?',
+  ])
+  assert.equal(plan.challenges[1].contextTurns[0].isLearner, true)
+  assert.equal(plan.challenges[1].contextTurns[1].isLearner, false)
+  assert.equal(plan.challenges[1].thinkingTips.length, 3)
   assert.match(plan.businessGoal, /报价/)
 }
 
@@ -66,6 +74,9 @@ function testTreatsSentenceLibraryAsPhraseDrill() {
   assert.equal(plan.hasNextBatch, false)
   assert.equal(plan.challenges[0].promptSpeaker, '表达任务')
   assert.equal(plan.challenges[0].promptText, '还是老样子，忙忙碌碌的。')
+  assert.equal(plan.challenges[0].contextTurns.length, 0)
+  assert.match(plan.challenges[0].responseGoal, /英文表达/)
+  assert.equal(plan.challenges[0].thinkingTips.length, 3)
 }
 
 function testPrioritizesSubstantiveBusinessCues() {
@@ -93,6 +104,14 @@ function testPrioritizesSubstantiveBusinessCues() {
   ])
   assert.equal(plan.challenges[0].promptSpeaker, '你刚刚说')
   assert.equal(plan.challenges[2].promptSpeaker, 'Bob')
+  assert.match(plan.challenges[0].situation, /继续把话题推进/)
+  assert.match(plan.challenges[2].responseGoal, /补充信息|沟通渠道/)
+  assert.deepEqual(plan.challenges[2].contextTurns.map(item => item.text), [
+    "How's it going?",
+    'I wanted to follow up on the quotation I sent on Monday.',
+    'Did you have a chance to take a look?',
+    'I need more time.',
+  ])
 }
 
 function testSplitsPhraseLibraryIntoBatches() {
