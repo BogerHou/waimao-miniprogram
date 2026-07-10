@@ -7,6 +7,8 @@ const app_config_sync_test_1 = require("./app-config-sync.test");
 require("./audio-source-fallback.test");
 require("./course-mode-config.test");
 require("./course-share-card.test");
+require("./coach-model.test");
+require("./coach-progress.test");
 require("./env-config.test");
 require("./knowledge-dialogue-format.test");
 require("./knowledge-format.test");

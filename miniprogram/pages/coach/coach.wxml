@@ -1,0 +1,239 @@
+<view class="app-page">
+  <navigation-bar title="外贸口语实战" back="{{false}}" color="black" background="#FFFFFF"></navigation-bar>
+
+  <scroll-view class="coach-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+    <view class="coach-main">
+      <block wx:if="{{activeTab === 'today'}}">
+        <view class="today-intro">
+          <text class="today-intro__eyebrow">{{greeting}}{{userNickname ? '，' + userNickname : ''}}</text>
+          <text class="today-intro__title">今天练一个真实场景</text>
+          <text class="today-intro__desc">先想清楚客户要什么，再组织你的回应。</text>
+        </view>
+
+        <view class="weekly-band">
+          <view class="weekly-band__copy">
+            <text class="weekly-band__label">本周训练</text>
+            <text class="weekly-band__value">{{coachSummary.weeklySessionCount}} / {{weeklyGoal}} 个场景</text>
+          </view>
+          <view class="weekly-band__track"><view class="weekly-band__fill" style="width: {{weeklyProgressPercent}}%;"></view></view>
+        </view>
+
+        <view wx:if="{{loading && !todayScene}}" class="today-skeleton">
+          <view class="skeleton-line skeleton-line--short"></view>
+          <view class="skeleton-line"></view>
+          <view class="skeleton-block"></view>
+        </view>
+
+        <view wx:elif="{{error && !todayScene}}" class="coach-state">
+          <text class="coach-state__title">今天的训练暂时没加载出来</text>
+          <text class="coach-state__desc">{{error}}</text>
+          <button class="coach-state__button" bindtap="handleRetry">重新加载</button>
+        </view>
+
+        <view wx:elif="{{todayScene}}" class="today-task">
+          <view class="today-task__meta">
+            <text class="today-task__label">今日任务</text>
+            <text class="today-task__time">约 {{todayScene.estimatedMinutes}} 分钟</text>
+          </view>
+          <text class="today-task__chapter">{{todayScene.chapterLabel}}</text>
+          <text class="today-task__title">{{todayScene.title}}</text>
+          <view class="mission-line">
+            <image class="mission-line__icon" src="/assets/icons/target-primary.svg" mode="aspectFit"></image>
+            <text class="mission-line__text">{{todayScene.goal}}</text>
+          </view>
+          <view class="today-task__progress">
+            <view class="today-task__progress-head">
+              <text>{{todayScene.stageLabel}}</text>
+              <text>{{todayScene.progressPercent}}%</text>
+            </view>
+            <view class="today-task__track"><view class="today-task__fill" style="width: {{todayScene.progressPercent}}%;"></view></view>
+          </view>
+          <button class="primary-action today-task__action" data-id="{{todayScene.id}}" bindtap="goToTraining">{{todayScene.actionText}}</button>
+        </view>
+
+        <view wx:if="{{coachSummary.reviewCount > 0}}" class="review-callout" bindtap="openReviewTab" aria-role="button">
+          <view class="review-callout__count">{{coachSummary.reviewCount}}</view>
+          <view class="review-callout__copy">
+            <text class="review-callout__title">有表达需要再练一次</text>
+            <text class="review-callout__desc">趁还记得，花几分钟巩固下来</text>
+          </view>
+          <text class="row-arrow">›</text>
+        </view>
+
+        <view wx:if="{{showUnlockPrompt}}" class="unlock-line" bindtap="goToUnlock" aria-role="button">
+          <image class="unlock-line__icon" src="/assets/icons/lock-keyhole.svg" mode="aspectFit"></image>
+          <view class="unlock-line__copy">
+            <text class="unlock-line__title">解锁全部外贸场景</text>
+            <text class="unlock-line__desc">全部 7 章，1 年内不限次训练</text>
+          </view>
+          <text class="row-arrow">›</text>
+        </view>
+
+        <button class="text-action" bindtap="openScenesTab">查看全部场景</button>
+      </block>
+
+      <block wx:elif="{{activeTab === 'scenes'}}">
+        <view class="section-intro">
+          <text class="section-intro__title">外贸场景</text>
+          <text class="section-intro__desc">按你正在处理的业务任务选择训练。</text>
+        </view>
+
+        <view wx:if="{{loading && !chapters.length}}" class="chapter-skeleton-list">
+          <view class="chapter-skeleton" wx:for="{{[1,2,3]}}" wx:key="*this"><view class="skeleton-line skeleton-line--short"></view><view class="skeleton-line"></view></view>
+        </view>
+        <view wx:elif="{{error && !chapters.length}}" class="coach-state">
+          <text class="coach-state__title">场景加载失败</text>
+          <text class="coach-state__desc">{{error}}</text>
+          <button class="coach-state__button" bindtap="handleRetry">重新加载</button>
+        </view>
+        <view wx:else class="chapter-list">
+          <view wx:for="{{chapters}}" wx:key="id" class="chapter-block">
+            <view class="chapter-heading" data-id="{{item.id}}" bindtap="toggleChapter" aria-role="button">
+              <view class="chapter-heading__number">{{item.number}}</view>
+              <view class="chapter-heading__copy">
+                <text class="chapter-heading__label">{{item.label}}</text>
+                <text class="chapter-heading__title">{{item.title}}</text>
+              </view>
+              <text wx:if="{{item.free}}" class="chapter-heading__state chapter-heading__state--free">免费</text>
+              <text wx:elif="{{!item.locked}}" class="chapter-heading__state">已解锁</text>
+              <image wx:else class="chapter-heading__lock" src="/assets/icons/lock-keyhole.svg" mode="aspectFit"></image>
+              <view class="chapter-heading__chevron {{expandedChapterId === item.id ? 'chapter-heading__chevron--open' : ''}}"></view>
+            </view>
+            <view wx:if="{{expandedChapterId === item.id}}" class="scene-list">
+              <view
+                wx:for="{{item.scenes}}"
+                wx:for-item="scene"
+                wx:key="id"
+                class="scene-row {{scene.locked ? 'scene-row--locked' : ''}}"
+                data-id="{{scene.id}}"
+                bindtap="goToTraining"
+                aria-role="button"
+              >
+                <text class="scene-row__index">{{scene.index}}</text>
+                <view class="scene-row__copy">
+                  <text class="scene-row__title">{{scene.title}}</text>
+                  <text wx:if="{{scene.isCurrent}}" class="scene-row__status">正在学习</text>
+                  <text wx:elif="{{scene.status === 'completed'}}" class="scene-row__status scene-row__status--done">已完成</text>
+                </view>
+                <image wx:if="{{scene.locked}}" class="scene-row__lock" src="/assets/icons/lock-keyhole.svg" mode="aspectFit"></image>
+                <text wx:else class="row-arrow">›</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </block>
+
+      <block wx:elif="{{activeTab === 'review'}}">
+        <view class="section-intro">
+          <text class="section-intro__title">复习表达</text>
+          <text class="section-intro__desc">只练你曾经卡住或需要重新组织的句子。</text>
+        </view>
+
+        <view wx:if="{{reviewItems.length}}" class="review-list">
+          <view
+            wx:for="{{reviewItems}}"
+            wx:key="key"
+            class="review-item"
+            data-scene-id="{{item.sceneId}}"
+            data-cue-id="{{item.sentenceId}}"
+            bindtap="goToTraining"
+            aria-role="button"
+          >
+            <view class="review-item__meta">
+              <text>{{item.chapterLabel}} · {{item.sceneTitle}}</text>
+              <text>{{item.attempts}} 次练习</text>
+            </view>
+            <text class="review-item__text">{{item.text}}</text>
+            <text class="review-item__translation">{{item.translation}}</text>
+            <view class="review-item__footer">
+              <text class="review-item__state">{{item.status === 'review' ? '待巩固' : '到期复习'}}</text>
+              <text class="review-item__action">开始复习 ›</text>
+            </view>
+          </view>
+        </view>
+        <view wx:else class="empty-review">
+          <image class="empty-review__icon" src="/assets/icons/refresh-ccw.svg" mode="aspectFit"></image>
+          <text class="empty-review__title">暂时没有待复习表达</text>
+          <text class="empty-review__desc">完成一次逐句训练后，需要巩固的句子会出现在这里。</text>
+          <button class="secondary-action" bindtap="openScenesTab">选择一个场景</button>
+        </view>
+      </block>
+
+      <block wx:else>
+        <view class="profile-panel">
+          <view class="profile-panel__avatar {{avatarUrl ? 'profile-panel__avatar--image' : ''}}">
+            <image wx:if="{{avatarUrl}}" class="profile-panel__avatar-image" src="{{avatarUrl}}" mode="aspectFill"></image>
+            <text wx:else>{{avatarInitial}}</text>
+          </view>
+          <view class="profile-panel__copy">
+            <text class="profile-panel__name">{{isAuthenticated ? (userNickname || '学习者') : '还没有登录'}}</text>
+            <text class="profile-panel__desc">{{isAuthenticated ? membershipText : '登录后同步课程进度与会员权益'}}</text>
+          </view>
+          <button wx:if="{{!isAuthenticated}}" class="profile-panel__login" bindtap="handleLoginTap">登录</button>
+        </view>
+
+        <view class="mastery-stats">
+          <view class="mastery-stat"><text class="mastery-stat__value">{{coachSummary.masteredCount}}</text><text class="mastery-stat__label">已掌握表达</text></view>
+          <view class="mastery-stat"><text class="mastery-stat__value mastery-stat__value--review">{{coachSummary.reviewCount}}</text><text class="mastery-stat__label">待复习</text></view>
+          <view class="mastery-stat"><text class="mastery-stat__value mastery-stat__value--done">{{coachSummary.completedSceneCount}}</text><text class="mastery-stat__label">完成场景</text></view>
+        </view>
+
+        <view class="membership-panel">
+          <view class="membership-panel__copy">
+            <text class="membership-panel__eyebrow">{{fullAccess ? '会员权益' : '当前权益'}}</text>
+            <text class="membership-panel__title">{{fullAccess ? '全部场景已解锁' : '第一章免费试学'}}</text>
+            <text class="membership-panel__desc">{{membershipText}}</text>
+          </view>
+          <button wx:if="{{!fullAccess}}" class="membership-panel__button" bindtap="goToUnlock">去解锁</button>
+        </view>
+
+        <view class="settings-list">
+          <view class="settings-row" bindtap="goToPracticeHelp" aria-role="button"><text>练习方法</text><text class="row-arrow">›</text></view>
+          <view class="settings-row" bindtap="goToContact" aria-role="button"><text>学习交流群</text><text class="row-arrow">›</text></view>
+          <view class="settings-row" bindtap="goToClassic" aria-role="button"><text>查看经典课程界面</text><text class="row-arrow">›</text></view>
+        </view>
+
+        <text class="local-recording-note">录音和表达自评保存在本机；登录同步课程进度与会员权益。</text>
+      </block>
+    </view>
+  </scroll-view>
+
+  <view class="coach-tabbar">
+    <view class="coach-tab {{activeTab === 'today' ? 'coach-tab--active' : ''}}" data-tab="today" bindtap="handleTabChange" aria-role="button">
+      <image class="coach-tab__icon" src="{{activeTab === 'today' ? '/assets/icons/calendar-check-primary.svg' : '/assets/icons/calendar-check.svg'}}" mode="aspectFit"></image><text>今日</text>
+    </view>
+    <view class="coach-tab {{activeTab === 'scenes' ? 'coach-tab--active' : ''}}" data-tab="scenes" bindtap="handleTabChange" aria-role="button">
+      <image class="coach-tab__icon" src="{{activeTab === 'scenes' ? '/assets/icons/briefcase-business-primary.svg' : '/assets/icons/briefcase-business.svg'}}" mode="aspectFit"></image><text>场景</text>
+    </view>
+    <view class="coach-tab {{activeTab === 'review' ? 'coach-tab--active' : ''}}" data-tab="review" bindtap="handleTabChange" aria-role="button">
+      <view class="coach-tab__icon-wrap"><image class="coach-tab__icon" src="{{activeTab === 'review' ? '/assets/icons/refresh-ccw-primary.svg' : '/assets/icons/refresh-ccw.svg'}}" mode="aspectFit"></image><text wx:if="{{coachSummary.reviewCount}}" class="coach-tab__badge">{{coachSummary.reviewCount > 9 ? '9+' : coachSummary.reviewCount}}</text></view><text>复习</text>
+    </view>
+    <view class="coach-tab {{activeTab === 'me' ? 'coach-tab--active' : ''}}" data-tab="me" bindtap="handleTabChange" aria-role="button">
+      <image class="coach-tab__icon" src="{{activeTab === 'me' ? '/assets/icons/circle-user-round-primary.svg' : '/assets/icons/circle-user-round.svg'}}" mode="aspectFit"></image><text>我的</text>
+    </view>
+  </view>
+
+  <view wx:if="{{showLoginModal}}" class="login-modal">
+    <view class="login-modal__mask" bindtap="hideLoginDialog"></view>
+    <view class="login-modal__sheet">
+      <view class="login-modal__handle"></view>
+      <view class="login-modal__header">
+        <view class="login-modal__heading"><text class="login-modal__title">{{loginModalTitle}}</text><text class="login-modal__desc">{{loginModalDescription}}</text></view>
+        <view class="login-modal__close" bindtap="hideLoginDialog" aria-role="button" aria-label="关闭"><image class="login-modal__close-icon" src="/assets/icons/x.svg" mode="aspectFit"></image></view>
+      </view>
+      <view class="login-modal__body">
+        <view class="login-profile-picker">
+          <button class="login-avatar-button" open-type="chooseAvatar" bind:chooseavatar="onChooseAvatar" aria-label="选择微信头像">
+            <image wx:if="{{loginAvatarUrl}}" class="login-avatar-image" src="{{loginAvatarUrl}}" mode="aspectFill"></image>
+            <view wx:else class="login-avatar-placeholder"><image class="login-avatar-placeholder__icon" src="/assets/icons/user-round.svg" mode="aspectFit"></image></view>
+            <view class="login-avatar-edit"><image class="login-avatar-edit__icon" src="/assets/icons/camera-white.svg" mode="aspectFit"></image></view>
+          </button>
+          <text class="login-avatar-caption">{{loginAvatarUrl ? '更换头像' : '选择头像'}}</text>
+        </view>
+        <view class="login-form-item"><text class="login-form-label">昵称</text><input class="login-nickname-input" type="nickname" value="{{loginNickname}}" placeholder="输入你的昵称" aria-label="昵称" bind:input="onNicknameInput" bind:blur="onNicknameBlur" /></view>
+        <text wx:if="{{loginError}}" class="login-form-error">{{loginError}}</text>
+      </view>
+      <view class="login-modal__footer"><button class="login-confirm-button {{!canLogin ? 'login-confirm-button--disabled' : ''}}" bindtap="handleLoginConfirm" disabled="{{!canLogin}}" loading="{{authLoading}}">登录并继续</button><text class="login-privacy-tip">仅用于本小程序内的学习档案</text></view>
+    </view>
+  </view>
+</view>

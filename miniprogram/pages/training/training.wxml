@@ -1,0 +1,211 @@
+<view class="app-page">
+  <navigation-bar title="{{title}}" back="{{true}}" color="black" background="#FFFFFF"></navigation-bar>
+
+  <view wx:if="{{!loading && !error}}" class="stage-progress" aria-label="训练进度">
+    <view class="stage-progress__line"></view>
+    <view class="stage-progress__fill" style="width: {{(stageNumber - 1) * 25}}%;"></view>
+    <view class="stage-progress__node {{stageNumber >= 1 ? 'stage-progress__node--done' : ''}}"><text>1</text></view>
+    <view class="stage-progress__node {{stageNumber >= 2 ? 'stage-progress__node--done' : ''}}"><text>2</text></view>
+    <view class="stage-progress__node {{stageNumber >= 3 ? 'stage-progress__node--done' : ''}}"><text>3</text></view>
+    <view class="stage-progress__node {{stageNumber >= 4 ? 'stage-progress__node--done' : ''}}"><text>4</text></view>
+    <view class="stage-progress__node {{stageNumber >= 5 ? 'stage-progress__node--done' : ''}}"><text>5</text></view>
+  </view>
+
+  <scroll-view class="training-scroll" scroll-y enhanced show-scrollbar="{{false}}" scroll-into-view="{{currentSubtitleId ? 'coach-cue-' + currentSubtitleId : ''}}">
+    <view wx:if="{{loading}}" class="training-skeleton">
+      <view class="skeleton-line skeleton-line--short"></view><view class="skeleton-line skeleton-line--title"></view><view class="skeleton-block"></view><view class="skeleton-block skeleton-block--small"></view>
+    </view>
+
+    <view wx:elif="{{error}}" class="training-state">
+      <text class="training-state__title">场景暂时无法打开</text>
+      <text class="training-state__desc">{{error}}</text>
+      <button class="secondary-action" bindtap="handleRetry">重新加载</button>
+    </view>
+
+    <view wx:else class="training-main {{stage === 'summary' ? 'training-main--summary' : ''}}">
+      <view class="stage-heading">
+        <text class="stage-heading__eyebrow">第 {{stageNumber}} 步 · {{chapterLabel}}</text>
+        <text class="stage-heading__title">{{stageTitle}}</text>
+        <text class="stage-heading__desc">{{stageDescription}}</text>
+      </view>
+
+      <block wx:if="{{stage === 'overview'}}">
+        <view class="scene-title-block">
+          <text class="scene-title-block__label">本次业务任务</text>
+          <text class="scene-title-block__title">{{course.title}}</text>
+        </view>
+
+        <view class="mission-band">
+          <image class="mission-band__icon" src="/assets/icons/target-primary.svg" mode="aspectFit"></image>
+          <view class="mission-band__copy"><text class="mission-band__label">沟通目标</text><text class="mission-band__text">{{businessGoal}}</text></view>
+        </view>
+
+        <view class="role-row">
+          <view class="role-item role-item--self"><text class="role-item__label">{{sceneMode === 'phrase-drill' ? '训练类型' : '你扮演'}}</text><text class="role-item__name">{{sceneMode === 'phrase-drill' ? '高频表达' : learnerSpeaker}}</text></view>
+          <view class="role-divider"></view>
+          <view class="role-item role-item--customer"><text class="role-item__label">{{sceneMode === 'phrase-drill' ? '本组' : '对方'}}</text><text class="role-item__name">{{sceneMode === 'phrase-drill' ? practiceCount + ' 条' : customerSpeaker}}</text></view>
+          <text class="role-row__time">约 {{estimatedMinutes}} 分钟</text>
+        </view>
+
+        <view class="expression-section">
+          <text class="expression-section__title">这次要能说出来</text>
+          <view class="expression-line" wx:for="{{keyExpressions}}" wx:key="*this"><text class="expression-line__index">{{index + 1}}</text><text class="expression-line__text">{{item}}</text></view>
+        </view>
+
+        <button class="inline-link" bindtap="openKnowledge">先看看场景知识点 ›</button>
+      </block>
+
+      <block wx:elif="{{stage === 'listen'}}">
+        <view class="audio-panel">
+          <view class="audio-panel__head">
+            <button class="audio-main-button {{playingSource === 'scene' ? 'audio-main-button--playing' : ''}}" bindtap="handleScenePlay" aria-label="{{playingSource === 'scene' ? '暂停原声' : '播放完整原声'}}">
+              <view wx:if="{{playingSource === 'scene'}}" class="pause-icon"><view class="pause-icon__bar"></view><view class="pause-icon__bar"></view></view>
+              <view wx:else class="play-icon"></view>
+            </button>
+            <view class="audio-panel__copy"><text class="audio-panel__title">{{sceneMode === 'phrase-drill' ? '整组原声' : '完整对话'}}</text><text class="audio-panel__desc">{{playingSource === 'scene' ? (sceneMode === 'phrase-drill' ? '正在播放，留意每句的语气和节奏' : '正在播放，注意双方怎样推进') : '先听一遍，不急着逐句模仿'}}</text></view>
+            <text class="audio-panel__time">{{audioCurrentLabel}} / {{audioDurationLabel}}</text>
+          </view>
+          <view class="audio-panel__track"><view class="audio-panel__fill" style="width: {{audioProgress}}%;"></view></view>
+        </view>
+
+        <view class="dialogue-list">
+          <view wx:for="{{dialogue}}" wx:key="id" id="coach-cue-{{item.id}}" class="dialogue-cue {{item.toneClass}} {{currentSubtitleId === item.id ? 'dialogue-cue--active' : ''}}">
+            <text class="dialogue-cue__speaker">{{item.speakerLabel}}</text>
+            <text class="dialogue-cue__text">{{item.text}}</text>
+            <text wx:if="{{showTranslation && item.translation}}" class="dialogue-cue__translation">{{item.translation}}</text>
+          </view>
+        </view>
+      </block>
+
+      <block wx:elif="{{stage === 'respond'}}">
+        <view class="cue-progress"><text>回应 {{currentChallengeIndex + 1}} / {{challengeCount}}</text><view class="cue-progress__track"><view class="cue-progress__fill" style="width: {{cueProgressPercent}}%;"></view></view></view>
+
+        <view wx:if="{{currentChallenge}}" class="response-workspace">
+          <view class="customer-prompt">
+            <text class="customer-prompt__speaker">{{currentChallenge.promptSpeaker}}</text>
+            <text class="customer-prompt__text">{{currentChallenge.promptText}}</text>
+            <text wx:if="{{showTranslation && currentChallenge.promptTranslation}}" class="customer-prompt__translation">{{currentChallenge.promptTranslation}}</text>
+          </view>
+
+          <view class="thinking-line"><image class="thinking-line__icon" src="/assets/icons/brain-primary.svg" mode="aspectFit"></image><text>{{sceneMode === 'phrase-drill' ? '先别看英文。根据中文，用你会的方式完整说出来。' : '先别看范例。你会怎样回应，才能推动事情进入下一步？'}}</text></view>
+
+          <view class="record-area">
+            <button class="record-button {{recording ? 'record-button--active' : ''}}" bindtap="handleRecordToggle" aria-label="{{recording ? '结束录音' : '开始录音'}}">
+              <image class="record-button__icon" src="/assets/icons/mic-white.svg" mode="aspectFit"></image>
+            </button>
+            <text class="record-area__title">{{recording ? '正在录音，点按结束' : (hasRecording ? '已录下你的回应' : '说出你的回应')}}</text>
+            <text class="record-area__desc">录音只保存在本机</text>
+          </view>
+
+          <text wx:if="{{microphoneError}}" class="microphone-error">{{microphoneError}}</text>
+
+          <view wx:if="{{hasRecording}}" class="compare-row">
+            <button class="compare-button" bindtap="handleRecordingPlay"><image class="compare-button__icon" src="/assets/icons/mic-primary.svg" mode="aspectFit"></image><text>{{playingSource === 'recording' ? '暂停我的录音' : '听我的录音'}}</text></button>
+          </view>
+
+          <button wx:if="{{!answerRevealed}}" class="reveal-button" bindtap="revealAnswer">查看参考表达</button>
+
+          <view wx:if="{{answerRevealed}}" class="reference-answer">
+            <view class="reference-answer__head"><text>参考表达</text><button class="icon-text-button" bindtap="handleOriginalPlay"><image class="icon-text-button__icon" src="/assets/icons/volume-2.svg" mode="aspectFit"></image><text>{{playingSource === 'original' ? '暂停' : '听原声'}}</text></button></view>
+            <text class="reference-answer__text">{{currentChallenge.referenceText}}</text>
+            <text wx:if="{{showTranslation && currentChallenge.referenceTranslation}}" class="reference-answer__translation">{{currentChallenge.referenceTranslation}}</text>
+          </view>
+
+          <view wx:if="{{answerRevealed}}" class="assessment-block">
+            <text class="assessment-block__title">这句话现在是什么状态？</text>
+            <view class="assessment-actions">
+              <button class="assessment-button assessment-button--review {{currentAssessment === 'review' ? 'assessment-button--selected' : ''}}" data-status="review" bindtap="handleAssessment">需要巩固</button>
+              <button class="assessment-button assessment-button--mastered {{currentAssessment === 'mastered' ? 'assessment-button--selected' : ''}}" data-status="mastered" bindtap="handleAssessment">表达顺畅</button>
+            </view>
+          </view>
+        </view>
+      </block>
+
+      <block wx:elif="{{stage === 'practice'}}">
+        <view class="cue-progress"><text>表达 {{currentPracticeIndex + 1}} / {{practiceCount}}</text><view class="cue-progress__track"><view class="cue-progress__fill" style="width: {{cueProgressPercent}}%;"></view></view></view>
+
+        <view wx:if="{{currentPracticeCue}}" class="practice-workspace">
+          <text class="practice-workspace__speaker">{{learnerSpeaker}}</text>
+          <text class="practice-workspace__text">{{currentPracticeCue.text}}</text>
+          <text wx:if="{{showTranslation && currentPracticeCue.translation}}" class="practice-workspace__translation">{{currentPracticeCue.translation}}</text>
+
+          <view class="practice-audio-actions">
+            <button class="practice-audio-button" bindtap="handleOriginalPlay"><image class="practice-audio-button__icon" src="/assets/icons/volume-2.svg" mode="aspectFit"></image><text>{{playingSource === 'original' ? '暂停原声' : '播放原声'}}</text></button>
+            <button class="practice-audio-button {{!hasRecording ? 'practice-audio-button--disabled' : ''}}" bindtap="handleRecordingPlay" disabled="{{!hasRecording}}"><image class="practice-audio-button__icon" src="/assets/icons/mic-primary.svg" mode="aspectFit"></image><text>{{playingSource === 'recording' ? '暂停录音' : '我的录音'}}</text></button>
+          </view>
+
+          <view class="record-area record-area--practice">
+            <button class="record-button {{recording ? 'record-button--active' : ''}}" bindtap="handleRecordToggle" aria-label="{{recording ? '结束录音' : '开始录音'}}"><image class="record-button__icon" src="/assets/icons/mic-white.svg" mode="aspectFit"></image></button>
+            <text class="record-area__title">{{recording ? '正在录音，点按结束' : (hasRecording ? '再录一次，留下更好的版本' : '模仿语气和节奏')}}</text>
+            <text class="record-area__desc">先听原声，再完整说一遍</text>
+          </view>
+
+          <view class="assessment-block">
+            <text class="assessment-block__title">这一句需要再练吗？</text>
+            <view class="assessment-actions">
+              <button class="assessment-button assessment-button--review {{currentAssessment === 'review' ? 'assessment-button--selected' : ''}}" data-status="review" bindtap="handleAssessment">加入复习</button>
+              <button class="assessment-button assessment-button--mastered {{currentAssessment === 'mastered' ? 'assessment-button--selected' : ''}}" data-status="mastered" bindtap="handleAssessment">已经掌握</button>
+            </view>
+          </view>
+        </view>
+      </block>
+
+      <block wx:elif="{{stage === 'shadow'}}">
+        <view class="audio-panel audio-panel--shadow">
+          <view class="audio-panel__head">
+            <button class="audio-main-button {{playingSource === 'scene' ? 'audio-main-button--playing' : ''}}" bindtap="handleScenePlay" aria-label="{{playingSource === 'scene' ? '暂停连续跟读' : '开始连续跟读'}}">
+              <view wx:if="{{playingSource === 'scene'}}" class="pause-icon"><view class="pause-icon__bar"></view><view class="pause-icon__bar"></view></view><view wx:else class="play-icon"></view>
+            </button>
+            <view class="audio-panel__copy"><text class="audio-panel__title">{{sceneMode === 'phrase-drill' ? '整组跟读' : '从头跟到尾'}}</text><text class="audio-panel__desc">{{sceneMode === 'phrase-drill' ? '按顺序跟完本组表达，练习快速调取' : '尽量不断句，不需要每个词都完美'}}</text></view>
+            <text class="audio-panel__time">{{audioCurrentLabel}} / {{audioDurationLabel}}</text>
+          </view>
+          <view class="audio-panel__track"><view class="audio-panel__fill" style="width: {{audioProgress}}%;"></view></view>
+        </view>
+
+        <view class="shadow-toolbar">
+          <view class="speed-options"><view class="speed-option {{playbackRate === 0.8 ? 'speed-option--active' : ''}}" data-rate="0.8" bindtap="handlePlaybackRate">0.8×</view><view class="speed-option {{playbackRate === 1 ? 'speed-option--active' : ''}}" data-rate="1" bindtap="handlePlaybackRate">1×</view><view class="speed-option {{playbackRate === 1.2 ? 'speed-option--active' : ''}}" data-rate="1.2" bindtap="handlePlaybackRate">1.2×</view></view>
+          <button class="translation-toggle" bindtap="toggleTranslation">{{showTranslation ? '隐藏中文' : '显示中文'}}</button>
+        </view>
+
+        <view class="shadow-dialogue">
+          <view wx:for="{{dialogue}}" wx:key="id" id="coach-cue-{{item.id}}" class="shadow-cue {{item.toneClass}} {{currentSubtitleId === item.id ? 'shadow-cue--active' : ''}}">
+            <text class="shadow-cue__speaker">{{item.speakerLabel}}</text>
+            <text class="shadow-cue__text">{{item.text}}</text>
+            <text wx:if="{{showTranslation && item.translation}}" class="shadow-cue__translation">{{item.translation}}</text>
+          </view>
+        </view>
+      </block>
+
+      <block wx:else>
+        <view class="summary-hero">
+          <view class="summary-hero__check"><image class="summary-hero__check-icon" src="/assets/icons/check-white.svg" mode="aspectFit"></image></view>
+          <text class="summary-hero__eyebrow">{{sceneMode === 'phrase-drill' ? '完成一组高频表达' : '完成一个真实场景'}}</text>
+          <text class="summary-hero__title">{{course.title}}</text>
+          <text class="summary-hero__desc">{{sceneMode === 'phrase-drill' ? '你已经完成理解、开口和整组跟读。' : '你已经从理解场景走到独立组织回应。'}}</text>
+        </view>
+
+        <view class="summary-stats">
+          <view class="summary-stat"><text class="summary-stat__value summary-stat__value--mastered">{{masteredCount}}</text><text class="summary-stat__label">已掌握表达</text></view>
+          <view class="summary-stat"><text class="summary-stat__value summary-stat__value--review">{{reviewCount}}</text><text class="summary-stat__label">待巩固表达</text></view>
+        </view>
+
+        <view wx:if="{{summaryReviewItems.length}}" class="summary-review">
+          <text class="summary-review__title">下次从这些表达开始</text>
+          <view class="summary-review__item" wx:for="{{summaryReviewItems}}" wx:key="key"><text class="summary-review__text">{{item.text}}</text><text class="summary-review__translation">{{item.translation}}</text></view>
+        </view>
+
+        <button class="primary-action summary-primary" bindtap="returnHome">回到今日训练</button>
+        <button class="secondary-action summary-secondary" bindtap="restartTraining">再练一遍</button>
+        <button class="inline-link" bindtap="openClassicCourse">查看经典跟读界面 ›</button>
+      </block>
+    </view>
+  </scroll-view>
+
+  <view wx:if="{{!loading && !error && stage !== 'summary'}}" class="stage-dock">
+    <button wx:if="{{stage === 'overview'}}" class="primary-action stage-dock__button" bindtap="startListen">先听一遍</button>
+    <button wx:elif="{{stage === 'listen'}}" class="primary-action stage-dock__button" bindtap="startRespond">开始思考回应</button>
+    <button wx:elif="{{stage === 'respond'}}" class="primary-action stage-dock__button {{!currentAssessment ? 'primary-action--disabled' : ''}}" bindtap="nextChallenge" disabled="{{!currentAssessment}}">{{currentChallengeIndex + 1 >= challengeCount ? '进入逐句表达' : '下一次回应'}}</button>
+    <button wx:elif="{{stage === 'practice'}}" class="primary-action stage-dock__button {{!currentAssessment ? 'primary-action--disabled' : ''}}" bindtap="nextPracticeCue" disabled="{{!currentAssessment}}">{{currentPracticeIndex + 1 >= practiceCount ? '开始连续跟读' : '下一句'}}</button>
+    <button wx:else class="primary-action stage-dock__button" bindtap="completeTraining">完成训练</button>
+  </view>
+</view>

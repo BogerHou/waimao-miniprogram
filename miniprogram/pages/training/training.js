@@ -1,0 +1,642 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const api_1 = require("../../utils/api");
+const env_1 = require("../../config/env");
+const index_1 = require("../../store/index");
+const coach_model_1 = require("../../utils/coach-model");
+const coach_progress_1 = require("../../utils/coach-progress");
+const share_1 = require("../../utils/share");
+const STAGE_META = {
+    overview: { number: 1, title: '场景任务', description: '先明确这次沟通要推动什么结果' },
+    listen: { number: 2, title: '听懂场景', description: '先听完整对话，观察双方怎样推进' },
+    respond: { number: 3, title: '思考回应', description: '先组织自己的表达，再看参考说法' },
+    practice: { number: 4, title: '逐句表达', description: '用原声和录音对比语气与节奏' },
+    shadow: { number: 5, title: '连续跟读', description: '跟上整段对话，不停下来逐字翻译' },
+    summary: { number: 5, title: '训练完成', description: '留下待巩固表达，下一次直接复习' },
+};
+const PHRASE_STAGE_META = {
+    overview: { number: 1, title: '表达任务', description: '先明确这组表达会用在哪些工作情境' },
+    listen: { number: 2, title: '听懂表达', description: '完整听一遍，熟悉每句话的语气和节奏' },
+    respond: { number: 3, title: '尝试表达', description: '先根据中文说英文，再看参考说法' },
+    practice: { number: 4, title: '逐句表达', description: '用原声和录音对比语气与节奏' },
+    shadow: { number: 5, title: '整组跟读', description: '按顺序跟完本组表达，练习快速调取' },
+    summary: { number: 5, title: '训练完成', description: '留下待巩固表达，下一次直接复习' },
+};
+Page({
+    courseId: '',
+    reviewCueId: '',
+    scenePlan: null,
+    sourceAudio: null,
+    recordingAudio: null,
+    recorderManager: null,
+    activeRangeStart: 0,
+    activeRangeEnd: 0,
+    activeAudioMode: '',
+    playStartTimer: null,
+    pageAlive: true,
+    data: {
+        loading: true,
+        error: '',
+        course: null,
+        title: '场景训练',
+        chapterLabel: '',
+        sceneMode: 'dialogue',
+        stage: 'overview',
+        stageNumber: 1,
+        stageTitle: STAGE_META.overview.title,
+        stageDescription: STAGE_META.overview.description,
+        businessGoal: '',
+        learnerSpeaker: '',
+        customerSpeaker: '',
+        estimatedMinutes: 8,
+        keyExpressions: [],
+        dialogue: [],
+        challengeCount: 0,
+        currentChallengeIndex: 0,
+        currentChallenge: null,
+        practiceCount: 0,
+        currentPracticeIndex: 0,
+        currentPracticeCue: null,
+        cueProgressPercent: 0,
+        answerRevealed: false,
+        recording: false,
+        recordingPath: '',
+        hasRecording: false,
+        playingSource: '',
+        audioProgress: 0,
+        audioCurrentLabel: '0:00',
+        audioDurationLabel: '0:00',
+        currentSubtitleId: '',
+        playbackRate: 1,
+        currentAssessment: '',
+        masteredCount: 0,
+        reviewCount: 0,
+        summaryReviewItems: [],
+        showTranslation: true,
+        microphoneError: '',
+    },
+    async onLoad(options) {
+        (0, share_1.enablePageShareMenu)();
+        this.courseId = options.id || '';
+        this.reviewCueId = options.reviewCue || '';
+        this.pageAlive = true;
+        this.initializeAudio();
+        this.initializeRecorder();
+        if (!this.courseId) {
+            this.setData({ loading: false, error: '缺少场景编号' });
+            return;
+        }
+        await this.loadCourse(options.restart === '1');
+    },
+    onUnload() {
+        ;
+        this.pageAlive = false;
+        if (this.data.recording) {
+            ;
+            this.recorderManager?.stop();
+        }
+        this.releaseAudioContexts();
+    },
+    onHide() {
+        this.stopAllAudio();
+    },
+    onShareAppMessage() {
+        return (0, share_1.buildAppMessageShare)({
+            title: this.data.course ? `外贸场景训练：${this.data.course.title}` : '外贸口语实战训练',
+            path: `/pages/training/training?id=${encodeURIComponent(this.courseId)}`,
+        });
+    },
+    onShareTimeline() {
+        return (0, share_1.buildTimelineShare)({ title: this.data.course?.title || '外贸口语实战训练' });
+    },
+    async loadCourse(forceRefresh = false) {
+        this.setData({ loading: true, error: '' });
+        try {
+            const course = await (0, api_1.fetchCourseDetail)(this.courseId, forceRefresh);
+            if (!this.pageAlive)
+                return;
+            const scenePlan = (0, coach_model_1.buildCoachScenePlan)(course);
+            this.scenePlan = scenePlan;
+            const learner = normalizeSpeaker(scenePlan.learnerSpeaker);
+            const dialogue = course.subtitles.map((cue, cueIndex) => {
+                const isLearner = scenePlan.mode === 'phrase-drill' || normalizeSpeaker(cue.speaker) === learner;
+                return {
+                    ...cue,
+                    cueIndex,
+                    isLearner,
+                    speakerLabel: scenePlan.mode === 'phrase-drill'
+                        ? `表达 ${cueIndex + 1}`
+                        : `${isLearner ? '你 · ' : ''}${cue.speaker || scenePlan.customerSpeaker}`,
+                    toneClass: isLearner ? 'dialogue-cue--self' : 'dialogue-cue--customer',
+                };
+            });
+            const range = resolveSceneRange(course);
+            const savedSession = (0, coach_progress_1.readCoachProgress)().sessions.find(item => item.sceneId === course.id);
+            const reviewCueId = this.reviewCueId;
+            const initialStage = reviewCueId
+                ? 'practice'
+                : savedSession && savedSession.stage !== 'summary'
+                    ? savedSession.stage
+                    : 'overview';
+            this.setData({
+                loading: false,
+                course,
+                title: course.title,
+                chapterLabel: course.chapterLabel || '',
+                sceneMode: scenePlan.mode,
+                businessGoal: scenePlan.businessGoal,
+                learnerSpeaker: scenePlan.learnerSpeaker,
+                customerSpeaker: scenePlan.customerSpeaker,
+                estimatedMinutes: scenePlan.estimatedMinutes,
+                keyExpressions: scenePlan.keyExpressions,
+                dialogue,
+                challengeCount: scenePlan.challenges.length,
+                practiceCount: scenePlan.practiceCues.length,
+                audioDurationLabel: formatTime(range.end - range.start),
+            });
+            const initialIndex = reviewCueId
+                ? Math.max(0, scenePlan.practiceCues.findIndex(item => item.id === reviewCueId))
+                : savedSession?.cueIndex ?? 0;
+            this.applyStage(initialStage, initialIndex, false);
+            this.refreshSceneCounts();
+        }
+        catch (error) {
+            if (!this.pageAlive)
+                return;
+            this.setData({
+                loading: false,
+                error: error instanceof Error ? error.message : '场景加载失败，请稍后重试',
+            });
+        }
+    },
+    handleRetry() {
+        void this.loadCourse(true);
+    },
+    initializeAudio() {
+        const sourceAudio = wx.createInnerAudioContext();
+        sourceAudio.obeyMuteSwitch = false;
+        sourceAudio.onTimeUpdate(() => this.handleSourceTimeUpdate());
+        sourceAudio.onEnded(() => this.handleSourceEnded());
+        sourceAudio.onPause(() => {
+            if (this.pageAlive && this.data.playingSource !== 'recording') {
+                this.setData({ playingSource: '' });
+            }
+        });
+        sourceAudio.onError(error => {
+            console.warn('[Coach] Source audio failed', error);
+            if (this.pageAlive) {
+                this.setData({ playingSource: '' });
+                wx.showToast({ title: '原声播放失败，请重试', icon: 'none' });
+            }
+        });
+        this.sourceAudio = sourceAudio;
+        const recordingAudio = wx.createInnerAudioContext();
+        recordingAudio.obeyMuteSwitch = false;
+        recordingAudio.onEnded(() => {
+            if (this.pageAlive)
+                this.setData({ playingSource: '' });
+        });
+        recordingAudio.onError(error => {
+            console.warn('[Coach] Recording playback failed', error);
+            if (this.pageAlive)
+                wx.showToast({ title: '录音播放失败', icon: 'none' });
+        });
+        this.recordingAudio = recordingAudio;
+    },
+    initializeRecorder() {
+        const recorder = wx.getRecorderManager();
+        recorder.onStart(() => {
+            if (this.pageAlive) {
+                this.setData({ recording: true, playingSource: '', microphoneError: '' });
+            }
+        });
+        recorder.onStop(async (result) => {
+            if (!this.pageAlive)
+                return;
+            const previousRecordingPath = this.data.recordingPath;
+            const savedPath = await (0, coach_progress_1.persistCoachRecording)(result.tempFilePath);
+            if (!this.pageAlive)
+                return;
+            if (previousRecordingPath && savedPath && previousRecordingPath !== savedPath) {
+                (0, coach_progress_1.removeCoachRecording)(previousRecordingPath);
+            }
+            this.setData({
+                recording: false,
+                recordingPath: savedPath,
+                hasRecording: Boolean(savedPath),
+            });
+            const activeCue = this.getActiveCue();
+            const existing = activeCue
+                ? findSentenceRecord(this.courseId, activeCue.id)
+                : null;
+            this.persistActiveSentence(existing?.status || 'learning', savedPath, false);
+        });
+        recorder.onError(error => {
+            console.warn('[Coach] Recording failed', error);
+            if (!this.pageAlive)
+                return;
+            this.setData({
+                recording: false,
+                microphoneError: '无法使用麦克风，请在小程序设置中允许录音权限。',
+            });
+            wx.showModal({
+                title: '需要麦克风权限',
+                content: '允许录音后，才能对比自己的表达和原声。',
+                confirmText: '打开设置',
+                success(result) {
+                    if (result.confirm)
+                        wx.openSetting({});
+                },
+            });
+        });
+        this.recorderManager = recorder;
+    },
+    handleRecordToggle() {
+        if (this.data.recording) {
+            ;
+            this.recorderManager?.stop();
+            return;
+        }
+        this.stopAllAudio();
+        this.setData({ microphoneError: '' });
+        this.recorderManager?.start({
+            duration: 60000,
+            sampleRate: 16000,
+            numberOfChannels: 1,
+            encodeBitRate: 96000,
+            format: 'mp3',
+        });
+    },
+    handleScenePlay() {
+        if (this.data.playingSource === 'scene') {
+            ;
+            this.sourceAudio?.pause();
+            this.setData({ playingSource: '' });
+            return;
+        }
+        if (!this.data.course)
+            return;
+        const range = resolveSceneRange(this.data.course);
+        this.playSourceRange(range.start, range.end, 'scene');
+    },
+    handleOriginalPlay() {
+        if (this.data.playingSource === 'original') {
+            ;
+            this.sourceAudio?.pause();
+            this.setData({ playingSource: '' });
+            return;
+        }
+        const cue = this.getActiveCue();
+        if (!cue)
+            return;
+        this.playSourceRange(cue.start, cue.end, 'original');
+    },
+    handleRecordingPlay() {
+        if (!this.data.recordingPath) {
+            wx.showToast({ title: '先录下你的表达', icon: 'none' });
+            return;
+        }
+        if (this.data.playingSource === 'recording') {
+            ;
+            this.recordingAudio?.pause();
+            this.setData({ playingSource: '' });
+            return;
+        }
+        ;
+        this.sourceAudio?.pause();
+        const audio = this.recordingAudio;
+        audio.stop();
+        audio.src = this.data.recordingPath;
+        audio.play();
+        this.setData({ playingSource: 'recording' });
+    },
+    playSourceRange(start, end, mode) {
+        if (!this.data.course)
+            return;
+        const audio = this.sourceAudio;
+        if (!audio || !this.pageAlive)
+            return;
+        this.recordingAudio?.pause();
+        this.activeRangeStart = start;
+        this.activeRangeEnd = Math.max(start + 0.1, end);
+        this.activeAudioMode = mode;
+        audio.pause();
+        audio.playbackRate = this.data.playbackRate;
+        const src = resolveAudioUrl(this.data.course.audio);
+        if (audio.src !== src)
+            audio.src = src;
+        this.clearPlayStartTimer();
+        this.playStartTimer = setTimeout(() => {
+            ;
+            this.playStartTimer = null;
+            if (!this.pageAlive)
+                return;
+            audio.seek(start);
+            audio.play();
+            this.setData({ playingSource: mode });
+        }, 160);
+    },
+    handleSourceTimeUpdate() {
+        if (!this.data.course || !this.sourceAudio)
+            return;
+        const audio = this.sourceAudio;
+        const start = Number(this.activeRangeStart || 0);
+        const end = Number(this.activeRangeEnd || start + 0.1);
+        const current = audio.currentTime;
+        const progress = Math.max(0, Math.min(100, ((current - start) / (end - start)) * 100));
+        const activeCue = this.data.course.subtitles.find(cue => current >= cue.start && current < cue.end);
+        this.setData({
+            audioProgress: Math.round(progress),
+            audioCurrentLabel: formatTime(Math.max(0, current - start)),
+            currentSubtitleId: activeCue?.id || this.data.currentSubtitleId,
+        });
+        if (current >= end - 0.04) {
+            audio.pause();
+            audio.seek(start);
+            this.setData({ playingSource: '', audioProgress: 100 });
+        }
+    },
+    handleSourceEnded() {
+        if (!this.pageAlive)
+            return;
+        this.setData({ playingSource: '', audioProgress: 100 });
+    },
+    stopAllAudio() {
+        this.clearPlayStartTimer();
+        this.sourceAudio?.pause();
+        this.recordingAudio?.pause();
+        if (this.pageAlive)
+            this.setData({ playingSource: '' });
+    },
+    clearPlayStartTimer() {
+        const timer = this.playStartTimer;
+        if (timer)
+            clearTimeout(timer);
+        this.playStartTimer = null;
+    },
+    releaseAudioContexts() {
+        this.clearPlayStartTimer();
+        const sourceAudio = this.sourceAudio;
+        const recordingAudio = this.recordingAudio;
+        sourceAudio?.stop();
+        recordingAudio?.stop();
+        this.sourceAudio = null;
+        this.recordingAudio = null;
+    },
+    startListen() {
+        this.applyStage('listen', 0);
+        this.clearPlayStartTimer();
+        this.playStartTimer = setTimeout(() => {
+            ;
+            this.playStartTimer = null;
+            if (this.pageAlive)
+                this.handleScenePlay();
+        }, 120);
+    },
+    startRespond() {
+        const plan = this.scenePlan;
+        if (!plan?.challenges.length) {
+            this.startPractice();
+            return;
+        }
+        this.applyStage('respond', 0);
+    },
+    startPractice() {
+        const plan = this.scenePlan;
+        if (!plan?.practiceCues.length) {
+            this.startShadow();
+            return;
+        }
+        this.applyStage('practice', 0);
+    },
+    startShadow() {
+        this.applyStage('shadow', 0);
+    },
+    revealAnswer() {
+        this.setData({ answerRevealed: true });
+    },
+    handleAssessment(event) {
+        const { status } = event.currentTarget.dataset;
+        if (status !== 'review' && status !== 'mastered')
+            return;
+        this.persistActiveSentence(status, this.data.recordingPath);
+        this.setData({ currentAssessment: status });
+        this.refreshSceneCounts();
+    },
+    nextChallenge() {
+        const nextIndex = this.data.currentChallengeIndex + 1;
+        if (nextIndex >= this.data.challengeCount) {
+            this.startPractice();
+            return;
+        }
+        this.setChallenge(nextIndex);
+        this.saveCurrentSession('respond', nextIndex);
+    },
+    nextPracticeCue() {
+        const nextIndex = this.data.currentPracticeIndex + 1;
+        if (nextIndex >= this.data.practiceCount) {
+            this.startShadow();
+            return;
+        }
+        this.setPracticeCue(nextIndex);
+        this.saveCurrentSession('practice', nextIndex);
+    },
+    handlePlaybackRate(event) {
+        const { rate } = event.currentTarget.dataset;
+        const playbackRate = Number(rate);
+        if (![0.8, 1, 1.2].includes(playbackRate))
+            return;
+        this.setData({ playbackRate });
+        if (this.sourceAudio) {
+            ;
+            this.sourceAudio.playbackRate = playbackRate;
+        }
+    },
+    toggleTranslation() {
+        this.setData({ showTranslation: !this.data.showTranslation });
+    },
+    async completeTraining() {
+        this.stopAllAudio();
+        this.applyStage('summary', Math.max(0, this.data.practiceCount - 1), false);
+        const now = Date.now();
+        (0, coach_progress_1.updateCoachSceneSession)({
+            sceneId: this.courseId,
+            sceneTitle: this.data.title,
+            stage: 'summary',
+            cueIndex: Math.max(0, this.data.practiceCount - 1),
+            completedAt: now,
+        }, now);
+        this.refreshSceneCounts();
+        if ((0, index_1.getState)().token && this.data.course) {
+            try {
+                const totalCues = this.data.course.subtitles.length;
+                const response = await (0, api_1.updateUserProgress)(this.data.course.id, 'completed', {
+                    cueIndex: Math.max(0, totalCues - 1),
+                    totalCues,
+                    completedCueIndexes: Array.from({ length: totalCues }, (_, index) => index),
+                });
+                if (response.progress)
+                    (0, index_1.setProgress)(response.progress);
+            }
+            catch (error) {
+                console.warn('[Coach] Failed to sync completed scene', error);
+            }
+        }
+    },
+    restartTraining() {
+        this.stopAllAudio();
+        this.applyStage('overview', 0);
+    },
+    returnHome() {
+        wx.reLaunch({ url: '/pages/coach/coach' });
+    },
+    openKnowledge() {
+        if (!this.data.course)
+            return;
+        wx.navigateTo({
+            url: `/pages/knowledge/knowledge?id=${encodeURIComponent(this.data.course.id)}&title=${encodeURIComponent(this.data.course.title)}`,
+        });
+    },
+    openClassicCourse() {
+        wx.navigateTo({ url: `/pages/course/course?id=${encodeURIComponent(this.courseId)}` });
+    },
+    applyStage(stage, cueIndex = 0, persist = true) {
+        const meta = this.data.sceneMode === 'phrase-drill' ? PHRASE_STAGE_META[stage] : STAGE_META[stage];
+        this.stopAllAudio();
+        this.setData({
+            stage,
+            stageNumber: meta.number,
+            stageTitle: meta.title,
+            stageDescription: meta.description,
+            answerRevealed: false,
+            currentAssessment: '',
+            recordingPath: '',
+            hasRecording: false,
+            audioProgress: 0,
+            audioCurrentLabel: '0:00',
+        });
+        if (stage === 'respond')
+            this.setChallenge(cueIndex);
+        if (stage === 'practice')
+            this.setPracticeCue(cueIndex);
+        if (stage === 'summary')
+            this.refreshSceneCounts();
+        if (persist && stage !== 'summary')
+            this.saveCurrentSession(stage, cueIndex);
+    },
+    setChallenge(index) {
+        const plan = this.scenePlan;
+        const safeIndex = Math.max(0, Math.min(index, Math.max(0, (plan?.challenges.length ?? 1) - 1)));
+        const challenge = plan?.challenges[safeIndex] ?? null;
+        const record = challenge ? findSentenceRecord(this.courseId, this.data.course?.subtitles[challenge.cueIndex]?.id) : null;
+        this.setData({
+            currentChallengeIndex: safeIndex,
+            currentChallenge: challenge,
+            cueProgressPercent: challenge && plan?.challenges.length
+                ? Math.round(((safeIndex + 1) / plan.challenges.length) * 100)
+                : 0,
+            answerRevealed: false,
+            recordingPath: record?.recordingPath || '',
+            hasRecording: Boolean(record?.recordingPath),
+            currentAssessment: record?.status || '',
+        });
+    },
+    setPracticeCue(index) {
+        const plan = this.scenePlan;
+        const safeIndex = Math.max(0, Math.min(index, Math.max(0, (plan?.practiceCues.length ?? 1) - 1)));
+        const cue = plan?.practiceCues[safeIndex] ?? null;
+        const record = cue ? findSentenceRecord(this.courseId, cue.id) : null;
+        this.setData({
+            currentPracticeIndex: safeIndex,
+            currentPracticeCue: cue,
+            cueProgressPercent: cue && plan?.practiceCues.length
+                ? Math.round(((safeIndex + 1) / plan.practiceCues.length) * 100)
+                : 0,
+            answerRevealed: true,
+            recordingPath: record?.recordingPath || '',
+            hasRecording: Boolean(record?.recordingPath),
+            currentAssessment: record?.status || '',
+        });
+    },
+    getActiveCue() {
+        if (this.data.stage === 'respond' && this.data.currentChallenge && this.data.course) {
+            return this.data.course.subtitles[this.data.currentChallenge.cueIndex] ?? null;
+        }
+        if (this.data.stage === 'practice')
+            return this.data.currentPracticeCue;
+        return null;
+    },
+    persistActiveSentence(status, recordingPath, countAttempt = true) {
+        const cue = this.getActiveCue();
+        if (!cue || !this.data.course)
+            return;
+        (0, coach_progress_1.updateCoachSentence)({
+            sceneId: this.data.course.id,
+            sentenceId: cue.id,
+            cueIndex: this.data.course.subtitles.findIndex(item => item.id === cue.id),
+            sceneTitle: this.data.course.title,
+            chapterLabel: this.data.course.chapterLabel || '',
+            text: cue.text,
+            translation: cue.translation || '',
+            status,
+            recordingPath,
+            countAttempt,
+        });
+        if ((0, index_1.getState)().token) {
+            void (0, api_1.recordUserProgress)(this.data.course.id, {
+                cueIndex: this.data.course.subtitles.findIndex(item => item.id === cue.id),
+                totalCues: this.data.course.subtitles.length,
+            }).catch(error => console.warn('[Coach] Failed to sync cue progress', error));
+        }
+    },
+    saveCurrentSession(stage, cueIndex) {
+        if (!this.data.course)
+            return;
+        (0, coach_progress_1.updateCoachSceneSession)({
+            sceneId: this.data.course.id,
+            sceneTitle: this.data.course.title,
+            stage,
+            cueIndex,
+            completedAt: null,
+        });
+    },
+    refreshSceneCounts() {
+        const courseId = this.courseId;
+        const state = (0, coach_progress_1.readCoachProgress)();
+        const sceneRecords = state.sentences.filter(item => item.sceneId === courseId);
+        const summaryReviewItems = (0, coach_progress_1.getReviewItems)(state)
+            .filter(item => item.sceneId === courseId)
+            .map(item => ({ key: item.key, text: item.text, translation: item.translation }));
+        this.setData({
+            masteredCount: sceneRecords.filter(item => item.status === 'mastered').length,
+            reviewCount: sceneRecords.filter(item => item.status === 'review').length,
+            summaryReviewItems,
+        });
+    },
+});
+function resolveAudioUrl(value) {
+    if (/^https?:\/\//.test(value))
+        return value;
+    return `${env_1.API_BASE_URL}${value.startsWith('/') ? value : `/${value}`}`;
+}
+function resolveSceneRange(course) {
+    const first = course.subtitles[0];
+    const last = course.subtitles[course.subtitles.length - 1];
+    const start = Number(course.range?.start ?? first?.start ?? 0);
+    const end = Number(course.range?.end ?? last?.end ?? start + 1);
+    return { start, end: Math.max(start + 0.1, end) };
+}
+function normalizeSpeaker(value) {
+    return String(value || '').trim().toLowerCase();
+}
+function formatTime(seconds) {
+    const safe = Math.max(0, Math.floor(Number(seconds) || 0));
+    const minutes = Math.floor(safe / 60);
+    const rest = safe % 60;
+    return `${minutes}:${String(rest).padStart(2, '0')}`;
+}
+function findSentenceRecord(sceneId, sentenceId) {
+    if (!sentenceId)
+        return null;
+    return (0, coach_progress_1.readCoachProgress)().sentences.find(item => item.sceneId === sceneId && item.sentenceId === sentenceId) ?? null;
+}

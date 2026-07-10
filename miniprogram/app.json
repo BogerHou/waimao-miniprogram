@@ -1,5 +1,7 @@
 {
   "pages": [
+    "pages/coach/coach",
+    "pages/training/training",
     "pages/index/index",
     "pages/website-intro/website-intro",
     "pages/practice-help/practice-help",
