@@ -22,7 +22,18 @@ export type CoachScenePlan = {
   keyExpressions: string[]
   challenges: CoachChallenge[]
   practiceCues: Array<SubtitleEntry & { cueIndex: number }>
+  batchStart: number
+  batchEnd: number
+  totalPracticeCueCount: number
+  hasNextBatch: boolean
 }
+
+export type CoachScenePlanOptions = {
+  phraseBatchStart?: number
+  phraseBatchSize?: number
+}
+
+const DEFAULT_PHRASE_BATCH_SIZE = 8
 
 const TITLE_GOALS: Array<{ pattern: RegExp; goal: string }> = [
   { pattern: /报价|价格/, goal: '自然确认客户是否看过报价，并推动对方给出明确的下一步。' },
@@ -35,7 +46,10 @@ const TITLE_GOALS: Array<{ pattern: RegExp; goal: string }> = [
   { pattern: /表达|金句|口语/, goal: '在常见外贸情境中快速调取并说出一组高频表达。' },
 ]
 
-export function buildCoachScenePlan(course: CourseDetailResponse): CoachScenePlan {
+export function buildCoachScenePlan(
+  course: CourseDetailResponse,
+  options: CoachScenePlanOptions = {},
+): CoachScenePlan {
   const subtitles = Array.isArray(course.subtitles) ? course.subtitles : []
   const mode = resolveSceneMode(subtitles)
   const learnerSpeaker = mode === 'phrase-drill' ? '你' : resolveLearnerSpeaker(subtitles)
@@ -46,26 +60,39 @@ export function buildCoachScenePlan(course: CourseDetailResponse): CoachScenePla
   const learnerCues = mode === 'phrase-drill'
     ? allCues
     : allCues.filter(cue => normalizeSpeaker(cue.speaker) === normalizeSpeaker(learnerSpeaker))
-  const practiceCues = learnerCues.length
+  const focusCues = mode === 'phrase-drill'
     ? learnerCues
-    : allCues
-  const challenges = practiceCues.slice(0, 6).map((cue, index) => {
+    : selectDialogueFocusCues(learnerCues.length ? learnerCues : allCues)
+  const phraseBatchSize = normalizePhraseBatchSize(options.phraseBatchSize)
+  const batchStart = mode === 'phrase-drill'
+    ? normalizePhraseBatchStart(options.phraseBatchStart, focusCues.length, phraseBatchSize)
+    : 0
+  const practiceCues = mode === 'phrase-drill'
+    ? focusCues.slice(batchStart, batchStart + phraseBatchSize)
+    : focusCues
+  const batchEnd = batchStart + practiceCues.length
+  const challenges = practiceCues.slice(0, 3).map((cue, index) => {
     const previous = subtitles[cue.cueIndex - 1]
-    const hasCustomerPrompt = mode === 'dialogue' && previous && normalizeSpeaker(previous.speaker) !== normalizeSpeaker(learnerSpeaker)
+    const hasPreviousCue = mode === 'dialogue' && Boolean(previous)
+    const previousIsLearner = hasPreviousCue && normalizeSpeaker(previous.speaker) === normalizeSpeaker(learnerSpeaker)
     return {
       id: `${course.id}:${cue.id}`,
       cueIndex: cue.cueIndex,
-      promptSpeaker: mode === 'phrase-drill' ? '表达任务' : hasCustomerPrompt ? previous.speaker || customerSpeaker : '情境',
+      promptSpeaker: mode === 'phrase-drill'
+        ? '表达任务'
+        : hasPreviousCue
+          ? previousIsLearner ? '你刚刚说' : previous.speaker || customerSpeaker
+          : '情境',
       promptText: mode === 'phrase-drill'
         ? cue.translation || '请先用英语说出这条表达。'
-        : hasCustomerPrompt
+        : hasPreviousCue
           ? previous.text
           : index === 0
             ? 'The customer has just answered your call.'
             : 'The customer is waiting for your next point.',
       promptTranslation: mode === 'phrase-drill'
         ? '先用英语表达，再查看参考说法。'
-        : hasCustomerPrompt
+        : hasPreviousCue
           ? previous.translation || ''
           : index === 0
             ? '客户刚刚接通电话，你准备怎样自然开场？'
@@ -87,6 +114,10 @@ export function buildCoachScenePlan(course: CourseDetailResponse): CoachScenePla
     keyExpressions: practiceCues.slice(0, 3).map(cue => cue.text),
     challenges,
     practiceCues,
+    batchStart,
+    batchEnd,
+    totalPracticeCueCount: focusCues.length,
+    hasNextBatch: mode === 'phrase-drill' && batchEnd < focusCues.length,
   }
 }
 
@@ -129,6 +160,54 @@ function resolveCustomerSpeaker(subtitles: SubtitleEntry[], learnerSpeaker: stri
 
 function normalizeSpeaker(value?: string) {
   return String(value || '').trim().toLowerCase()
+}
+
+function selectDialogueFocusCues<T extends SubtitleEntry & { cueIndex: number }>(cues: T[]): T[] {
+  if (cues.length <= 3) return cues
+  return cues
+    .map(cue => ({ cue, score: scoreDialogueCue(cue.text) }))
+    .sort((left, right) => right.score - left.score || left.cue.cueIndex - right.cue.cueIndex)
+    .slice(0, 3)
+    .map(item => item.cue)
+    .sort((left, right) => left.cueIndex - right.cueIndex)
+}
+
+function scoreDialogueCue(value: string) {
+  const text = String(value || '').trim()
+  const words = text.match(/[A-Za-z0-9']+/g) ?? []
+  let score = Math.min(words.length, 18) * 0.2
+
+  if (/\b(quote|quotation|price|pricing|order|sample|delivery|shipment|payment|terms|schedule|feedback|confirm|follow[ -]?up|details|email|contract|quantity|moq|discount|deadline|production|issue|problem|solution|proposal|specification|requirement|next step|take a look)\b/i.test(text)) {
+    score += 6
+  }
+  if (/\b(can|could|would|will|shall|need|want|wanted|suggest|recommend|check|review|send|share|arrange|discuss|proceed|move forward|let me know|feel free)\b/i.test(text)) {
+    score += 2.5
+  }
+  if (text.includes('?')) score += 1
+  if (words.length >= 8) score += 1.5
+  if (words.length <= 4) score -= 3
+  if (isSocialOnlyCue(text)) score -= 10
+
+  return score
+}
+
+function isSocialOnlyCue(value: string) {
+  const text = value.trim().toLowerCase()
+  return /^(hi|hello|hey|good (morning|afternoon|evening)|how are you|how's it going|how is it going|nice to meet you|yes|no|okay|ok|sure|absolutely|will do)[\s,.!?'-]*$/.test(text)
+    || /^(i'm|i am) (doing )?(good|well|fine|great)[\s,.!?'-]*$/.test(text)
+    || /^(great,?\s*)?(thanks|thank you|appreciate (it|that))[\s,.!?'-]*$/.test(text)
+}
+
+function normalizePhraseBatchSize(value?: number) {
+  const size = Math.floor(Number(value) || DEFAULT_PHRASE_BATCH_SIZE)
+  return Math.max(1, Math.min(20, size))
+}
+
+function normalizePhraseBatchStart(value: number | undefined, cueCount: number, batchSize: number) {
+  if (!cueCount) return 0
+  const requested = Math.max(0, Math.floor(Number(value) || 0))
+  const aligned = Math.floor(requested / batchSize) * batchSize
+  return Math.min(aligned, Math.floor((cueCount - 1) / batchSize) * batchSize)
 }
 
 function truncateText(value: string, maxLength: number) {

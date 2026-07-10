@@ -54,8 +54,70 @@ function testTreatsSentenceLibraryAsPhraseDrill() {
     strict_1.default.equal(plan.mode, 'phrase-drill');
     strict_1.default.equal(plan.learnerSpeaker, '你');
     strict_1.default.equal(plan.practiceCues.length, 3);
+    strict_1.default.equal(plan.totalPracticeCueCount, 3);
+    strict_1.default.equal(plan.batchStart, 0);
+    strict_1.default.equal(plan.batchEnd, 3);
+    strict_1.default.equal(plan.hasNextBatch, false);
     strict_1.default.equal(plan.challenges[0].promptSpeaker, '表达任务');
     strict_1.default.equal(plan.challenges[0].promptText, '还是老样子，忙忙碌碌的。');
+}
+function testPrioritizesSubstantiveBusinessCues() {
+    const plan = (0, coach_model_1.buildCoachScenePlan)({
+        id: 'scene-focus',
+        title: '报价后的电话跟进',
+        audio: '/audio.mp3',
+        subtitles: [
+            { id: '1', start: 0, end: 1, speaker: 'Yibing', text: 'Hi Bob.', translation: '嗨，Bob。' },
+            { id: '2', start: 1, end: 2, speaker: 'Bob', text: 'Hi Yibing.', translation: '嗨，毅冰。' },
+            { id: '3', start: 2, end: 3, speaker: 'Yibing', text: "How's it going?", translation: '最近好吗？' },
+            { id: '4', start: 3, end: 4, speaker: 'Yibing', text: 'I wanted to follow up on the quotation I sent on Monday.', translation: '我想跟进周一发送的报价。' },
+            { id: '5', start: 4, end: 5, speaker: 'Yibing', text: 'Did you have a chance to take a look?', translation: '您看过了吗？' },
+            { id: '6', start: 5, end: 6, speaker: 'Bob', text: 'I need more time.', translation: '我还需要一点时间。' },
+            { id: '7', start: 6, end: 7, speaker: 'Yibing', text: 'If you need more details, feel free to email me.', translation: '如果需要更多信息，请给我发邮件。' },
+            { id: '8', start: 7, end: 8, speaker: 'Yibing', text: 'Great, appreciate that!', translation: '好的，感谢！' },
+        ],
+    });
+    strict_1.default.deepEqual(plan.practiceCues.map(item => item.id), ['4', '5', '7']);
+    strict_1.default.deepEqual(plan.keyExpressions, [
+        'I wanted to follow up on the quotation I sent on Monday.',
+        'Did you have a chance to take a look?',
+        'If you need more details, feel free to email me.',
+    ]);
+    strict_1.default.equal(plan.challenges[0].promptSpeaker, '你刚刚说');
+    strict_1.default.equal(plan.challenges[2].promptSpeaker, 'Bob');
+}
+function testSplitsPhraseLibraryIntoBatches() {
+    const subtitles = Array.from({ length: 19 }, (_, index) => ({
+        id: String(index + 1),
+        start: index,
+        end: index + 0.8,
+        speaker: `句子 ${index + 1}`,
+        text: `Expression ${index + 1}.`,
+        translation: `表达 ${index + 1}。`,
+    }));
+    const plan = (0, coach_model_1.buildCoachScenePlan)({
+        id: 'scene-batches',
+        title: '外贸高频表达',
+        audio: '/audio.mp3',
+        subtitles,
+    }, { phraseBatchStart: 8 });
+    strict_1.default.equal(plan.mode, 'phrase-drill');
+    strict_1.default.equal(plan.batchStart, 8);
+    strict_1.default.equal(plan.batchEnd, 16);
+    strict_1.default.equal(plan.totalPracticeCueCount, 19);
+    strict_1.default.equal(plan.practiceCues.length, 8);
+    strict_1.default.equal(plan.practiceCues[0].id, '9');
+    strict_1.default.equal(plan.practiceCues[7].id, '16');
+    strict_1.default.equal(plan.challenges.length, 3);
+    strict_1.default.equal(plan.hasNextBatch, true);
+    const finalPlan = (0, coach_model_1.buildCoachScenePlan)({
+        id: 'scene-batches',
+        title: '外贸高频表达',
+        audio: '/audio.mp3',
+        subtitles,
+    }, { phraseBatchStart: 16 });
+    strict_1.default.equal(finalPlan.practiceCues.length, 3);
+    strict_1.default.equal(finalPlan.hasNextBatch, false);
 }
 function testFallsBackToBackgroundForUnknownScenario() {
     const goal = (0, coach_model_1.resolveBusinessGoal)({
@@ -73,5 +135,7 @@ function testFallsBackToBackgroundForUnknownScenario() {
 testBuildsBusinessChallengesFromLearnerTurns();
 testPrefersLearnerRoleWhenCustomerSpeaksFirst();
 testTreatsSentenceLibraryAsPhraseDrill();
+testPrioritizesSubstantiveBusinessCues();
+testSplitsPhraseLibraryIntoBatches();
 testFallsBackToBackgroundForUnknownScenario();
 console.log('coach model tests passed.');
