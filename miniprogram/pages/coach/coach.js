@@ -5,6 +5,7 @@ const env_1 = require("../../config/env");
 const index_1 = require("../../store/index");
 const share_1 = require("../../utils/share");
 const coach_model_1 = require("../../utils/coach-model");
+const coach_dashboard_1 = require("../../utils/coach-dashboard");
 const coach_progress_1 = require("../../utils/coach-progress");
 const util_1 = require("../../utils/util");
 const DEFAULT_NICKNAME = 'Learner';
@@ -24,19 +25,11 @@ const STAGE_PROGRESS = {
     shadow: 80,
     summary: 100,
 };
-const STAGE_STEPS = {
-    overview: 1,
-    listen: 2,
-    respond: 3,
-    practice: 4,
-    shadow: 5,
-    summary: 5,
-};
 Page({
     storeUnsubscribe: undefined,
     pendingUnlockAfterLogin: false,
     data: {
-        activeTab: 'today',
+        activeTab: 'learn',
         greeting: buildGreeting(),
         userNickname: '',
         avatarInitial: '你',
@@ -47,7 +40,9 @@ Page({
         membershipText: '可学习第一章，其余 6 章需解锁',
         chapters: [],
         expandedChapterId: 'chapter-01',
-        todayScene: null,
+        learningScene: null,
+        plannedScenes: [],
+        plannedSceneCount: 0,
         reviewItems: [],
         coachSummary: {
             reviewCount: 0,
@@ -55,8 +50,6 @@ Page({
             completedSceneCount: 0,
             weeklySessionCount: 0,
         },
-        weeklyGoal: 3,
-        weeklyProgressPercent: 0,
         loading: true,
         error: '',
         showUnlockPrompt: true,
@@ -70,7 +63,10 @@ Page({
     },
     async onLoad(options = {}) {
         (0, share_1.enablePageShareMenu)();
-        if (options.tab && ['today', 'scenes', 'review', 'me'].includes(options.tab)) {
+        if (options.tab === 'today') {
+            this.setData({ activeTab: 'learn' });
+        }
+        else if (options.tab && ['learn', 'scenes', 'review', 'me'].includes(options.tab)) {
             this.setData({ activeTab: options.tab });
         }
         ;
@@ -107,7 +103,7 @@ Page({
     },
     onShareAppMessage() {
         return (0, share_1.buildAppMessageShare)({
-            title: '每天练一个真实外贸口语场景',
+            title: '按你的节奏练外贸真实场景',
             path: '/pages/coach/coach',
         });
     },
@@ -133,7 +129,7 @@ Page({
             if (response.appConfig) {
                 (0, index_1.setAppConfig)(response.appConfig);
             }
-            const chapters = applyProgressToChapters(response.data, (0, index_1.getState)().progress, (0, index_1.getState)().fullAccess);
+            const chapters = applyProgressToChapters(response.data, (0, index_1.getState)().progress, (0, index_1.getState)().fullAccess, (0, coach_progress_1.readCoachProgress)().plannedSceneIds);
             this.setData({ chapters, loading: false });
             this.handleStoreUpdate((0, index_1.getState)(), chapters);
             this.refreshCoachData(chapters);
@@ -146,7 +142,7 @@ Page({
         }
     },
     handleStoreUpdate(state, chaptersOverride) {
-        const chapters = applyProgressToChapters(chaptersOverride ?? this.data.chapters, state.progress, state.fullAccess);
+        const chapters = applyProgressToChapters(chaptersOverride ?? this.data.chapters, state.progress, state.fullAccess, (0, coach_progress_1.readCoachProgress)().plannedSceneIds);
         const rawNickname = state.user?.nickname?.trim() || '';
         const isAuthenticated = Boolean(state.token && state.user);
         const displayNickname = rawNickname && rawNickname !== DEFAULT_NICKNAME ? rawNickname : '';
@@ -170,12 +166,22 @@ Page({
         const progress = (0, coach_progress_1.readCoachProgress)();
         const coachSummary = (0, coach_progress_1.getCoachSummary)(progress);
         const reviewItems = (0, coach_progress_1.getReviewItems)(progress).slice(0, 30);
-        const todayScene = buildTodayScene(chapters, (0, index_1.getState)().progress, progress.sessions);
+        const learningSelection = (0, coach_dashboard_1.selectCoachLearningScene)({
+            chapters,
+            progress: (0, index_1.getState)().progress,
+            sessions: progress.sessions,
+            plannedSceneIds: progress.plannedSceneIds,
+        });
+        const learningScene = learningSelection ? buildLearningScene(learningSelection) : null;
+        const plannedScenes = buildPlannedScenes(chapters, progress.plannedSceneIds, progress.sessions);
+        const chaptersWithPlan = applyPlanToChapters(chapters, progress.plannedSceneIds);
         this.setData({
-            todayScene,
+            chapters: chaptersWithPlan,
+            learningScene,
+            plannedScenes,
+            plannedSceneCount: plannedScenes.length,
             reviewItems,
             coachSummary,
-            weeklyProgressPercent: Math.min(100, Math.round((coachSummary.weeklySessionCount / this.data.weeklyGoal) * 100)),
         });
     },
     handleTabChange(event) {
@@ -189,6 +195,9 @@ Page({
     },
     openScenesTab() {
         this.setData({ activeTab: 'scenes' });
+    },
+    openLearnTab() {
+        this.setData({ activeTab: 'learn' });
     },
     openReviewTab() {
         this.setData({ activeTab: 'review' });
@@ -211,6 +220,29 @@ Page({
         }
         const cueQuery = dataset.cueId ? `&reviewCue=${encodeURIComponent(dataset.cueId)}` : '';
         wx.navigateTo({ url: `/pages/training/training?id=${encodeURIComponent(id)}${cueQuery}` });
+    },
+    toggleScenePlan(event) {
+        const { id } = event.currentTarget.dataset;
+        if (!id)
+            return;
+        const scene = findScene(this.data.chapters, id);
+        if (!scene)
+            return;
+        if (scene.locked) {
+            void this.goToUnlock();
+            return;
+        }
+        const selected = !scene.inPlan;
+        (0, coach_progress_1.updateCoachPlannedScene)(id, selected);
+        this.refreshCoachData();
+        wx.showToast({ title: selected ? '已加入训练清单' : '已移出训练清单', icon: 'none' });
+    },
+    removeSceneFromPlan(event) {
+        const { id } = event.currentTarget.dataset;
+        if (!id)
+            return;
+        (0, coach_progress_1.updateCoachPlannedScene)(id, false);
+        this.refreshCoachData();
     },
     handleRetry() {
         void this.loadCourses(true);
@@ -368,7 +400,8 @@ function normalizeProgress(progress) {
     const completedSceneIds = progress.completedSceneIds ?? progress.completedCourseIds ?? [];
     return { ...progress, completedSceneIds, completedCourseIds: completedSceneIds };
 }
-function applyProgressToChapters(chapters, progress, fullAccess) {
+function applyProgressToChapters(chapters, progress, fullAccess, plannedSceneIds) {
+    const planned = new Set(plannedSceneIds);
     const sceneProgress = new Map((progress?.scenes ?? []).map(item => [item.sceneId, item]));
     const completed = new Set(progress?.completedSceneIds ?? progress?.completedCourseIds ?? []);
     const currentSceneId = progress?.currentSceneId ?? null;
@@ -383,6 +416,7 @@ function applyProgressToChapters(chapters, progress, fullAccess) {
                 return {
                     ...scene,
                     locked,
+                    inPlan: planned.has(scene.id),
                     isCurrent: currentSceneId === scene.id,
                     status: done ? 'completed' : 'pending',
                     progress: progressItem,
@@ -391,19 +425,10 @@ function applyProgressToChapters(chapters, progress, fullAccess) {
         };
     });
 }
-function buildTodayScene(chapters, progress, sessions) {
-    const available = chapters.flatMap(chapter => chapter.scenes
-        .filter(scene => !scene.locked)
-        .map(scene => ({ chapter, scene })));
-    if (!available.length)
-        return null;
-    const current = available.find(item => item.scene.id === progress?.currentSceneId);
-    const pending = available.find(item => item.scene.status !== 'completed');
-    const selected = current ?? pending ?? available[0];
-    const session = sessions.find(item => item.sceneId === selected.scene.id);
-    const stage = session?.stage ?? 'overview';
+function buildLearningScene(selected) {
+    const stage = selected.session?.stage ?? 'overview';
     const isPhraseDrill = selected.scene.id.startsWith('chapter-07-');
-    const batchStart = isPhraseDrill ? session?.batchStart ?? 0 : 0;
+    const batchStart = isPhraseDrill ? selected.session?.batchStart ?? 0 : 0;
     const batchNumber = Math.floor(batchStart / 8) + 1;
     return {
         id: selected.scene.id,
@@ -413,17 +438,75 @@ function buildTodayScene(chapters, progress, sessions) {
         estimatedMinutes: isPhraseDrill
             ? 10
             : Math.max(6, Math.min(15, Math.ceil(4 + selected.scene.cueCount * 0.45))),
-        actionText: session && stage !== 'summary' ? '继续训练' : stage === 'summary' ? '再练一次' : '开始训练',
+        actionText: selected.source === 'resume'
+            ? '继续训练'
+            : selected.scene.status === 'completed' || stage === 'summary'
+                ? '再练一次'
+                : '开始训练',
+        sourceLabel: LEARNING_SOURCE_LABELS[selected.source],
         stageLabel: STAGE_LABELS[stage],
-        stepLabel: `${STAGE_STEPS[stage]} / 5`,
         progressPercent: STAGE_PROGRESS[stage],
+        hasProgress: selected.source === 'resume' && stage !== 'overview',
     };
+}
+const LEARNING_SOURCE_LABELS = {
+    resume: '继续上次',
+    plan: '训练清单',
+    current: '接着当前进度',
+    recommended: '建议下一步',
+    repeat: '再练一个场景',
+};
+function buildPlannedScenes(chapters, plannedSceneIds, sessions) {
+    return plannedSceneIds.reduce((result, sceneId) => {
+        const found = findSceneWithChapter(chapters, sceneId);
+        if (!found)
+            return result;
+        const session = sessions.find(item => item.sceneId === sceneId);
+        const statusTone = found.scene.locked
+            ? 'locked'
+            : session && session.stage !== 'summary'
+                ? 'active'
+                : found.scene.status === 'completed'
+                    ? 'completed'
+                    : 'pending';
+        const statusLabel = statusTone === 'locked'
+            ? '需要解锁'
+            : statusTone === 'active'
+                ? `上次到：${STAGE_LABELS[session?.stage ?? 'overview']}`
+                : statusTone === 'completed'
+                    ? '已完成，可再练'
+                    : '待训练';
+        result.push({
+            id: sceneId,
+            chapterLabel: found.chapter.label,
+            title: found.scene.title,
+            locked: Boolean(found.scene.locked),
+            statusLabel,
+            statusTone,
+        });
+        return result;
+    }, []);
+}
+function applyPlanToChapters(chapters, plannedSceneIds) {
+    const planned = new Set(plannedSceneIds);
+    return chapters.map(chapter => ({
+        ...chapter,
+        scenes: chapter.scenes.map(scene => ({ ...scene, inPlan: planned.has(scene.id) })),
+    }));
 }
 function findScene(chapters, id) {
     for (const chapter of chapters) {
         const scene = chapter.scenes.find(item => item.id === id);
         if (scene)
             return scene;
+    }
+    return null;
+}
+function findSceneWithChapter(chapters, id) {
+    for (const chapter of chapters) {
+        const scene = chapter.scenes.find(item => item.id === id);
+        if (scene)
+            return { chapter, scene };
     }
     return null;
 }

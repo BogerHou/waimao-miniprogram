@@ -78,7 +78,22 @@ function testRecordingUpdateDoesNotDoubleCountPractice() {
     strict_1.default.equal(state.sentences[0].attempts, 1);
     strict_1.default.equal(state.sentences[0].recordingPath, 'local-recording.mp3');
 }
+function testTrainingPlanMigratesAndPreservesPriority() {
+    const migrated = (0, coach_progress_1.normalizeCoachProgress)({
+        version: 1,
+        sentences: [],
+        sessions: [],
+    });
+    strict_1.default.deepEqual(migrated.plannedSceneIds, []);
+    let state = (0, coach_progress_1.addCoachPlannedScene)(migrated, 'scene-2');
+    state = (0, coach_progress_1.addCoachPlannedScene)(state, 'scene-1');
+    state = (0, coach_progress_1.addCoachPlannedScene)(state, 'scene-2');
+    strict_1.default.deepEqual(state.plannedSceneIds, ['scene-2', 'scene-1']);
+    state = (0, coach_progress_1.removeCoachPlannedScene)(state, 'scene-2');
+    strict_1.default.deepEqual(state.plannedSceneIds, ['scene-1']);
+}
 testReviewQueueAndMasterySummary();
 testSceneSessionKeepsLatestStage();
 testRecordingUpdateDoesNotDoubleCountPractice();
+testTrainingPlanMigratesAndPreservesPriority();
 console.log('coach progress tests passed.');

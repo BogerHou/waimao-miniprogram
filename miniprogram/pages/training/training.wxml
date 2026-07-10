@@ -213,7 +213,7 @@
           <view class="summary-hero__check"><image class="summary-hero__check-icon" src="/assets/icons/check-white.svg" mode="aspectFit"></image></view>
           <text class="summary-hero__eyebrow">{{reviewMode ? '完成一条复习' : sceneMode === 'phrase-drill' ? (hasNextBatch ? '完成当前一组' : '完成全部高频表达') : '完成一个真实场景'}}</text>
           <text class="summary-hero__title">{{reviewMode && currentPracticeCue ? currentPracticeCue.text : course.title}}</text>
-          <text class="summary-hero__desc">{{reviewMode ? (currentAssessment === 'mastered' ? '这一次表达顺畅，之后会按复习节奏再次出现。' : '已经保留在复习列表，下次继续把它说顺。') : sceneMode === 'phrase-drill' ? (hasNextBatch ? '这一组已经完成，下一组会继续练新的 8 条表达。' : '你已经完成全部分组的理解、开口和跟读。') : '你已经从理解场景走到独立组织回应。'}}</text>
+          <text class="summary-hero__desc">{{reviewMode ? (currentAssessment === 'mastered' ? '这一次表达顺畅，之后会按复习节奏再次出现。' : '已经保留在复习列表，下次继续把它说顺。') : sceneMode === 'phrase-drill' ? (hasNextBatch ? '这一组已经完成，可以继续下一组，也可以先停在这里。' : '你已经完成全部分组的理解、开口和跟读。') : '这个场景已经练完，可以继续选择下一个，也可以结束本次学习。'}}</text>
         </view>
 
         <view class="summary-stats">
@@ -226,8 +226,10 @@
           <view class="summary-review__item" wx:for="{{summaryReviewItems}}" wx:key="key"><text class="summary-review__text">{{item.text}}</text><text class="summary-review__translation">{{item.translation}}</text></view>
         </view>
 
-        <button class="primary-action summary-primary" bindtap="handleSummaryPrimary">{{reviewMode ? '回到复习列表' : hasNextBatch ? '继续下一组' : '回到今日训练'}}</button>
-        <button class="secondary-action summary-secondary" bindtap="restartTraining">再练一遍</button>
+        <button class="primary-action summary-primary" bindtap="handleSummaryPrimary">{{reviewMode ? '回到复习列表' : hasNextBatch ? '继续下一组' : '继续选择场景'}}</button>
+        <button wx:if="{{reviewMode}}" class="secondary-action summary-secondary" bindtap="restartTraining">再练一遍</button>
+        <button wx:else class="secondary-action summary-secondary" bindtap="returnHome">回到学习台</button>
+        <button wx:if="{{!reviewMode}}" class="inline-link" bindtap="restartTraining">再练一遍</button>
         <button wx:if="{{!reviewMode}}" class="inline-link" bindtap="openClassicCourse">查看经典跟读界面 ›</button>
       </block>
     </view>

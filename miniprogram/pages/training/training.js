@@ -12,7 +12,7 @@ const STAGE_META = {
     respond: { number: 3, title: '思考回应', description: '先组织自己的表达，再看参考说法' },
     practice: { number: 4, title: '逐句表达', description: '用原声和录音对比语气与节奏' },
     shadow: { number: 5, title: '连续跟读', description: '跟上整段对话，不停下来逐字翻译' },
-    summary: { number: 5, title: '训练完成', description: '留下待巩固表达，下一次直接复习' },
+    summary: { number: 5, title: '训练完成', description: '决定继续训练，或者结束本次学习' },
 };
 const PHRASE_STAGE_META = {
     overview: { number: 1, title: '表达任务', description: '先明确这组表达会用在哪些工作情境' },
@@ -20,7 +20,7 @@ const PHRASE_STAGE_META = {
     respond: { number: 3, title: '尝试表达', description: '先根据中文说英文，再看参考说法' },
     practice: { number: 4, title: '逐句表达', description: '用原声和录音对比语气与节奏' },
     shadow: { number: 5, title: '整组跟读', description: '按顺序跟完本组表达，练习快速调取' },
-    summary: { number: 5, title: '训练完成', description: '留下待巩固表达，下一次直接复习' },
+    summary: { number: 5, title: '训练完成', description: '决定继续训练，或者结束本次学习' },
 };
 Page({
     courseId: '',
@@ -523,6 +523,9 @@ Page({
             batchStart: continuesWithNextBatch ? plan?.batchEnd ?? 0 : plan?.batchStart ?? 0,
             completedAt: continuesWithNextBatch ? null : now,
         }, now);
+        if (!continuesWithNextBatch) {
+            (0, coach_progress_1.removeCoachPlannedSceneById)(this.courseId);
+        }
         this.refreshSceneCounts();
         if (!continuesWithNextBatch && (0, index_1.getState)().token && this.data.course) {
             try {
@@ -566,7 +569,7 @@ Page({
             });
             return;
         }
-        this.returnHome();
+        wx.reLaunch({ url: '/pages/coach/coach?tab=scenes' });
     },
     openKnowledge() {
         if (!this.data.course)

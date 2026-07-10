@@ -119,3 +119,48 @@
 - `miniprogram/pages/training/training.less`
 - `tests/coach-model.test.ts`
 - `docs/DESIGN.md`
+
+## [2026-07-10 23:08] | Task: 将强制日课改为自主训练台
+
+### 🤖 Execution Context
+
+- **Agent ID**: `Codex`
+- **Base Model**: `GPT-5`
+- **Runtime**: `Codex desktop`
+
+### 📥 User Query
+
+> 不再强制一天一个场景。不同用户可以决定每天学多少，也可以优先选择自己需要的场景，整个小程序按这个方向调整。
+
+### 🛠 Changes Overview
+
+**Scope:** 实验版学习首页、场景列表、训练总结、本地教练进度与纯逻辑测试。
+
+**Key Actions:**
+
+- **学习台代替日课**：底部“今日”改为“学习”，首屏只建议一个明确的下一步，不设置每日场景数量或周目标进度条。
+- **自主训练清单**：用户可在场景列表通过加号和勾选加入或移出清单，学习台集中显示待练场景；旧本地缓存自动补齐清单字段。
+- **稳定推荐顺序**：依次选择未完成训练、训练清单、后端当前进度和未学习场景，锁定场景不会被推荐。
+- **连续学习回流**：完整场景完成后自动移出清单，训练总结允许继续选择场景、回到学习台或再练一遍。
+- **补齐验证**：增加训练清单迁移、增删和推荐优先级测试，并在微信开发者工具验证学习台、场景选择和清单展示。
+
+### 🧠 Design Intent (Why)
+
+场景课程应服务用户眼前的业务任务，而不是要求所有人遵守同一个日历节奏。新版仍用一个建议动作降低选择成本，但把学习顺序和学习量交还给用户；训练清单负责承接个人优先级，完整五阶段训练和复习机制保持不变。
+
+### 📁 Files Modified
+
+- `miniprogram/pages/coach/coach.ts`
+- `miniprogram/pages/coach/coach.wxml`
+- `miniprogram/pages/coach/coach.less`
+- `miniprogram/pages/training/training.ts`
+- `miniprogram/pages/training/training.wxml`
+- `miniprogram/utils/coach-progress.ts`
+- `miniprogram/utils/coach-dashboard.ts`
+- `tests/coach-progress.test.ts`
+- `tests/coach-dashboard.test.ts`
+- `docs/PRODUCT_SENSE.md`
+- `docs/ARCHITECTURE.md`
+- `docs/FRONTEND.md`
+- `docs/RELIABILITY.md`
+- `docs/QUALITY_SCORE.md`

@@ -31,6 +31,7 @@ export type CoachProgressState = {
   version: 1
   sentences: CoachSentenceRecord[]
   sessions: CoachSceneSession[]
+  plannedSceneIds: string[]
 }
 
 export type SentenceProgressInput = Omit<
@@ -43,9 +44,10 @@ export type SentenceProgressInput = Omit<
 
 export const COACH_PROGRESS_STORAGE_KEY = 'waimao_coach_progress_v1'
 const MASTERED_REVIEW_DELAY = 3 * 24 * 60 * 60 * 1000
+const MAX_PLANNED_SCENES = 20
 
 export function createEmptyCoachProgress(): CoachProgressState {
-  return { version: 1, sentences: [], sessions: [] }
+  return { version: 1, sentences: [], sessions: [], plannedSceneIds: [] }
 }
 
 export function normalizeCoachProgress(value: unknown): CoachProgressState {
@@ -61,7 +63,23 @@ export function normalizeCoachProgress(value: unknown): CoachProgressState {
     sessions: Array.isArray(source.sessions)
       ? source.sessions.filter(isSceneSession).map(item => ({ ...item }))
       : [],
+    plannedSceneIds: normalizePlannedSceneIds(source.plannedSceneIds),
   }
+}
+
+export function addCoachPlannedScene(state: CoachProgressState, sceneId: string): CoachProgressState {
+  const id = String(sceneId || '').trim()
+  if (!id || state.plannedSceneIds.includes(id)) return state
+  return {
+    ...state,
+    plannedSceneIds: [...state.plannedSceneIds, id].slice(0, MAX_PLANNED_SCENES),
+  }
+}
+
+export function removeCoachPlannedScene(state: CoachProgressState, sceneId: string): CoachProgressState {
+  const plannedSceneIds = state.plannedSceneIds.filter(item => item !== sceneId)
+  if (plannedSceneIds.length === state.plannedSceneIds.length) return state
+  return { ...state, plannedSceneIds }
 }
 
 export function upsertSentenceProgress(
@@ -167,6 +185,21 @@ export function updateCoachSceneSession(
   return next
 }
 
+export function updateCoachPlannedScene(sceneId: string, selected: boolean) {
+  const state = readCoachProgress()
+  const next = selected
+    ? addCoachPlannedScene(state, sceneId)
+    : removeCoachPlannedScene(state, sceneId)
+  writeCoachProgress(next)
+  return next
+}
+
+export function removeCoachPlannedSceneById(sceneId: string) {
+  const next = removeCoachPlannedScene(readCoachProgress(), sceneId)
+  writeCoachProgress(next)
+  return next
+}
+
 export function persistCoachRecording(tempFilePath: string): Promise<string> {
   if (!tempFilePath || typeof wx === 'undefined' || typeof wx.saveFile !== 'function') {
     return Promise.resolve(tempFilePath)
@@ -211,4 +244,16 @@ function isSceneSession(value: unknown): value is CoachSceneSession {
   if (!value || typeof value !== 'object') return false
   const item = value as Partial<CoachSceneSession>
   return Boolean(item.sceneId && item.sceneTitle && item.stage && typeof item.cueIndex === 'number')
+}
+
+function normalizePlannedSceneIds(value: unknown) {
+  if (!Array.isArray(value)) return []
+  const seen = new Set<string>()
+  return value.reduce<string[]>((result, item) => {
+    const id = typeof item === 'string' ? item.trim() : ''
+    if (!id || seen.has(id) || result.length >= MAX_PLANNED_SCENES) return result
+    seen.add(id)
+    result.push(id)
+    return result
+  }, [])
 }

@@ -3,52 +3,87 @@
 
   <scroll-view class="coach-scroll" scroll-y enhanced show-scrollbar="{{false}}">
     <view class="coach-main">
-      <block wx:if="{{activeTab === 'today'}}">
-        <view class="today-intro">
-          <text class="today-intro__eyebrow">{{greeting}}{{userNickname ? '，' + userNickname : ''}}</text>
-          <text class="today-intro__title">今天练一个真实场景</text>
-          <text class="today-intro__desc">先想清楚客户要什么，再组织你的回应。</text>
+      <block wx:if="{{activeTab === 'learn'}}">
+        <view class="learn-intro">
+          <text class="learn-intro__eyebrow">{{greeting}}{{userNickname ? '，' + userNickname : ''}}</text>
+          <text class="learn-intro__title">从现在最需要的场景开始</text>
+          <text class="learn-intro__desc">继续上次，或者换一个场景。</text>
         </view>
 
-        <view class="weekly-band">
-          <view class="weekly-band__copy">
-            <text class="weekly-band__label">本周训练</text>
-            <text class="weekly-band__value">{{coachSummary.weeklySessionCount}} / {{weeklyGoal}} 个场景</text>
-          </view>
-          <view class="weekly-band__track"><view class="weekly-band__fill" style="width: {{weeklyProgressPercent}}%;"></view></view>
+        <view class="activity-line">
+          <text class="activity-line__label">本周</text>
+          <text class="activity-line__value">练过 {{coachSummary.weeklySessionCount}} 个场景</text>
+          <view class="activity-line__dot"></view>
+          <text class="activity-line__muted">{{coachSummary.reviewCount}} 条待复习</text>
         </view>
 
-        <view wx:if="{{loading && !todayScene}}" class="today-skeleton">
+        <view wx:if="{{loading && !learningScene}}" class="learning-skeleton">
           <view class="skeleton-line skeleton-line--short"></view>
           <view class="skeleton-line"></view>
           <view class="skeleton-block"></view>
         </view>
 
-        <view wx:elif="{{error && !todayScene}}" class="coach-state">
-          <text class="coach-state__title">今天的训练暂时没加载出来</text>
+        <view wx:elif="{{error && !learningScene}}" class="coach-state">
+          <text class="coach-state__title">训练入口暂时没加载出来</text>
           <text class="coach-state__desc">{{error}}</text>
           <button class="coach-state__button" bindtap="handleRetry">重新加载</button>
         </view>
 
-        <view wx:elif="{{todayScene}}" class="today-task">
-          <view class="today-task__meta">
-            <text class="today-task__label">今日任务</text>
-            <text class="today-task__time">约 {{todayScene.estimatedMinutes}} 分钟</text>
+        <view wx:elif="{{learningScene}}" class="learning-task">
+          <view class="learning-task__meta">
+            <text class="learning-task__label">{{learningScene.sourceLabel}}</text>
+            <text class="learning-task__time">约 {{learningScene.estimatedMinutes}} 分钟</text>
           </view>
-          <text class="today-task__chapter">{{todayScene.chapterLabel}}</text>
-          <text class="today-task__title">{{todayScene.title}}</text>
+          <text class="learning-task__chapter">{{learningScene.chapterLabel}}</text>
+          <text class="learning-task__title">{{learningScene.title}}</text>
           <view class="mission-line">
             <image class="mission-line__icon" src="/assets/icons/target-primary.svg" mode="aspectFit"></image>
-            <text class="mission-line__text">{{todayScene.goal}}</text>
+            <text class="mission-line__text">{{learningScene.goal}}</text>
           </view>
-          <view class="today-task__progress">
-            <view class="today-task__progress-head">
-              <text>{{todayScene.stageLabel}}</text>
-              <text>第 {{todayScene.stepLabel}} 步</text>
+          <view wx:if="{{learningScene.hasProgress}}" class="learning-task__progress">
+            <view class="learning-task__progress-head">
+              <text>上次到：{{learningScene.stageLabel}}</text>
+              <text>{{learningScene.progressPercent}}%</text>
             </view>
-            <view class="today-task__track"><view class="today-task__fill" style="width: {{todayScene.progressPercent}}%;"></view></view>
+            <view class="learning-task__track"><view class="learning-task__fill" style="width: {{learningScene.progressPercent}}%;"></view></view>
           </view>
-          <button class="primary-action today-task__action" data-id="{{todayScene.id}}" bindtap="goToTraining">{{todayScene.actionText}}</button>
+          <button class="primary-action learning-task__action" data-id="{{learningScene.id}}" bindtap="goToTraining">{{learningScene.actionText}}</button>
+          <view class="learning-task__switch" bindtap="openScenesTab" aria-role="button">
+            <text>换一个场景</text>
+            <text class="row-arrow">›</text>
+          </view>
+        </view>
+
+        <view class="plan-section">
+          <view class="plan-section__header">
+            <view class="plan-section__heading">
+              <text class="plan-section__title">我的训练清单</text>
+              <text wx:if="{{plannedSceneCount}}" class="plan-section__count">{{plannedSceneCount}}</text>
+            </view>
+            <view class="plan-section__manage" bindtap="openScenesTab" aria-role="button">管理</view>
+          </view>
+
+          <view wx:if="{{plannedScenes.length}}" class="plan-list">
+            <view wx:for="{{plannedScenes}}" wx:key="id" class="plan-row" data-id="{{item.id}}" bindtap="goToTraining" aria-role="button">
+              <text class="plan-row__order">{{index + 1}}</text>
+              <view class="plan-row__copy">
+                <text class="plan-row__chapter">{{item.chapterLabel}}</text>
+                <text class="plan-row__title">{{item.title}}</text>
+                <text class="plan-row__status plan-row__status--{{item.statusTone}}">{{item.statusLabel}}</text>
+              </view>
+              <view class="plan-row__remove" data-id="{{item.id}}" catchtap="removeSceneFromPlan" aria-role="button" aria-label="移出训练清单">
+                <image class="plan-row__remove-icon" src="/assets/icons/x.svg" mode="aspectFit"></image>
+              </view>
+            </view>
+          </view>
+          <view wx:else class="plan-empty">
+            <image class="plan-empty__icon" src="/assets/icons/book-open.svg" mode="aspectFit"></image>
+            <view class="plan-empty__copy">
+              <text class="plan-empty__title">还没有训练清单</text>
+              <text class="plan-empty__desc">先选一个近期最想练的场景。</text>
+            </view>
+            <button class="plan-empty__action" bindtap="openScenesTab">选择场景</button>
+          </view>
         </view>
 
         <view wx:if="{{coachSummary.reviewCount > 0}}" class="review-callout" bindtap="openReviewTab" aria-role="button">
@@ -69,13 +104,16 @@
           <text class="row-arrow">›</text>
         </view>
 
-        <button class="text-action" bindtap="openScenesTab">查看全部场景</button>
       </block>
 
       <block wx:elif="{{activeTab === 'scenes'}}">
         <view class="section-intro">
-          <text class="section-intro__title">外贸场景</text>
-          <text class="section-intro__desc">按你正在处理的业务任务选择训练。</text>
+          <text class="section-intro__title">选择场景</text>
+          <text class="section-intro__desc">按你正在处理的业务任务来练，顺序由你决定。</text>
+          <view wx:if="{{plannedSceneCount}}" class="section-intro__plan" bindtap="openLearnTab" aria-role="button">
+            <text>{{plannedSceneCount}} 个场景已加入训练清单</text>
+            <text class="row-arrow">›</text>
+          </view>
         </view>
 
         <view wx:if="{{loading && !chapters.length}}" class="chapter-skeleton-list">
@@ -112,11 +150,15 @@
                 <text class="scene-row__index">{{scene.index}}</text>
                 <view class="scene-row__copy">
                   <text class="scene-row__title">{{scene.title}}</text>
-                  <text wx:if="{{scene.isCurrent}}" class="scene-row__status">正在学习</text>
+                  <text wx:if="{{scene.isCurrent}}" class="scene-row__status">上次学习</text>
+                  <text wx:elif="{{scene.inPlan}}" class="scene-row__status">训练清单中</text>
                   <text wx:elif="{{scene.status === 'completed'}}" class="scene-row__status scene-row__status--done">已完成</text>
                 </view>
                 <image wx:if="{{scene.locked}}" class="scene-row__lock" src="/assets/icons/lock-keyhole.svg" mode="aspectFit"></image>
-                <text wx:else class="row-arrow">›</text>
+                <view wx:else class="scene-plan-toggle {{scene.inPlan ? 'scene-plan-toggle--selected' : ''}}" data-id="{{scene.id}}" catchtap="toggleScenePlan" aria-role="button" aria-label="{{scene.inPlan ? '移出训练清单' : '加入训练清单'}}">
+                  <image class="scene-plan-toggle__icon" src="{{scene.inPlan ? '/assets/icons/check-primary.svg' : '/assets/icons/plus.svg'}}" mode="aspectFit"></image>
+                </view>
+                <text wx:if="{{!scene.locked}}" class="row-arrow">›</text>
               </view>
             </view>
           </view>
@@ -199,8 +241,8 @@
   </scroll-view>
 
   <view class="coach-tabbar">
-    <view class="coach-tab {{activeTab === 'today' ? 'coach-tab--active' : ''}}" data-tab="today" bindtap="handleTabChange" aria-role="button">
-      <image class="coach-tab__icon" src="{{activeTab === 'today' ? '/assets/icons/calendar-check-primary.svg' : '/assets/icons/calendar-check.svg'}}" mode="aspectFit"></image><text>今日</text>
+    <view class="coach-tab {{activeTab === 'learn' ? 'coach-tab--active' : ''}}" data-tab="learn" bindtap="handleTabChange" aria-role="button">
+      <image class="coach-tab__icon" src="{{activeTab === 'learn' ? '/assets/icons/book-open-primary.svg' : '/assets/icons/book-open.svg'}}" mode="aspectFit"></image><text>学习</text>
     </view>
     <view class="coach-tab {{activeTab === 'scenes' ? 'coach-tab--active' : ''}}" data-tab="scenes" bindtap="handleTabChange" aria-role="button">
       <image class="coach-tab__icon" src="{{activeTab === 'scenes' ? '/assets/icons/briefcase-business-primary.svg' : '/assets/icons/briefcase-business.svg'}}" mode="aspectFit"></image><text>场景</text>

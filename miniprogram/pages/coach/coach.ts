@@ -17,26 +17,49 @@ import {
 import { enablePageShareMenu, buildAppMessageShare, buildTimelineShare } from '../../utils/share'
 import { resolveBusinessGoal } from '../../utils/coach-model'
 import {
+  selectCoachLearningScene,
+  type CoachLearningSelection,
+} from '../../utils/coach-dashboard'
+import {
   getCoachSummary,
   getReviewItems,
   readCoachProgress,
+  updateCoachPlannedScene,
   type CoachSentenceRecord,
   type CoachStage,
 } from '../../utils/coach-progress'
 import { formatEntitlementExpiry } from '../../utils/util'
 
-type CoachTab = 'today' | 'scenes' | 'review' | 'me'
+type CoachTab = 'learn' | 'scenes' | 'review' | 'me'
 
-type TodayScene = {
+type CoachSceneView = ChapterSceneItem & {
+  inPlan: boolean
+}
+
+type CoachChapterView = Omit<ChapterListItem, 'scenes'> & {
+  scenes: CoachSceneView[]
+}
+
+type LearningScene = {
   id: string
   chapterLabel: string
   title: string
   goal: string
   estimatedMinutes: number
   actionText: string
+  sourceLabel: string
   stageLabel: string
-  stepLabel: string
   progressPercent: number
+  hasProgress: boolean
+}
+
+type PlannedScene = {
+  id: string
+  chapterLabel: string
+  title: string
+  locked: boolean
+  statusLabel: string
+  statusTone: 'active' | 'completed' | 'pending' | 'locked'
 }
 
 type CoachSummaryView = {
@@ -56,13 +79,13 @@ type CoachPageData = {
   authLoading: boolean
   fullAccess: boolean
   membershipText: string
-  chapters: ChapterListItem[]
+  chapters: CoachChapterView[]
   expandedChapterId: string
-  todayScene: TodayScene | null
+  learningScene: LearningScene | null
+  plannedScenes: PlannedScene[]
+  plannedSceneCount: number
   reviewItems: CoachSentenceRecord[]
   coachSummary: CoachSummaryView
-  weeklyGoal: number
-  weeklyProgressPercent: number
   loading: boolean
   error: string
   showUnlockPrompt: boolean
@@ -92,20 +115,11 @@ const STAGE_PROGRESS: Record<CoachStage, number> = {
   shadow: 80,
   summary: 100,
 }
-const STAGE_STEPS: Record<CoachStage, number> = {
-  overview: 1,
-  listen: 2,
-  respond: 3,
-  practice: 4,
-  shadow: 5,
-  summary: 5,
-}
-
 Page<CoachPageData, WechatMiniprogram.IAnyObject>({
   storeUnsubscribe: undefined as (() => void) | undefined,
   pendingUnlockAfterLogin: false,
   data: {
-    activeTab: 'today',
+    activeTab: 'learn',
     greeting: buildGreeting(),
     userNickname: '',
     avatarInitial: '你',
@@ -116,7 +130,9 @@ Page<CoachPageData, WechatMiniprogram.IAnyObject>({
     membershipText: '可学习第一章，其余 6 章需解锁',
     chapters: [],
     expandedChapterId: 'chapter-01',
-    todayScene: null,
+    learningScene: null,
+    plannedScenes: [],
+    plannedSceneCount: 0,
     reviewItems: [],
     coachSummary: {
       reviewCount: 0,
@@ -124,8 +140,6 @@ Page<CoachPageData, WechatMiniprogram.IAnyObject>({
       completedSceneCount: 0,
       weeklySessionCount: 0,
     },
-    weeklyGoal: 3,
-    weeklyProgressPercent: 0,
     loading: true,
     error: '',
     showUnlockPrompt: true,
@@ -137,9 +151,11 @@ Page<CoachPageData, WechatMiniprogram.IAnyObject>({
     loginModalDescription: '同步课程进度与会员权益',
     loginError: '',
   },
-  async onLoad(options: { tab?: CoachTab } = {}) {
+  async onLoad(options: { tab?: CoachTab | 'today' } = {}) {
     enablePageShareMenu()
-    if (options.tab && ['today', 'scenes', 'review', 'me'].includes(options.tab)) {
+    if (options.tab === 'today') {
+      this.setData({ activeTab: 'learn' })
+    } else if (options.tab && ['learn', 'scenes', 'review', 'me'].includes(options.tab)) {
       this.setData({ activeTab: options.tab })
     }
     ;(this as any).storeUnsubscribe = subscribe(state => this.handleStoreUpdate(state))
@@ -172,7 +188,7 @@ Page<CoachPageData, WechatMiniprogram.IAnyObject>({
   },
   onShareAppMessage() {
     return buildAppMessageShare({
-      title: '每天练一个真实外贸口语场景',
+      title: '按你的节奏练外贸真实场景',
       path: '/pages/coach/coach',
     })
   },
@@ -197,7 +213,12 @@ Page<CoachPageData, WechatMiniprogram.IAnyObject>({
       if (response.appConfig) {
         updateAppConfigInStore(response.appConfig)
       }
-      const chapters = applyProgressToChapters(response.data, getStoreState().progress, getStoreState().fullAccess)
+      const chapters = applyProgressToChapters(
+        response.data,
+        getStoreState().progress,
+        getStoreState().fullAccess,
+        readCoachProgress().plannedSceneIds,
+      )
       this.setData({ chapters, loading: false })
       this.handleStoreUpdate(getStoreState(), chapters)
       this.refreshCoachData(chapters)
@@ -213,6 +234,7 @@ Page<CoachPageData, WechatMiniprogram.IAnyObject>({
       chaptersOverride ?? this.data.chapters,
       state.progress,
       state.fullAccess,
+      readCoachProgress().plannedSceneIds,
     )
     const rawNickname = state.user?.nickname?.trim() || ''
     const isAuthenticated = Boolean(state.token && state.user)
@@ -237,12 +259,22 @@ Page<CoachPageData, WechatMiniprogram.IAnyObject>({
     const progress = readCoachProgress()
     const coachSummary = getCoachSummary(progress)
     const reviewItems = getReviewItems(progress).slice(0, 30)
-    const todayScene = buildTodayScene(chapters, getStoreState().progress, progress.sessions)
+    const learningSelection = selectCoachLearningScene({
+      chapters,
+      progress: getStoreState().progress,
+      sessions: progress.sessions,
+      plannedSceneIds: progress.plannedSceneIds,
+    })
+    const learningScene = learningSelection ? buildLearningScene(learningSelection) : null
+    const plannedScenes = buildPlannedScenes(chapters, progress.plannedSceneIds, progress.sessions)
+    const chaptersWithPlan = applyPlanToChapters(chapters, progress.plannedSceneIds)
     this.setData({
-      todayScene,
+      chapters: chaptersWithPlan,
+      learningScene,
+      plannedScenes,
+      plannedSceneCount: plannedScenes.length,
       reviewItems,
       coachSummary,
-      weeklyProgressPercent: Math.min(100, Math.round((coachSummary.weeklySessionCount / this.data.weeklyGoal) * 100)),
     })
   },
   handleTabChange(event: WechatMiniprogram.BaseEvent) {
@@ -255,6 +287,9 @@ Page<CoachPageData, WechatMiniprogram.IAnyObject>({
   },
   openScenesTab() {
     this.setData({ activeTab: 'scenes' })
+  },
+  openLearnTab() {
+    this.setData({ activeTab: 'learn' })
   },
   openReviewTab() {
     this.setData({ activeTab: 'review' })
@@ -275,6 +310,26 @@ Page<CoachPageData, WechatMiniprogram.IAnyObject>({
     }
     const cueQuery = dataset.cueId ? `&reviewCue=${encodeURIComponent(dataset.cueId)}` : ''
     wx.navigateTo({ url: `/pages/training/training?id=${encodeURIComponent(id)}${cueQuery}` })
+  },
+  toggleScenePlan(event: WechatMiniprogram.BaseEvent) {
+    const { id } = event.currentTarget.dataset as { id?: string }
+    if (!id) return
+    const scene = findScene(this.data.chapters, id)
+    if (!scene) return
+    if (scene.locked) {
+      void this.goToUnlock()
+      return
+    }
+    const selected = !scene.inPlan
+    updateCoachPlannedScene(id, selected)
+    this.refreshCoachData()
+    wx.showToast({ title: selected ? '已加入训练清单' : '已移出训练清单', icon: 'none' })
+  },
+  removeSceneFromPlan(event: WechatMiniprogram.BaseEvent) {
+    const { id } = event.currentTarget.dataset as { id?: string }
+    if (!id) return
+    updateCoachPlannedScene(id, false)
+    this.refreshCoachData()
   },
   handleRetry() {
     void this.loadCourses(true)
@@ -431,7 +486,9 @@ function applyProgressToChapters(
   chapters: ChapterListItem[],
   progress: UserProgress | null,
   fullAccess: boolean,
-) {
+  plannedSceneIds: string[],
+): CoachChapterView[] {
+  const planned = new Set(plannedSceneIds)
   const sceneProgress = new Map((progress?.scenes ?? []).map(item => [item.sceneId, item]))
   const completed = new Set(progress?.completedSceneIds ?? progress?.completedCourseIds ?? [])
   const currentSceneId = progress?.currentSceneId ?? null
@@ -446,6 +503,7 @@ function applyProgressToChapters(
         return {
           ...scene,
           locked,
+          inPlan: planned.has(scene.id),
           isCurrent: currentSceneId === scene.id,
           status: done ? 'completed' as const : 'pending' as const,
           progress: progressItem,
@@ -455,22 +513,10 @@ function applyProgressToChapters(
   })
 }
 
-function buildTodayScene(
-  chapters: ChapterListItem[],
-  progress: UserProgress | null,
-  sessions: ReturnType<typeof readCoachProgress>['sessions'],
-): TodayScene | null {
-  const available = chapters.flatMap(chapter => chapter.scenes
-    .filter(scene => !scene.locked)
-    .map(scene => ({ chapter, scene })))
-  if (!available.length) return null
-  const current = available.find(item => item.scene.id === progress?.currentSceneId)
-  const pending = available.find(item => item.scene.status !== 'completed')
-  const selected = current ?? pending ?? available[0]
-  const session = sessions.find(item => item.sceneId === selected.scene.id)
-  const stage = session?.stage ?? 'overview'
+function buildLearningScene(selected: CoachLearningSelection): LearningScene {
+  const stage = selected.session?.stage ?? 'overview'
   const isPhraseDrill = selected.scene.id.startsWith('chapter-07-')
-  const batchStart = isPhraseDrill ? session?.batchStart ?? 0 : 0
+  const batchStart = isPhraseDrill ? selected.session?.batchStart ?? 0 : 0
   const batchNumber = Math.floor(batchStart / 8) + 1
   return {
     id: selected.scene.id,
@@ -480,17 +526,81 @@ function buildTodayScene(
     estimatedMinutes: isPhraseDrill
       ? 10
       : Math.max(6, Math.min(15, Math.ceil(4 + selected.scene.cueCount * 0.45))),
-    actionText: session && stage !== 'summary' ? '继续训练' : stage === 'summary' ? '再练一次' : '开始训练',
+    actionText: selected.source === 'resume'
+      ? '继续训练'
+      : selected.scene.status === 'completed' || stage === 'summary'
+        ? '再练一次'
+        : '开始训练',
+    sourceLabel: LEARNING_SOURCE_LABELS[selected.source],
     stageLabel: STAGE_LABELS[stage],
-    stepLabel: `${STAGE_STEPS[stage]} / 5`,
     progressPercent: STAGE_PROGRESS[stage],
+    hasProgress: selected.source === 'resume' && stage !== 'overview',
   }
 }
 
-function findScene(chapters: ChapterListItem[], id: string): ChapterSceneItem | null {
+const LEARNING_SOURCE_LABELS: Record<CoachLearningSelection['source'], string> = {
+  resume: '继续上次',
+  plan: '训练清单',
+  current: '接着当前进度',
+  recommended: '建议下一步',
+  repeat: '再练一个场景',
+}
+
+function buildPlannedScenes(
+  chapters: ChapterListItem[],
+  plannedSceneIds: string[],
+  sessions: ReturnType<typeof readCoachProgress>['sessions'],
+): PlannedScene[] {
+  return plannedSceneIds.reduce<PlannedScene[]>((result, sceneId) => {
+    const found = findSceneWithChapter(chapters, sceneId)
+    if (!found) return result
+    const session = sessions.find(item => item.sceneId === sceneId)
+    const statusTone: PlannedScene['statusTone'] = found.scene.locked
+      ? 'locked'
+      : session && session.stage !== 'summary'
+        ? 'active'
+        : found.scene.status === 'completed'
+          ? 'completed'
+          : 'pending'
+    const statusLabel = statusTone === 'locked'
+      ? '需要解锁'
+      : statusTone === 'active'
+        ? `上次到：${STAGE_LABELS[session?.stage ?? 'overview']}`
+        : statusTone === 'completed'
+          ? '已完成，可再练'
+          : '待训练'
+    result.push({
+      id: sceneId,
+      chapterLabel: found.chapter.label,
+      title: found.scene.title,
+      locked: Boolean(found.scene.locked),
+      statusLabel,
+      statusTone,
+    })
+    return result
+  }, [])
+}
+
+function applyPlanToChapters(chapters: ChapterListItem[], plannedSceneIds: string[]): CoachChapterView[] {
+  const planned = new Set(plannedSceneIds)
+  return chapters.map(chapter => ({
+    ...chapter,
+    scenes: chapter.scenes.map(scene => ({ ...scene, inPlan: planned.has(scene.id) })),
+  }))
+}
+
+function findScene(chapters: CoachChapterView[], id: string): CoachSceneView | null {
   for (const chapter of chapters) {
     const scene = chapter.scenes.find(item => item.id === id)
     if (scene) return scene
+  }
+  return null
+}
+
+function findSceneWithChapter(chapters: ChapterListItem[], id: string) {
+  for (const chapter of chapters) {
+    const scene = chapter.scenes.find(item => item.id === id)
+    if (scene) return { chapter, scene }
   }
   return null
 }

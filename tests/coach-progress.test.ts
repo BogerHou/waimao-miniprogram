@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict'
 
 import {
+  addCoachPlannedScene,
   createEmptyCoachProgress,
   getCoachSummary,
   getReviewItems,
+  normalizeCoachProgress,
+  removeCoachPlannedScene,
   saveSceneSessionProgress,
   upsertSentenceProgress,
 } from '../miniprogram/utils/coach-progress'
@@ -88,7 +91,25 @@ function testRecordingUpdateDoesNotDoubleCountPractice() {
   assert.equal(state.sentences[0].recordingPath, 'local-recording.mp3')
 }
 
+function testTrainingPlanMigratesAndPreservesPriority() {
+  const migrated = normalizeCoachProgress({
+    version: 1,
+    sentences: [],
+    sessions: [],
+  })
+  assert.deepEqual(migrated.plannedSceneIds, [])
+
+  let state = addCoachPlannedScene(migrated, 'scene-2')
+  state = addCoachPlannedScene(state, 'scene-1')
+  state = addCoachPlannedScene(state, 'scene-2')
+  assert.deepEqual(state.plannedSceneIds, ['scene-2', 'scene-1'])
+
+  state = removeCoachPlannedScene(state, 'scene-2')
+  assert.deepEqual(state.plannedSceneIds, ['scene-1'])
+}
+
 testReviewQueueAndMasterySummary()
 testSceneSessionKeepsLatestStage()
 testRecordingUpdateDoesNotDoubleCountPractice()
+testTrainingPlanMigratesAndPreservesPriority()
 console.log('coach progress tests passed.')

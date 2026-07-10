@@ -3,6 +3,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.COACH_PROGRESS_STORAGE_KEY = void 0;
 exports.createEmptyCoachProgress = createEmptyCoachProgress;
 exports.normalizeCoachProgress = normalizeCoachProgress;
+exports.addCoachPlannedScene = addCoachPlannedScene;
+exports.removeCoachPlannedScene = removeCoachPlannedScene;
 exports.upsertSentenceProgress = upsertSentenceProgress;
 exports.saveSceneSessionProgress = saveSceneSessionProgress;
 exports.getReviewItems = getReviewItems;
@@ -11,12 +13,15 @@ exports.readCoachProgress = readCoachProgress;
 exports.writeCoachProgress = writeCoachProgress;
 exports.updateCoachSentence = updateCoachSentence;
 exports.updateCoachSceneSession = updateCoachSceneSession;
+exports.updateCoachPlannedScene = updateCoachPlannedScene;
+exports.removeCoachPlannedSceneById = removeCoachPlannedSceneById;
 exports.persistCoachRecording = persistCoachRecording;
 exports.removeCoachRecording = removeCoachRecording;
 exports.COACH_PROGRESS_STORAGE_KEY = 'waimao_coach_progress_v1';
 const MASTERED_REVIEW_DELAY = 3 * 24 * 60 * 60 * 1000;
+const MAX_PLANNED_SCENES = 20;
 function createEmptyCoachProgress() {
-    return { version: 1, sentences: [], sessions: [] };
+    return { version: 1, sentences: [], sessions: [], plannedSceneIds: [] };
 }
 function normalizeCoachProgress(value) {
     if (!value || typeof value !== 'object') {
@@ -31,7 +36,23 @@ function normalizeCoachProgress(value) {
         sessions: Array.isArray(source.sessions)
             ? source.sessions.filter(isSceneSession).map(item => ({ ...item }))
             : [],
+        plannedSceneIds: normalizePlannedSceneIds(source.plannedSceneIds),
     };
+}
+function addCoachPlannedScene(state, sceneId) {
+    const id = String(sceneId || '').trim();
+    if (!id || state.plannedSceneIds.includes(id))
+        return state;
+    return {
+        ...state,
+        plannedSceneIds: [...state.plannedSceneIds, id].slice(0, MAX_PLANNED_SCENES),
+    };
+}
+function removeCoachPlannedScene(state, sceneId) {
+    const plannedSceneIds = state.plannedSceneIds.filter(item => item !== sceneId);
+    if (plannedSceneIds.length === state.plannedSceneIds.length)
+        return state;
+    return { ...state, plannedSceneIds };
 }
 function upsertSentenceProgress(state, input, now = Date.now()) {
     const { countAttempt = true, ...recordInput } = input;
@@ -119,6 +140,19 @@ function updateCoachSceneSession(input, now = Date.now()) {
     writeCoachProgress(next);
     return next;
 }
+function updateCoachPlannedScene(sceneId, selected) {
+    const state = readCoachProgress();
+    const next = selected
+        ? addCoachPlannedScene(state, sceneId)
+        : removeCoachPlannedScene(state, sceneId);
+    writeCoachProgress(next);
+    return next;
+}
+function removeCoachPlannedSceneById(sceneId) {
+    const next = removeCoachPlannedScene(readCoachProgress(), sceneId);
+    writeCoachProgress(next);
+    return next;
+}
 function persistCoachRecording(tempFilePath) {
     if (!tempFilePath || typeof wx === 'undefined' || typeof wx.saveFile !== 'function') {
         return Promise.resolve(tempFilePath);
@@ -161,4 +195,17 @@ function isSceneSession(value) {
         return false;
     const item = value;
     return Boolean(item.sceneId && item.sceneTitle && item.stage && typeof item.cueIndex === 'number');
+}
+function normalizePlannedSceneIds(value) {
+    if (!Array.isArray(value))
+        return [];
+    const seen = new Set();
+    return value.reduce((result, item) => {
+        const id = typeof item === 'string' ? item.trim() : '';
+        if (!id || seen.has(id) || result.length >= MAX_PLANNED_SCENES)
+            return result;
+        seen.add(id);
+        result.push(id);
+        return result;
+    }, []);
 }

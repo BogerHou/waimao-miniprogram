@@ -8,6 +8,7 @@ require("./audio-source-fallback.test");
 require("./course-mode-config.test");
 require("./course-share-card.test");
 require("./coach-model.test");
+require("./coach-dashboard.test");
 require("./coach-progress.test");
 require("./env-config.test");
 require("./knowledge-dialogue-format.test");
