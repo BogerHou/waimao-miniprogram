@@ -42,3 +42,45 @@
 - `docs/FRONTEND.md`
 - `docs/SECURITY.md`
 - `docs/RELIABILITY.md`
+
+## [2026-07-10 20:40] | Task: 复审并优化场景口语教练闭环
+
+### 🤖 Execution Context
+
+- **Agent ID**: `Codex`
+- **Base Model**: `GPT-5`
+- **Runtime**: `Codex desktop`
+
+### 📥 User Query
+
+> 重新审视页面和功能，确认是否达到预期，并继续优化实验版。
+
+### 🛠 Changes Overview
+
+**Scope:** 场景教练首页、训练页、教练模型、本地进度与测试。
+
+**Key Actions:**
+
+- **业务表达筛选**：对话课只选择少量高价值学习者表达，降低寒暄句、短句和纯社交句进入核心训练的概率。
+- **完整训练约束**：听力必须完整播放后才能进入回应；连续跟读必须播放完整场景范围后才能完成训练。
+- **可信自评**：历史掌握状态不再自动解锁当前训练，用户每轮都要基于本次表现重新自评。
+- **表达库分组**：第 7 章表达库按 8 条一组训练，完成当前组后保存下一组入口，最后一组才完成整课。
+- **单条复习**：复习页打开某条表达后进入专用单条复习流程，完成后回到复习列表。
+- **页面提示优化**：今日进度、听力文字门槛、回应业务目标、跟读状态、总结文案和会员提示都更聚焦当前动作。
+
+### 🧠 Design Intent (Why)
+
+这轮复审的重点是防止实验版看起来像新产品，但实际仍然允许用户跳过听力、沿用旧判断、一次塞进太多表达。优化后，训练闭环更接近“外贸场景中先思考、再表达、再对照”的产品目标，复习也变成针对具体表达的轻量回访。
+
+### 📁 Files Modified
+
+- `miniprogram/pages/coach/coach.ts`
+- `miniprogram/pages/coach/coach.wxml`
+- `miniprogram/pages/training/training.ts`
+- `miniprogram/pages/training/training.wxml`
+- `miniprogram/utils/coach-model.ts`
+- `miniprogram/utils/coach-progress.ts`
+- `tests/coach-model.test.ts`
+- `tests/coach-progress.test.ts`
+- `docs/DESIGN.md`
+- `docs/exec-plans/completed/2026-07-10-scenario-coach-product-review.md`
