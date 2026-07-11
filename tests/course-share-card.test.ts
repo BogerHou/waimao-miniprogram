@@ -8,7 +8,7 @@ function testUsesCurrentSubtitleFirst() {
   const model = buildCourseShareCardModel({
     title: "Difficult Customer",
     tag: "Elementary",
-    playMode: "shadow",
+    stage: "follow",
     currentText: "Hello, English learners, and welcome to Englishpod.",
     leadText: "My name is Marco.",
   })
@@ -21,31 +21,32 @@ function testUsesCurrentSubtitleFirst() {
 function testFallsBackToLeadText() {
   const model = buildCourseShareCardModel({
     title: "Difficult Customer",
-    playMode: "echo",
+    stage: "practice",
     currentText: "",
     leadText: "My name is Marco.",
   })
 
-  assert.equal(model.modeLabel, "逐句跟读")
+  assert.equal(model.modeLabel, "逐句精练")
   assert.equal(model.snippet, "My name is Marco.")
 }
 
 function testNormalizesWhitespaceAndTruncatesLongSnippet() {
   const model = buildCourseShareCardModel({
     title: "Difficult Customer",
-    playMode: "shadow",
+    stage: "listen",
     currentText: "Hello,\n\nEnglish learners, and welcome to Englishpod. This sentence is intentionally long for truncation.",
     leadText: "",
     maxSnippetLength: 40,
   })
 
+  assert.equal(model.modeLabel, "通听")
   assert.equal(model.snippet, "Hello, English learners, and welcome...")
 }
 
 function testProvidesDefaultSnippetWhenContentMissing() {
   const model = buildCourseShareCardModel({
     title: "Difficult Customer",
-    playMode: "echo",
+    stage: "practice",
     currentText: "",
     leadText: "",
   })

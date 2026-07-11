@@ -71,27 +71,141 @@
   white-space: nowrap;
 }
 
-.practice-hint {
+.stage-option-row {
   display: flex;
   align-items: center;
-  gap: 8rpx;
+  gap: 12rpx;
   margin: 10rpx 4rpx 0;
 }
 
-.practice-hint__text {
+.gap-toggle {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 6rpx 16rpx;
+  border: 1rpx solid @line;
+  border-radius: 999rpx;
+  background: #ffffff;
+  color: @muted;
+  font-size: 24rpx;
+  font-weight: 650;
+}
+
+.gap-toggle:active {
+  transform: scale(0.97);
+}
+
+.gap-toggle__dot {
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background: @faint;
+}
+
+.gap-toggle--on {
+  border-color: fade(@primary, 40%);
+  background: @selection;
+  color: @primary-deep;
+}
+
+.gap-toggle--on .gap-toggle__dot {
+  background: @primary;
+}
+
+.gap-toggle__text {
+  color: inherit;
+}
+
+.stage-option-hint {
   flex: 1;
   min-width: 0;
-  color: @muted;
+  color: @faint;
   font-size: 23rpx;
   line-height: 1.4;
 }
 
-.practice-hint__action {
-  flex-shrink: 0;
-  padding: 5rpx 4rpx;
+.stage-guide {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48rpx;
+}
+
+.stage-guide__mask {
+  position: absolute;
+  inset: 0;
+  background: @mask;
+}
+
+.stage-guide__card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 620rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+  padding: 40rpx 36rpx 32rpx;
+  border-radius: 24rpx;
+  background: #ffffff;
+  box-shadow: 0 18rpx 50rpx fade(@shadow-neutral, 20%);
+  box-sizing: border-box;
+}
+
+.stage-guide__title {
+  margin-bottom: 4rpx;
+  color: @text;
+  font-size: 37rpx;
+  font-weight: 750;
+  text-align: center;
+}
+
+.stage-guide__step {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+  padding: 14rpx 18rpx;
+  border-radius: 16rpx;
+  background: @page-bg;
+}
+
+.stage-guide__step-label {
   color: @primary-deep;
+  font-size: 27rpx;
+  font-weight: 750;
+}
+
+.stage-guide__step-desc {
+  color: @muted;
+  font-size: 26rpx;
+  line-height: 1.5;
+}
+
+.stage-guide__tip {
+  margin-top: 2rpx;
+  color: @faint;
   font-size: 24rpx;
+  text-align: center;
+}
+
+.stage-guide__button {
+  width: 100%;
+  height: 84rpx;
+  margin: 8rpx 0 0;
+  border-radius: 16rpx;
+  background: @primary;
+  color: #ffffff;
+  font-size: 31rpx;
   font-weight: 700;
+  line-height: 84rpx;
+}
+
+.stage-guide__button::after {
+  border: none;
 }
 
 .course-content {

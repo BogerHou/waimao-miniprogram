@@ -1,7 +1,9 @@
+import type { LearningStage } from './player-core'
+
 type CourseShareCardOptions = {
   title: string
   tag?: string
-  playMode: 'shadow' | 'echo'
+  stage: LearningStage
   currentText?: string
   leadText?: string
   maxSnippetLength?: number
@@ -34,6 +36,12 @@ function truncateText(value: string, maxLength: number) {
   return `${value.slice(0, maxLength - 3).trimEnd()}...`
 }
 
+const STAGE_LABELS: Record<LearningStage, string> = {
+  listen: '通听',
+  practice: '逐句精练',
+  follow: '影子跟读',
+}
+
 export function buildCourseShareCardModel(options: CourseShareCardOptions): CourseShareCardModel {
   const maxSnippetLength = Math.max(12, options.maxSnippetLength ?? 64)
   const currentText = normalizeText(options.currentText)
@@ -43,7 +51,7 @@ export function buildCourseShareCardModel(options: CourseShareCardOptions): Cour
   return {
     title: normalizeText(options.title) || '外贸英语影子跟读',
     tagLabel: normalizeText(options.tag) || '外贸英语',
-    modeLabel: options.playMode === 'shadow' ? '影子跟读' : '逐句跟读',
+    modeLabel: STAGE_LABELS[options.stage] ?? STAGE_LABELS.listen,
     snippet: truncateText(snippetSource, maxSnippetLength),
   }
 }

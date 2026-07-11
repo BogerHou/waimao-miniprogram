@@ -50,7 +50,7 @@ const COURSE_SHARE_CANVAS_ID = 'course-share-canvas';
 const COURSE_SHARE_CANVAS_WIDTH = 600;
 const COURSE_SHARE_CANVAS_HEIGHT = 840;
 const COURSE_DEBUG_STORAGE_KEY = 'waimao_mini_debug_logs';
-const COURSE_PRACTICE_HINT_SEEN_KEY = 'waimao_course_practice_hint_seen_v1';
+const COURSE_STAGE_GUIDE_SEEN_KEY = 'waimao_course_stage_guide_seen_v1';
 function getCourseWindowInfo() {
     const wxCompat = wx;
     return wxCompat.getWindowInfo?.() ?? wx.getSystemInfoSync();
@@ -187,7 +187,10 @@ Page({
         scrollIntoView: '',
         scrollTop: 0,
         leadText: '',
-        playMode: 'echo',
+        playMode: 'shadow',
+        stage: 'listen',
+        gapEnabled: false,
+        gapWaiting: false,
         playbackRate: 1,
         showSpeedModal: false,
         speedPresets: [0.5, 0.75, 1, 1.25, 1.5, 2],
@@ -216,7 +219,7 @@ Page({
         showModeSelector: true,
         showShadowMode: true,
         showPracticeControls: false,
-        showPracticeHint: false,
+        showStageGuide: false,
     },
     courseId: '',
     // InnerAudioContext (用于 Shadow 模式)
@@ -229,6 +232,7 @@ Page({
     audioReady: false,
     pendingSubtitle: null,
     stopTimer: null,
+    gapTimer: null,
     // Shadow模式音频降级：服务器备用地址
     serverAudioUrl: '',
     usingFallbackAudio: false,
@@ -345,7 +349,7 @@ Page({
         const card = (0, course_share_card_1.buildCourseShareCardModel)({
             title: this.data.course.title,
             tag: this.data.course.tag,
-            playMode: this.data.playMode,
+            stage: this.data.stage,
             currentText: this.getCourseShareSnippetText(),
             leadText: this.data.leadText,
         });
@@ -646,8 +650,9 @@ Page({
         try {
             const detail = await (0, api_1.fetchCourseDetail)(id);
             const appConfig = (0, index_1.getState)().appConfig;
-            const modePresentation = (0, course_mode_config_1.resolveCourseModePresentation)({
-                currentPlayMode: this.data.playMode,
+            const modePresentation = (0, course_mode_config_1.resolveStagePresentation)({
+                currentStage: this.data.stage,
+                gapEnabled: this.data.gapEnabled,
                 shadowModeEnabled: appConfig.courseDetail.shadowModeEnabled,
             });
             // 音频策略：新版接口提供七牛和服务器地址，旧接口仍只提供服务器地址。
@@ -695,7 +700,8 @@ Page({
                 showModeSelector: modePresentation.showModeSelector,
                 showShadowMode: modePresentation.showShadowMode,
                 showPracticeControls: modePresentation.showPracticeControls,
-                showPracticeHint: modePresentation.showPracticeControls && !hasSeenCoursePracticeHint(),
+                showStageGuide: modePresentation.showPracticeControls && !hasSeenStageGuide(),
+                stage: modePresentation.effectiveStage,
                 playMode: modePresentation.effectivePlayMode,
             });
             // 只读模式不初始化课程音频，避免隐藏播放入口时仍产生音频请求。
@@ -715,8 +721,11 @@ Page({
             if (!modePresentation.showPracticeControls) {
                 this.pendingBackgroundAudioRestore = false;
             }
-            // 影子跟读模式自动开始播放
-            if (!restoredFromBackgroundAudio && modePresentation.effectivePlayMode === 'shadow' && subtitles.length > 0) {
+            // 通听阶段自动开始连续播放；首次引导展示时先不自动播，等引导关闭后再启动
+            if (!restoredFromBackgroundAudio &&
+                modePresentation.effectivePlayMode === 'shadow' &&
+                subtitles.length > 0 &&
+                !this.data.showStageGuide) {
                 setTimeout(() => {
                     this.startShadowMode();
                 }, 500);
@@ -864,10 +873,14 @@ Page({
                 this.setData({ playing: false });
                 // Echo 模式：M4A 片段播放完成
                 if (this.data.playMode === 'echo') {
+                    const endedSubtitle = this.activeSubtitle;
                     this.markEchoCompletionProgress('onEnded');
-                    // 如果开启了重复模式，继续重复
-                    if (this.data.isRepeating && this.activeSubtitle) {
-                        this.handleRepeatNext(this.activeSubtitle);
+                    // 重复模式优先，其次执行阶段句末策略
+                    if (this.data.isRepeating && endedSubtitle) {
+                        this.handleRepeatNext(endedSubtitle);
+                    }
+                    else if (endedSubtitle) {
+                        this.handleCueEnded(endedSubtitle);
                     }
                     return;
                 }
@@ -1030,6 +1043,7 @@ Page({
     },
     destroyAudioContext() {
         this.clearAudioLoadTimeout();
+        this.clearGapTimer();
         if (this.audioContext) {
             this.audioContext.stop();
             this.audioContext.destroy();
@@ -1411,7 +1425,12 @@ Page({
         this.activeSubtitle = resume.subtitle;
         this.backgroundPlaybackActive = shouldAutoplay;
         this.shadowHandoffState = null;
+        // 后台恢复只发生在连续通道；若当前阶段走前台逐句通道则回到通听阶段
+        const stageForShadow = playerCore.resolveStagePlan(this.data.stage, this.data.gapEnabled).channel === 'shadow'
+            ? this.data.stage
+            : 'listen';
         this.setData({
+            stage: stageForShadow,
             playMode: 'shadow',
             currentSubtitleId: resume.subtitle.id,
             scrollIntoView: '',
@@ -1587,8 +1606,9 @@ Page({
         }
     },
     handleStoreUpdate(state) {
-        const modePresentation = (0, course_mode_config_1.resolveCourseModePresentation)({
-            currentPlayMode: this.data.playMode,
+        const modePresentation = (0, course_mode_config_1.resolveStagePresentation)({
+            currentStage: this.data.stage,
+            gapEnabled: this.data.gapEnabled,
             shadowModeEnabled: state.appConfig.courseDetail.shadowModeEnabled,
         });
         if (this.data.playMode === 'shadow' && modePresentation.effectivePlayMode === 'echo') {
@@ -1614,9 +1634,10 @@ Page({
             showModeSelector: modePresentation.showModeSelector,
             showShadowMode: modePresentation.showShadowMode,
             showPracticeControls: modePresentation.showPracticeControls,
-            showPracticeHint: modePresentation.showPracticeControls
-                ? this.data.showPracticeHint || !hasSeenCoursePracticeHint()
+            showStageGuide: modePresentation.showPracticeControls
+                ? this.data.showStageGuide || !hasSeenStageGuide()
                 : false,
+            stage: modePresentation.effectiveStage,
             playMode: modePresentation.effectivePlayMode,
             playing: modePresentation.showPracticeControls ? this.data.playing : false,
             isRepeating: modePresentation.showPracticeControls ? this.data.isRepeating : false,
@@ -1700,7 +1721,6 @@ Page({
         if (!target) {
             return;
         }
-        this.hidePracticeHint();
         console.log(`\n============== 用户点击段落 ==============`);
         console.log(`索引: ${index}`);
         console.log(`ID: ${target.id}`);
@@ -1716,13 +1736,6 @@ Page({
         // 使用节流版本的播放函数（避免快速点击）
         ;
         this.throttledPlaySubtitle(target);
-    },
-    hidePracticeHint() {
-        if (!this.data.showPracticeHint) {
-            return;
-        }
-        markCoursePracticeHintSeen();
-        this.setData({ showPracticeHint: false });
     },
     handleWordLongPress(event) {
         const dataset = event.currentTarget.dataset;
@@ -1979,6 +1992,7 @@ Page({
             }
             const context = this.audioContext;
             this.lastEchoCompletion = null;
+            this.clearGapTimer();
             // 更新状态
             this.activeSubtitle = subtitle;
             const index = this.data.subtitles.findIndex(s => s.id === subtitle.id);
@@ -2043,9 +2057,13 @@ Page({
                             this.handleAudioPause();
                         }
                         this.stopTimer = null;
-                        // 重复模式
+                        this.markEchoCompletionProgress('stop-timer');
+                        // 重复模式优先，其次执行阶段句末策略
                         if (this.data.isRepeating && this.activeSubtitle) {
                             this.handleRepeatNext(this.activeSubtitle);
+                        }
+                        else {
+                            this.handleCueEnded(subtitle);
                         }
                     }, duration * 1000 + 200);
                     context.seek(startPosition);
@@ -2245,15 +2263,15 @@ Page({
             showAiPopup: false
         });
     },
-    // 模式切换
-    handleModeChange(event) {
-        const mode = event.currentTarget.dataset.mode;
+    // 播放通道切换（原顶层"模式切换"，现由学习阶段驱动）
+    applyPlayModeChange(mode) {
         if (mode === 'shadow' && !this.data.showShadowMode) {
             return;
         }
-        if (!mode || mode === this.data.playMode) {
+        if (mode === this.data.playMode) {
             return;
         }
+        this.clearGapTimer();
         const previousMode = this.data.playMode;
         const wasPlaying = this.data.playing;
         const modeSwitchCourseTime = this.getCurrentCourseTime();
@@ -2293,12 +2311,13 @@ Page({
                 console.warn('[Audio] echo->shadow pause failed during mode switch', error);
             }
         }
-        // 更新模式，关闭重复模式
+        // 更新通道，关闭重复模式
         this.setData({
             playMode: mode,
             playing: false,
-            isRepeating: false, // 切换模式时关闭重复
+            isRepeating: false, // 切换通道时关闭重复
             repeatCount: 0, // 重置计数器
+            gapWaiting: false,
         });
         this.suppressMainAudioContextEvents = false;
         if (!targetSubtitle || !targetSubtitleView) {
@@ -2375,7 +2394,110 @@ Page({
         }
         // Echo 模式：不需要预加载，等待用户点击
         this.lastEchoCompletion = null;
-        console.log(`[ModeChange] 切换到 Echo 模式，等待用户点击段落`);
+        console.log(`[ModeChange] 切换到 Echo 通道，等待用户点击段落`);
+    },
+    // 学习阶段切换：阶段只是播放行为预设（通道 + 句末策略）
+    handleStageChange(event) {
+        const stage = event.currentTarget.dataset.stage;
+        if (!stage || stage === this.data.stage) {
+            return;
+        }
+        if (!this.data.showShadowMode && stage !== 'practice') {
+            return;
+        }
+        this.clearGapTimer();
+        this.setData({ stage });
+        const plan = playerCore.resolveStagePlan(stage, this.data.gapEnabled);
+        this.applyPlayModeChange(plan.channel);
+        this.scheduleCourseShareImage();
+    },
+    // 留白跟读开关（仅跟读阶段可用）：开=前台逐句通道句末留白，关=后台连续通道
+    handleGapToggle() {
+        if (this.data.stage !== 'follow') {
+            return;
+        }
+        const gapEnabled = !this.data.gapEnabled;
+        this.clearGapTimer();
+        this.setData({ gapEnabled });
+        const plan = playerCore.resolveStagePlan(this.data.stage, gapEnabled);
+        this.applyPlayModeChange(plan.channel);
+    },
+    dismissStageGuide() {
+        if (!this.data.showStageGuide) {
+            return;
+        }
+        markStageGuideSeen();
+        this.setData({ showStageGuide: false });
+        // 引导关闭后接上被推迟的自动通听
+        if (this.data.stage === 'listen' &&
+            this.data.playMode === 'shadow' &&
+            !this.data.playing &&
+            !this.data.currentSubtitleId &&
+            this.data.subtitles.length > 0) {
+            this.startShadowMode();
+        }
+    },
+    clearGapTimer() {
+        if (this.gapTimer) {
+            clearTimeout(this.gapTimer);
+            this.gapTimer = null;
+        }
+        if (this.data.gapWaiting) {
+            this.setData({ gapWaiting: false });
+        }
+    },
+    // 句末策略执行（仅前台逐句通道；重复模式优先于句末策略，在调用方先行处理）
+    handleCueEnded(subtitle) {
+        if (this.data.playMode !== 'echo') {
+            return;
+        }
+        const policy = playerCore.resolveStagePlan(this.data.stage, this.data.gapEnabled).cueEndPolicy;
+        if (policy === 'none') {
+            return;
+        }
+        const next = playerCore.findNextCue(this.data.subtitles, subtitle.id);
+        if (!next) {
+            // 最后一句：完成进度由 markEchoCompletionProgress 记录
+            return;
+        }
+        if (policy === 'advance-wait') {
+            this.selectCueForPractice(next.id);
+            return;
+        }
+        // gap-advance：句末静音留白（约等于句长）后自动播放下一句
+        const gapMs = playerCore.computeGapMs(subtitle, this.data.playbackRate);
+        console.log('[Stage] 留白跟读等待', { subtitleId: subtitle.id, nextId: next.id, gapMs });
+        this.setData({ gapWaiting: true });
+        this.gapTimer = setTimeout(() => {
+            this.gapTimer = null;
+            this.setData({ gapWaiting: false });
+            if (this.data.playMode !== 'echo' ||
+                this.data.stage !== 'follow' ||
+                !this.data.gapEnabled ||
+                this.data.playing) {
+                return;
+            }
+            const nextView = this.data.subtitles.find(item => item.id === next.id);
+            if (nextView) {
+                this.playSubtitle(nextView);
+            }
+        }, gapMs);
+    },
+    // 精练阶段：句末选中下一句并居中，等待用户播放
+    selectCueForPractice(nextId) {
+        const index = this.data.subtitles.findIndex(item => item.id === nextId);
+        if (index < 0) {
+            return;
+        }
+        const nextView = this.data.subtitles[index];
+        this.currentSubtitleIndex = index;
+        this.activeSubtitle = nextView;
+        this.setData({
+            currentSubtitleId: nextView.id,
+            scrollIntoView: '',
+        });
+        this.scheduleSceneProgressSync();
+        this.centerSubtitle(nextView.id);
     },
     // 开始影子跟读模式
     startShadowMode() {
@@ -2863,17 +2985,17 @@ function buildKnowledgeContext(detail) {
     ].filter(Boolean);
     return parts.join('\n');
 }
-function hasSeenCoursePracticeHint() {
+function hasSeenStageGuide() {
     try {
-        return Boolean(wx.getStorageSync(COURSE_PRACTICE_HINT_SEEN_KEY));
+        return Boolean(wx.getStorageSync(COURSE_STAGE_GUIDE_SEEN_KEY));
     }
     catch (_error) {
         return false;
     }
 }
-function markCoursePracticeHintSeen() {
+function markStageGuideSeen() {
     try {
-        wx.setStorageSync(COURSE_PRACTICE_HINT_SEEN_KEY, true);
+        wx.setStorageSync(COURSE_STAGE_GUIDE_SEEN_KEY, true);
     }
     catch (_error) {
         // A storage failure should not block practice.

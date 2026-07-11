@@ -151,3 +151,24 @@ strict_1.default.equal((0, player_core_1.resolveAudioErrorTip)(undefined, ""), "
 // buildEchoSegmentUrl：切片地址拼接
 strict_1.default.equal((0, player_core_1.buildEchoSegmentUrl)("https://api.example.com", "scene-01", "s3"), "https://api.example.com/static/audio-segments/scene-01/segment_s3.m4a");
 console.log("player core tests passed.");
+// ==================== 学习阶段模型 ====================
+const player_core_2 = require("../miniprogram/pages/course/player-core");
+// 阶段→通道与句末策略
+strict_1.default.deepEqual((0, player_core_2.resolveStagePlan)("listen", false), { channel: "shadow", cueEndPolicy: "none" });
+strict_1.default.deepEqual((0, player_core_2.resolveStagePlan)("listen", true), { channel: "shadow", cueEndPolicy: "none" });
+strict_1.default.deepEqual((0, player_core_2.resolveStagePlan)("practice", false), { channel: "echo", cueEndPolicy: "advance-wait" });
+strict_1.default.deepEqual((0, player_core_2.resolveStagePlan)("follow", false), { channel: "shadow", cueEndPolicy: "none" });
+strict_1.default.deepEqual((0, player_core_2.resolveStagePlan)("follow", true), { channel: "echo", cueEndPolicy: "gap-advance" });
+// 留白时长≈句长按倍速换算，短句保底
+strict_1.default.equal((0, player_core_2.computeGapMs)({ start: 10, end: 14 }, 1), 4000);
+strict_1.default.equal((0, player_core_2.computeGapMs)({ start: 10, end: 14 }, 2), 2000);
+strict_1.default.equal((0, player_core_2.computeGapMs)({ start: 10, end: 10.2 }, 1), player_core_2.MIN_GAP_MS);
+strict_1.default.equal((0, player_core_2.computeGapMs)({ start: 10, end: 9 }, 1), player_core_2.MIN_GAP_MS);
+// 下一句查找
+const cueList = [{ id: "s1" }, { id: "s2" }, { id: "s3" }];
+strict_1.default.equal((0, player_core_2.findNextCue)(cueList, "s1")?.id, "s2");
+strict_1.default.equal((0, player_core_2.findNextCue)(cueList, "s3"), null);
+strict_1.default.equal((0, player_core_2.findNextCue)(cueList, "missing"), null);
+strict_1.default.equal((0, player_core_2.findNextCue)(cueList, null)?.id, "s1");
+strict_1.default.equal((0, player_core_2.findNextCue)([], "s1"), null);
+console.log("stage plan tests passed.");

@@ -43,28 +43,43 @@
 
   <block wx:else>
     <view class="course-header" wx:if="{{course && showModeSelector}}">
-      <view class="mode-selector" aria-label="练习模式">
+      <view class="mode-selector" aria-label="学习阶段">
         <view
-          class="mode-btn {{playMode === 'shadow' ? 'active' : ''}}"
-          bindtap="handleModeChange"
-          data-mode="shadow"
+          class="mode-btn {{stage === 'listen' ? 'active' : ''}}"
+          bindtap="handleStageChange"
+          data-stage="listen"
           aria-role="button"
         >
-          <text class="mode-text">影子跟读</text>
+          <text class="mode-text">通听</text>
         </view>
         <view
-          class="mode-btn {{playMode === 'echo' ? 'active' : ''}}"
-          bindtap="handleModeChange"
-          data-mode="echo"
+          class="mode-btn {{stage === 'practice' ? 'active' : ''}}"
+          bindtap="handleStageChange"
+          data-stage="practice"
           aria-role="button"
         >
-          <text class="mode-text">逐句跟读</text>
+          <text class="mode-text">精练</text>
+        </view>
+        <view
+          class="mode-btn {{stage === 'follow' ? 'active' : ''}}"
+          bindtap="handleStageChange"
+          data-stage="follow"
+          aria-role="button"
+        >
+          <text class="mode-text">跟读</text>
         </view>
       </view>
 
-      <view wx:if="{{showPracticeHint}}" class="practice-hint">
-        <text class="practice-hint__text">点按句子播放，长按单词查释义</text>
-        <text class="practice-hint__action" bindtap="hidePracticeHint">知道了</text>
+      <view wx:if="{{stage === 'follow'}}" class="stage-option-row">
+        <view
+          class="gap-toggle {{gapEnabled ? 'gap-toggle--on' : ''}}"
+          bindtap="handleGapToggle"
+          aria-role="button"
+        >
+          <view class="gap-toggle__dot"></view>
+          <text class="gap-toggle__text">留白跟读</text>
+        </view>
+        <text class="stage-option-hint">{{gapWaiting ? '留白中，开口跟读这一句' : (gapEnabled ? '每句后留出等长时间供跟读' : '连续播放，紧跟原声轻声跟读')}}</text>
       </view>
     </view>
 
@@ -218,6 +233,27 @@
     <view class="fab-pdf" bindtap="handleOpenPDFPage" aria-role="button" aria-label="知识点">
       <image class="fab-book-icon" src="/assets/icons/book-open-text-primary.svg" mode="aspectFit"></image>
       <text class="fab-text">知识点</text>
+    </view>
+
+    <view wx:if="{{showStageGuide}}" class="stage-guide">
+      <view class="stage-guide__mask"></view>
+      <view class="stage-guide__card">
+        <text class="stage-guide__title">三步练熟一个场景</text>
+        <view class="stage-guide__step">
+          <text class="stage-guide__step-label">1 通听</text>
+          <text class="stage-guide__step-desc">连续播放，边听边看，了解对话大意</text>
+        </view>
+        <view class="stage-guide__step">
+          <text class="stage-guide__step-label">2 精练</text>
+          <text class="stage-guide__step-desc">逐句播放，不熟的句子重复听、跟着读</text>
+        </view>
+        <view class="stage-guide__step">
+          <text class="stage-guide__step-label">3 跟读</text>
+          <text class="stage-guide__step-desc">再次连续播放，紧跟原声流利跟读，可开启留白</text>
+        </view>
+        <text class="stage-guide__tip">点按句子播放，长按单词查释义</text>
+        <button class="stage-guide__button" bindtap="dismissStageGuide">开始学习</button>
+      </view>
     </view>
 
     <ai-popup show="{{showAiPopup}}" text="{{aiText}}" context="{{aiContext}}" bind:close="handleAiPopupClose" />

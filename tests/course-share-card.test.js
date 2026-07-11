@@ -9,7 +9,7 @@ function testUsesCurrentSubtitleFirst() {
     const model = (0, course_share_card_1.buildCourseShareCardModel)({
         title: "Difficult Customer",
         tag: "Elementary",
-        playMode: "shadow",
+        stage: "follow",
         currentText: "Hello, English learners, and welcome to Englishpod.",
         leadText: "My name is Marco.",
     });
@@ -20,27 +20,28 @@ function testUsesCurrentSubtitleFirst() {
 function testFallsBackToLeadText() {
     const model = (0, course_share_card_1.buildCourseShareCardModel)({
         title: "Difficult Customer",
-        playMode: "echo",
+        stage: "practice",
         currentText: "",
         leadText: "My name is Marco.",
     });
-    strict_1.default.equal(model.modeLabel, "逐句跟读");
+    strict_1.default.equal(model.modeLabel, "逐句精练");
     strict_1.default.equal(model.snippet, "My name is Marco.");
 }
 function testNormalizesWhitespaceAndTruncatesLongSnippet() {
     const model = (0, course_share_card_1.buildCourseShareCardModel)({
         title: "Difficult Customer",
-        playMode: "shadow",
+        stage: "listen",
         currentText: "Hello,\n\nEnglish learners, and welcome to Englishpod. This sentence is intentionally long for truncation.",
         leadText: "",
         maxSnippetLength: 40,
     });
+    strict_1.default.equal(model.modeLabel, "通听");
     strict_1.default.equal(model.snippet, "Hello, English learners, and welcome...");
 }
 function testProvidesDefaultSnippetWhenContentMissing() {
     const model = (0, course_share_card_1.buildCourseShareCardModel)({
         title: "Difficult Customer",
-        playMode: "echo",
+        stage: "practice",
         currentText: "",
         leadText: "",
     });

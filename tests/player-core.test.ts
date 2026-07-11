@@ -218,3 +218,35 @@ assert.equal(
 )
 
 console.log("player core tests passed.")
+
+// ==================== 学习阶段模型 ====================
+
+import {
+  MIN_GAP_MS,
+  computeGapMs,
+  findNextCue,
+  resolveStagePlan,
+} from "../miniprogram/pages/course/player-core"
+
+// 阶段→通道与句末策略
+assert.deepEqual(resolveStagePlan("listen", false), { channel: "shadow", cueEndPolicy: "none" })
+assert.deepEqual(resolveStagePlan("listen", true), { channel: "shadow", cueEndPolicy: "none" })
+assert.deepEqual(resolveStagePlan("practice", false), { channel: "echo", cueEndPolicy: "advance-wait" })
+assert.deepEqual(resolveStagePlan("follow", false), { channel: "shadow", cueEndPolicy: "none" })
+assert.deepEqual(resolveStagePlan("follow", true), { channel: "echo", cueEndPolicy: "gap-advance" })
+
+// 留白时长≈句长按倍速换算，短句保底
+assert.equal(computeGapMs({ start: 10, end: 14 }, 1), 4000)
+assert.equal(computeGapMs({ start: 10, end: 14 }, 2), 2000)
+assert.equal(computeGapMs({ start: 10, end: 10.2 }, 1), MIN_GAP_MS)
+assert.equal(computeGapMs({ start: 10, end: 9 }, 1), MIN_GAP_MS)
+
+// 下一句查找
+const cueList = [{ id: "s1" }, { id: "s2" }, { id: "s3" }]
+assert.equal(findNextCue(cueList, "s1")?.id, "s2")
+assert.equal(findNextCue(cueList, "s3"), null)
+assert.equal(findNextCue(cueList, "missing"), null)
+assert.equal(findNextCue(cueList, null)?.id, "s1")
+assert.equal(findNextCue([], "s1"), null)
+
+console.log("stage plan tests passed.")

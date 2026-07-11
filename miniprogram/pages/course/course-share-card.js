@@ -16,6 +16,11 @@ function truncateText(value, maxLength) {
     }
     return `${value.slice(0, maxLength - 3).trimEnd()}...`;
 }
+const STAGE_LABELS = {
+    listen: '通听',
+    practice: '逐句精练',
+    follow: '影子跟读',
+};
 function buildCourseShareCardModel(options) {
     const maxSnippetLength = Math.max(12, options.maxSnippetLength ?? 64);
     const currentText = normalizeText(options.currentText);
@@ -24,7 +29,7 @@ function buildCourseShareCardModel(options) {
     return {
         title: normalizeText(options.title) || '外贸英语影子跟读',
         tagLabel: normalizeText(options.tag) || '外贸英语',
-        modeLabel: options.playMode === 'shadow' ? '影子跟读' : '逐句跟读',
+        modeLabel: STAGE_LABELS[options.stage] ?? STAGE_LABELS.listen,
         snippet: truncateText(snippetSource, maxSnippetLength),
     };
 }

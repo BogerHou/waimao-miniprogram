@@ -4,7 +4,7 @@
 // 切片 A：范围钳制、进度 cue 计算；
 // 切片 B：音频加载超时控制器与播放事件里的纯决策（错误提示、重复停止窗口、Echo 切片地址）。
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.REPEAT_STOP_COMPENSATION_S = exports.AUDIO_LOAD_TIMEOUT_MS = exports.SCENE_END_EPSILON = exports.SCENE_RESTART_EPSILON = void 0;
+exports.MIN_GAP_MS = exports.REPEAT_STOP_COMPENSATION_S = exports.AUDIO_LOAD_TIMEOUT_MS = exports.SCENE_END_EPSILON = exports.SCENE_RESTART_EPSILON = void 0;
 exports.clampCourseTimeToScene = clampCourseTimeToScene;
 exports.hasReachedSceneEnd = hasReachedSceneEnd;
 exports.resolveProgressCueIndex = resolveProgressCueIndex;
@@ -13,6 +13,9 @@ exports.createAudioLoadTimeoutController = createAudioLoadTimeoutController;
 exports.computeRepeatStopWindow = computeRepeatStopWindow;
 exports.resolveAudioErrorTip = resolveAudioErrorTip;
 exports.buildEchoSegmentUrl = buildEchoSegmentUrl;
+exports.resolveStagePlan = resolveStagePlan;
+exports.computeGapMs = computeGapMs;
+exports.findNextCue = findNextCue;
 const audio_source_fallback_1 = require("./audio-source-fallback");
 // 距小节末尾不足该值时视为"已越过末尾"，restartWhenPastEnd 会回到小节开头。
 exports.SCENE_RESTART_EPSILON = 0.1;
@@ -124,4 +127,34 @@ function resolveAudioErrorTip(errCode, errMsg) {
 }
 function buildEchoSegmentUrl(apiBaseUrl, courseId, subtitleId) {
     return `${apiBaseUrl}/static/audio-segments/${courseId}/segment_${subtitleId}.m4a`;
+}
+// 阶段只是播放行为预设：通听/跟读（无留白）走后台连续通道，精练与留白跟读走前台逐句通道。
+function resolveStagePlan(stage, gapEnabled) {
+    if (stage === 'practice') {
+        return { channel: 'echo', cueEndPolicy: 'advance-wait' };
+    }
+    if (stage === 'follow' && gapEnabled) {
+        return { channel: 'echo', cueEndPolicy: 'gap-advance' };
+    }
+    return { channel: 'shadow', cueEndPolicy: 'none' };
+}
+// 留白时长≈句长按倍速换算；过短的句子保底 600ms，保证用户来得及开口。
+exports.MIN_GAP_MS = 600;
+function computeGapMs(subtitle, playbackRate) {
+    const duration = Math.max(0, subtitle.end - subtitle.start);
+    const rate = playbackRate > 0 ? playbackRate : 1;
+    return Math.max(exports.MIN_GAP_MS, Math.round((duration / rate) * 1000));
+}
+function findNextCue(subtitles, currentId) {
+    if (!subtitles.length) {
+        return null;
+    }
+    if (!currentId) {
+        return subtitles[0];
+    }
+    const index = subtitles.findIndex(subtitle => subtitle.id === currentId);
+    if (index < 0) {
+        return null;
+    }
+    return subtitles[index + 1] ?? null;
 }

@@ -167,3 +167,52 @@ export function resolveAudioErrorTip(errCode?: number, errMsg?: string): string 
 export function buildEchoSegmentUrl(apiBaseUrl: string, courseId: string, subtitleId: string): string {
   return `${apiBaseUrl}/static/audio-segments/${courseId}/segment_${subtitleId}.m4a`
 }
+
+// ==================== 学习阶段模型（里程碑 2） ====================
+
+export type LearningStage = 'listen' | 'practice' | 'follow'
+
+export type PlaybackChannel = 'shadow' | 'echo'
+
+// 句末策略：none=连续播放（后台通道自己推进）；advance-wait=句末选中下一句等用户；
+// gap-advance=句末静音留白（约等于句长）后自动播下一句。
+export type CueEndPolicy = 'none' | 'advance-wait' | 'gap-advance'
+
+export type StagePlan = {
+  channel: PlaybackChannel
+  cueEndPolicy: CueEndPolicy
+}
+
+// 阶段只是播放行为预设：通听/跟读（无留白）走后台连续通道，精练与留白跟读走前台逐句通道。
+export function resolveStagePlan(stage: LearningStage, gapEnabled: boolean): StagePlan {
+  if (stage === 'practice') {
+    return { channel: 'echo', cueEndPolicy: 'advance-wait' }
+  }
+  if (stage === 'follow' && gapEnabled) {
+    return { channel: 'echo', cueEndPolicy: 'gap-advance' }
+  }
+  return { channel: 'shadow', cueEndPolicy: 'none' }
+}
+
+// 留白时长≈句长按倍速换算；过短的句子保底 600ms，保证用户来得及开口。
+export const MIN_GAP_MS = 600
+
+export function computeGapMs(subtitle: { start: number; end: number }, playbackRate: number): number {
+  const duration = Math.max(0, subtitle.end - subtitle.start)
+  const rate = playbackRate > 0 ? playbackRate : 1
+  return Math.max(MIN_GAP_MS, Math.round((duration / rate) * 1000))
+}
+
+export function findNextCue<T extends { id: string }>(subtitles: T[], currentId: string | null): T | null {
+  if (!subtitles.length) {
+    return null
+  }
+  if (!currentId) {
+    return subtitles[0]
+  }
+  const index = subtitles.findIndex(subtitle => subtitle.id === currentId)
+  if (index < 0) {
+    return null
+  }
+  return subtitles[index + 1] ?? null
+}
