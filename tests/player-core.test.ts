@@ -3,9 +3,14 @@ import assert from "node:assert/strict"
 import {
   SCENE_END_EPSILON,
   SCENE_RESTART_EPSILON,
+  REPEAT_STOP_COMPENSATION_S,
   buildCompletionCuePayload,
+  buildEchoSegmentUrl,
   clampCourseTimeToScene,
+  computeRepeatStopWindow,
+  createAudioLoadTimeoutController,
   hasReachedSceneEnd,
+  resolveAudioErrorTip,
   resolveProgressCueIndex,
 } from "../miniprogram/pages/course/player-core"
 
@@ -67,5 +72,149 @@ assert.equal(
 assert.deepEqual(buildCompletionCuePayload(3, 1), { totalCues: 3, cueIndex: 2 })
 assert.deepEqual(buildCompletionCuePayload(3, 2), { totalCues: 3, cueIndex: 2 })
 assert.deepEqual(buildCompletionCuePayload(0, 0), { totalCues: 0, cueIndex: 0 })
+
+// ==================== 音频加载超时控制器 ====================
+
+type FakeTimerHarness = {
+  fire(id: number): void
+  pendingCount(): number
+}
+
+function createFakeTimers(): FakeTimerHarness & {
+  setTimer: (handler: () => void, ms: number) => number
+  clearTimer: (id: number) => void
+  lastDelayMs: () => number | null
+} {
+  const handlers = new Map<number, () => void>()
+  let nextId = 1
+  let lastDelay: number | null = null
+  return {
+    setTimer(handler, ms) {
+      lastDelay = ms
+      const id = nextId++
+      handlers.set(id, handler)
+      return id
+    },
+    clearTimer(id) {
+      handlers.delete(id)
+    },
+    fire(id) {
+      const handler = handlers.get(id)
+      handlers.delete(id)
+      handler?.()
+    },
+    pendingCount() {
+      return handlers.size
+    },
+    lastDelayMs() {
+      return lastDelay
+    },
+  }
+}
+
+function createControllerHarness(overrides: {
+  sources?: Array<{ provider: "qiniu" | "mirror" | "server"; url: string }>
+  currentSource?: string
+} = {}) {
+  const timers = createFakeTimers()
+  const fallbackCalls: string[] = []
+  const logs: string[] = []
+  const warns: string[] = []
+  const sources = overrides.sources ?? [
+    { provider: "qiniu" as const, url: "https://cdn/audio.mp3" },
+    { provider: "server" as const, url: "https://server/audio.mp3" },
+  ]
+  let currentSource = overrides.currentSource ?? "https://cdn/audio.mp3"
+
+  const controller = createAudioLoadTimeoutController({
+    getSourceOptions: () => sources,
+    getCurrentSource: () => currentSource,
+    getAudioReady: () => false,
+    onTimeoutFallback: source => {
+      fallbackCalls.push(source)
+    },
+    log: message => logs.push(message),
+    warn: message => warns.push(message),
+    timeoutMs: 10000,
+    setTimer: timers.setTimer,
+    clearTimer: timers.clearTimer,
+  })
+
+  return {
+    controller,
+    timers,
+    fallbackCalls,
+    logs,
+    warns,
+    setCurrentSource(value: string) {
+      currentSource = value
+    },
+  }
+}
+
+// server 源与未知源不启动计时器
+{
+  const harness = createControllerHarness()
+  harness.controller.schedule("https://server/audio.mp3")
+  assert.equal(harness.timers.pendingCount(), 0)
+  harness.controller.schedule("https://unknown/audio.mp3")
+  assert.equal(harness.timers.pendingCount(), 0)
+  assert.equal(harness.logs.length, 0)
+}
+
+// CDN 源超时且存在下一个源时触发回退
+{
+  const harness = createControllerHarness()
+  harness.controller.schedule("https://cdn/audio.mp3")
+  assert.equal(harness.timers.pendingCount(), 1)
+  assert.equal(harness.timers.lastDelayMs(), 10000)
+  harness.timers.fire(1)
+  assert.deepEqual(harness.fallbackCalls, ["https://cdn/audio.mp3"])
+  assert.equal(harness.warns.length, 1)
+}
+
+// 超时前音源已切换（当前源≠超时源）则不回退
+{
+  const harness = createControllerHarness()
+  harness.controller.schedule("https://cdn/audio.mp3")
+  harness.setCurrentSource("https://server/audio.mp3")
+  harness.timers.fire(1)
+  assert.deepEqual(harness.fallbackCalls, [])
+}
+
+// clear 取消计时器；重复 schedule 会先清掉上一个
+{
+  const harness = createControllerHarness()
+  harness.controller.schedule("https://cdn/audio.mp3")
+  harness.controller.clear()
+  assert.equal(harness.timers.pendingCount(), 0)
+
+  harness.controller.schedule("https://cdn/audio.mp3")
+  harness.controller.schedule("https://cdn/audio.mp3")
+  assert.equal(harness.timers.pendingCount(), 1)
+}
+
+// ==================== 播放事件纯决策 ====================
+
+// computeRepeatStopWindow：按倍速换算播放时长并加固定补偿
+{
+  const window = computeRepeatStopWindow({ start: 10, end: 14 }, 2)
+  assert.equal(window.totalDuration, 4)
+  assert.equal(window.playDuration, 2)
+  assert.equal(window.adjustedDuration, 2 + REPEAT_STOP_COMPENSATION_S)
+}
+
+// resolveAudioErrorTip：错误码映射与兜底文案
+assert.equal(resolveAudioErrorTip(10001, "ignored"), "系统错误 (iOS 格式或压缩问题)")
+assert.equal(resolveAudioErrorTip(10002, "ignored"), "网络错误")
+assert.equal(resolveAudioErrorTip(10004, "ignored"), "格式错误")
+assert.equal(resolveAudioErrorTip(99999, "自定义错误"), "自定义错误")
+assert.equal(resolveAudioErrorTip(undefined, ""), "播放失败")
+
+// buildEchoSegmentUrl：切片地址拼接
+assert.equal(
+  buildEchoSegmentUrl("https://api.example.com", "scene-01", "s3"),
+  "https://api.example.com/static/audio-segments/scene-01/segment_s3.m4a",
+)
 
 console.log("player core tests passed.")

@@ -1,6 +1,9 @@
 // 课程播放引擎的纯逻辑核心。
-// 里程碑 1 切片 A（见 docs/exec-plans/active/2026-07-11-course-player-unification.md）：
-// 先收拢与页面无关的范围钳制、进度 cue 计算，后续切片继续把音频上下文管理迁入。
+// 里程碑 1（见 docs/exec-plans/active/2026-07-11-course-player-unification.md）：
+// 切片 A：范围钳制、进度 cue 计算；
+// 切片 B：音频加载超时控制器与播放事件里的纯决策（错误提示、重复停止窗口、Echo 切片地址）。
+
+import { AudioSourceOption, getNextAudioSourceOption } from './audio-source-fallback'
 
 export type SceneRange = {
   start: number
@@ -60,4 +63,107 @@ export function buildCompletionCuePayload(totalCues: number, progressCueIndex: n
     totalCues,
     cueIndex: totalCues > 0 ? Math.max(progressCueIndex, totalCues - 1) : 0,
   }
+}
+
+// ==================== 音频加载超时控制器（切片 B） ====================
+
+export const AUDIO_LOAD_TIMEOUT_MS = 10000
+
+export type AudioLoadTimeoutController = {
+  schedule(src: string): void
+  clear(): void
+}
+
+// CDN 音源加载超时守卫：仅对非 server 源计时，超时且存在下一个可用源时触发回退。
+// 定时器可注入，便于在 Node 测试里驱动超时路径。
+export function createAudioLoadTimeoutController(options: {
+  getSourceOptions: () => AudioSourceOption[]
+  getCurrentSource: () => string
+  getAudioReady: () => boolean
+  onTimeoutFallback: (timedOutSource: string) => void
+  log: (message: string, payload: Record<string, unknown>) => void
+  warn: (message: string, payload: Record<string, unknown>) => void
+  timeoutMs?: number
+  setTimer?: (handler: () => void, ms: number) => number
+  clearTimer?: (id: number) => void
+}): AudioLoadTimeoutController {
+  const timeoutMs = options.timeoutMs ?? AUDIO_LOAD_TIMEOUT_MS
+  const setTimer =
+    options.setTimer ?? ((handler: () => void, ms: number) => setTimeout(handler, ms) as unknown as number)
+  const clearTimer = options.clearTimer ?? ((id: number) => clearTimeout(id))
+  let timerId: number | null = null
+
+  const clear = () => {
+    if (timerId !== null) {
+      clearTimer(timerId)
+      timerId = null
+    }
+  }
+
+  return {
+    clear,
+    schedule(src: string) {
+      clear()
+      const sourceOption = options.getSourceOptions().find(source => source.url === src)
+      if (!sourceOption || sourceOption.provider === 'server') {
+        return
+      }
+      options.log('[Audio] 启动 CDN 加载超时计时器', {
+        src,
+        timeoutMs,
+      })
+      timerId = setTimer(() => {
+        const currentSource = options.getCurrentSource()
+        const nextAudioSource = getNextAudioSourceOption({
+          timedOutSource: src,
+          currentSource,
+          audioSources: options.getSourceOptions(),
+        })
+
+        options.warn('[Audio] CDN 加载超时检查', {
+          timedOutSource: src,
+          currentSource,
+          nextProvider: nextAudioSource?.provider ?? null,
+          nextSource: nextAudioSource?.url ?? null,
+          audioReady: options.getAudioReady(),
+        })
+
+        timerId = null
+
+        if (nextAudioSource) {
+          options.onTimeoutFallback(src)
+        }
+      }, timeoutMs)
+    },
+  }
+}
+
+// ==================== 播放事件纯决策（切片 B） ====================
+
+// 重复模式备用停止定时器的补偿量：onTimeUpdate 失效时兜底，宁可多播 0.5s 不提前截断。
+export const REPEAT_STOP_COMPENSATION_S = 0.5
+
+export function computeRepeatStopWindow(
+  subtitle: { start: number; end: number },
+  playbackRate: number,
+): { totalDuration: number; playDuration: number; adjustedDuration: number } {
+  const totalDuration = subtitle.end - subtitle.start
+  const playDuration = totalDuration / playbackRate
+  return {
+    totalDuration,
+    playDuration,
+    adjustedDuration: playDuration + REPEAT_STOP_COMPENSATION_S,
+  }
+}
+
+export function resolveAudioErrorTip(errCode?: number, errMsg?: string): string {
+  let tip = errMsg || '播放失败'
+  if (errCode === 10001) tip = '系统错误 (iOS 格式或压缩问题)'
+  if (errCode === 10002) tip = '网络错误'
+  if (errCode === 10004) tip = '格式错误'
+  return tip
+}
+
+export function buildEchoSegmentUrl(apiBaseUrl: string, courseId: string, subtitleId: string): string {
+  return `${apiBaseUrl}/static/audio-segments/${courseId}/segment_${subtitleId}.m4a`
 }

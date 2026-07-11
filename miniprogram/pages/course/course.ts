@@ -309,7 +309,6 @@ const formatSeconds = (seconds: number) => {
 }
 
 const padZero = (value: number) => value.toString().padStart(2, '0')
-const AUDIO_LOAD_TIMEOUT_MS = 10000
 
 Page<CoursePageData, WechatMiniprogram.IAnyObject>({
   data: {
@@ -383,11 +382,10 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
   pendingShadowSeek: null as { targetTime: number; shouldAutoplay: boolean; src: string } | null,
   lastEchoCompletion: null as { subtitleId: string; courseTime: number } | null,
   lastKnownCourseTime: 0,
-  audioLoadTimeoutTimer: null as number | null,
+  audioLoadTimeoutController: null as playerCore.AudioLoadTimeoutController | null,
   audioRequestStartedAt: 0,
   backgroundAudioRequestStartedAt: 0,
   audioLoadingMaskVisible: false,
-  pendingAudioLoadSource: '' as string,
   suppressMainAudioContextEvents: false,
   swipeStartX: null as number | null,
   swipeStartY: null as number | null,
@@ -722,7 +720,17 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     }
     this.courseId = id
     this.pendingBackgroundAudioRestore = query?.fromBackgroundAudio === '1'
-    
+    this.audioLoadTimeoutController = playerCore.createAudioLoadTimeoutController({
+      getSourceOptions: () => this.audioSourceOptions,
+      getCurrentSource: () => this.audioSource || this.audioContext?.src || '',
+      getAudioReady: () => this.audioReady,
+      onTimeoutFallback: timedOutSource => {
+        this.fallbackToNextAudioSource('timeout', timedOutSource)
+      },
+      log: (message, payload) => console.log(message, payload),
+      warn: (message, payload) => console.warn(message, payload),
+    })
+
     this.storeUnsubscribe = subscribe(state => this.handleStoreUpdate(state))
     this.handleStoreUpdate(getStoreState())
     this.loadCourse(id)
@@ -975,15 +983,13 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
           // 因为 seek 可能还没完全更新 currentTime
           const subtitleStart = this.activeSubtitle.start
           const subtitleEnd = this.activeSubtitle.end
-          const totalDuration = subtitleEnd - subtitleStart
-          const playDuration = totalDuration / this.data.playbackRate
-
-          // 备用定时器：如果 onTimeUpdate 失效，这个可以兜底
-          const compensation = 0.5 // 500ms补偿
-          const adjustedDuration = playDuration + compensation
+          const stopWindow = playerCore.computeRepeatStopWindow(
+            { start: subtitleStart, end: subtitleEnd },
+            this.data.playbackRate,
+          )
 
           console.log(`[Audio] onPlay设置备用定时器: 段落${subtitleStart.toFixed(3)}-${subtitleEnd.toFixed(3)}s`)
-          console.log(`[Audio] 总时长${totalDuration.toFixed(3)}s, 播放${playDuration.toFixed(3)}s, 补偿后${adjustedDuration.toFixed(3)}s`)
+          console.log(`[Audio] 总时长${stopWindow.totalDuration.toFixed(3)}s, 播放${stopWindow.playDuration.toFixed(3)}s, 补偿后${stopWindow.adjustedDuration.toFixed(3)}s`)
 
           this.stopTimer = setTimeout(() => {
             if (this.audioContext) {
@@ -999,7 +1005,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
             if (this.data.isRepeating && this.activeSubtitle) {
               this.handleRepeatNext(this.activeSubtitle)
             }
-          }, adjustedDuration * 1000)
+          }, stopWindow.adjustedDuration * 1000)
         }
 
         // 影子跟读模式下启动定时器（包括重复模式）
@@ -1192,7 +1198,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
         if (!this.usingFallbackAudio && this.data.playMode === 'echo' && this.activeSubtitle && this.data.course) {
             // Echo模式：切换到服务器切片音频
             console.log('[Audio] Echo模式：切换到服务器切片')
-            const segmentUrl = `${API_BASE_URL}/static/audio-segments/${this.data.course.id}/segment_${this.activeSubtitle.id}.m4a`
+            const segmentUrl = playerCore.buildEchoSegmentUrl(API_BASE_URL, this.data.course.id, this.activeSubtitle.id)
             console.log('[Audio] Echo切片地址:', segmentUrl)
             logAudioRequest('echo:error-fallback-segment:set-src', segmentUrl, {
               courseId: this.data.course.id,
@@ -1210,10 +1216,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
             }
         }
 
-        let tip = err.errMsg || '播放失败'
-        if (err.errCode === 10001) tip = '系统错误 (iOS 格式或压缩问题)'
-        if (err.errCode === 10002) tip = '网络错误'
-        if (err.errCode === 10004) tip = '格式错误'
+        const tip = playerCore.resolveAudioErrorTip(err.errCode, err.errMsg)
         if (this.data.audioLoading) {
           this.setAudioLoading(false)
         }
@@ -1236,7 +1239,6 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
       this.audioReady = false
       this.pendingSubtitle = null
       this.clearAudioLoadTimeout()
-      this.pendingAudioLoadSource = src
       this.setAudioLoading(true)
       this.audioContext.stop()
       this.audioContext.src = src
@@ -1273,48 +1275,11 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
   },
 
   clearAudioLoadTimeout() {
-    if (this.audioLoadTimeoutTimer) {
-      clearTimeout(this.audioLoadTimeoutTimer)
-      this.audioLoadTimeoutTimer = null
-    }
-    this.pendingAudioLoadSource = ''
+    this.audioLoadTimeoutController?.clear()
   },
 
   scheduleAudioLoadTimeout(src: string) {
-    this.clearAudioLoadTimeout()
-    const sourceOption = this.audioSourceOptions.find((source: AudioSourceOption) => source.url === src)
-    if (!sourceOption || sourceOption.provider === 'server') {
-      return
-    }
-
-    this.pendingAudioLoadSource = src
-    console.log('[Audio] 启动 CDN 加载超时计时器', {
-      src,
-      timeoutMs: AUDIO_LOAD_TIMEOUT_MS,
-    })
-    this.audioLoadTimeoutTimer = setTimeout(() => {
-      const currentSource = this.audioSource || this.audioContext?.src || ''
-      const nextAudioSource = getNextAudioSourceOption({
-        timedOutSource: src,
-        currentSource,
-        audioSources: this.audioSourceOptions,
-      })
-
-      console.warn('[Audio] CDN 加载超时检查', {
-        timedOutSource: src,
-        currentSource,
-        nextProvider: nextAudioSource?.provider ?? null,
-        nextSource: nextAudioSource?.url ?? null,
-        audioReady: this.audioReady,
-      })
-
-      this.audioLoadTimeoutTimer = null
-      this.pendingAudioLoadSource = ''
-
-      if (nextAudioSource) {
-        this.fallbackToNextAudioSource('timeout', src)
-      }
-    }, AUDIO_LOAD_TIMEOUT_MS) as unknown as number
+    this.audioLoadTimeoutController?.schedule(src)
   },
 
   fallbackToNextAudioSource(reason: 'error' | 'timeout', source: string) {
