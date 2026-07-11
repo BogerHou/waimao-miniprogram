@@ -4,6 +4,7 @@ const api_1 = require("./utils/api");
 const storage_1 = require("./utils/storage");
 const index_1 = require("./store/index");
 const app_config_sync_1 = require("./utils/app-config-sync");
+const auth_session_1 = require("./utils/auth-session");
 const shadow_background_handoff_1 = require("./pages/course/shadow-background-handoff");
 function isDevtoolsUnsupportedAudioOptionError(error) {
     return String(error.errMsg ?? '').includes('开发者工具暂时不支持');
@@ -178,6 +179,10 @@ App({
                 return;
             }
             catch (error) {
+                if ((0, auth_session_1.shouldPreserveCachedSessionAfterRefreshFailure)((0, storage_1.getToken)())) {
+                    console.warn('Failed to refresh cached session; preserving local auth', error);
+                    return;
+                }
                 console.warn('Cached token invalid, relogin required', error);
                 (0, storage_1.clearToken)();
                 (0, storage_1.clearUserCache)();

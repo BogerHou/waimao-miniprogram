@@ -4,6 +4,7 @@ require("./ai-popup-render-state.test");
 require("./ai-popup-stream-renderer.test");
 require("./app-config-store.test");
 const app_config_sync_test_1 = require("./app-config-sync.test");
+require("./auth-session.test");
 require("./audio-source-fallback.test");
 require("./course-mode-config.test");
 require("./course-share-card.test");

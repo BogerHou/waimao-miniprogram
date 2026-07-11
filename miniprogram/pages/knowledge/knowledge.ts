@@ -7,13 +7,15 @@ import {
 import {
   formatKnowledgeDialogue,
   formatKnowledgeDialogueFromSubtitles,
-  type KnowledgeDialogueItem,
 } from '../../utils/dialogue-format'
+import type { KnowledgeDialogueItem } from '../../utils/dialogue-format'
 import {
   formatKnowledgeContent,
-  type KnowledgeCorrectionBlock,
-  type KnowledgePhraseItem,
-  type KnowledgeTextLine,
+} from '../../utils/knowledge-format'
+import type {
+  KnowledgeCorrectionBlock,
+  KnowledgePhraseItem,
+  KnowledgeTextLine,
 } from '../../utils/knowledge-format'
 
 type KnowledgePageData = {

@@ -15,8 +15,8 @@ import {
   setProgress as updateProgressInStore,
   setToken as updateTokenInStore,
   setUser as updateUserInStore,
-  type StoreState,
 } from '../../store/index'
+import type { StoreState } from '../../store/index'
 import {
   formatEntitlementExpiry,
   formatInviteErrorMessage,

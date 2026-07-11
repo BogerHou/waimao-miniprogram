@@ -17,6 +17,7 @@
 ```sh
 npm run typecheck
 npm test
+npm run release:check
 ```
 
 后端仓库：
@@ -38,6 +39,8 @@ npm run dev:backend
 
 - `npm run waimao-mini:generate` 会从外贸 Web 数据源生成章节、课程详情和静态音频。
 - 微信开发者工具、体验版和正式版默认都请求线上 `https://englishecho.site`；需要本地联调时再临时切换 `DEVELOPMENT_API_BASE_URL`。
+- 发布验收必须开启合法域名校验；微信后台 `request` 和 `downloadFile` 需包含 `https://englishecho.site` 与 `https://dict.youdao.com`。
+- 已缓存登录态刷新失败时，只要持久化 token 仍存在就保留本地用户与权益；只有请求层确认 401 并清除 token 后才重新登录。
 - 线上音频仍走 server static，后续应接 CDN/R2 并加入可用性监控。
 - AI 讲解会在外贸知识点上下文存在时启用外贸沟通语境提示；普通 EnglishPod 接口不应受影响。
 

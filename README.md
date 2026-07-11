@@ -31,6 +31,7 @@ npm run dev:backend
 ```sh
 npm run typecheck
 npm test
+npm run release:check
 ```
 
 `npm test` 会先运行 `tsc`，同步生成小程序 `.js` 文件，再运行本仓库的单元测试。
@@ -46,6 +47,7 @@ npm run waimao-mini:generate
 ## 发布前注意
 
 - `project.config.json` 已配置外贸小程序 appid；切换发布账号前需要再次确认。
+- 微信后台需要把 `https://englishecho.site` 和 `https://dict.youdao.com` 配置到 `request` 与 `downloadFile` 合法域名，并在开启合法域名校验时复验。
 - 后端正式环境需要配置 `WAIMAO_MINI_WECHAT_APPID` / `WAIMAO_MINI_WECHAT_SECRET`，不要复用 EnglishPod 的微信密钥。
 - 线上发布前需要先部署后端 `/api/waimao-mini/*`，否则小程序会请求线上接口并返回 404。
 - 第一版音频走服务端静态资源 `/static/waimao-mini/audio/*`，未上 CDN；上线后需要评估 CDN/R2 优化。

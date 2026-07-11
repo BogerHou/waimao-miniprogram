@@ -25,6 +25,7 @@ import {
   getState as getStoreState,
 } from './store/index'
 import { refreshAppConfig as syncAppConfig } from './utils/app-config-sync'
+import { shouldPreserveCachedSessionAfterRefreshFailure } from './utils/auth-session'
 import {
   BACKGROUND_AUDIO_RESUME_KEY,
   buildCourseNavigationUrl,
@@ -229,6 +230,10 @@ App<IAppOption>({
         await this.fetchUserData()
         return
       } catch (error) {
+        if (shouldPreserveCachedSessionAfterRefreshFailure(getToken())) {
+          console.warn('Failed to refresh cached session; preserving local auth', error)
+          return
+        }
         console.warn('Cached token invalid, relogin required', error)
         clearToken()
         clearUserCache()

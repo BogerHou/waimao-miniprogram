@@ -6,7 +6,8 @@
     "dev:backend": "npm --prefix ../englishpod-server/server run dev",
     "typecheck": "tsc --noEmit",
     "build": "tsc",
-    "test": "npm run build && node tests/run-all.js"
+    "test": "npm run build && node tests/run-all.js",
+    "release:check": "npm run typecheck && npm test && node scripts/release-check.mjs"
   },
   "keywords": [],
   "author": "",
