@@ -1,9 +1,11 @@
+@import "../../styles/theme.less";
+
 .custom-navbar {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  background: #fff;
+  background: @page-bg;
   z-index: 9999;
 }
 
@@ -26,8 +28,8 @@
 }
 
 .back-icon {
-  font-size: 64rpx;
-  color: #000;
+  font-size: 73.5rpx;
+  color: @text;
   font-weight: 300;
   line-height: 1;
   padding: 0 8rpx;
@@ -47,9 +49,9 @@
 }
 
 .title-text {
-  font-size: 34rpx;
+  font-size: 39rpx;
   font-weight: 600;
-  color: #000;
+  color: @text;
   max-width: 60vw;
   overflow: hidden;
   text-overflow: ellipsis;

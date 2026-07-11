@@ -1,0 +1,52 @@
+// 温暖学习风：米白底 + 暖棕灰文字 + 橘色主色。
+// 与 business.less 保持同一套令牌名，切换主题见 theme.less。
+
+// 背景与表面
+@page-bg:      #faf6ef;
+@page-bg-deep: #f4eee3;
+@surface:      #ffffff;
+@surface-alt:  #fdfbf7;
+@popup-bg:     #f7f4ee;
+
+// 文字层级
+@text:      #44403c;
+@text-soft: #57534e;
+@muted:     #78716c;
+@faint:     #a8a29e;
+@line:      #eae2d6;
+@handle:    #ded4c5;
+@disabled-bg: #e9e1d3;
+
+// 主色（橘）
+@primary:      #f97316;
+@primary-dark: #ea580c;
+@primary-deep: #c2410c;
+@primary-soft: #ffedd5;
+
+// 点缀色（eyebrow/标签/徽章等小面积强调；本主题与主色深档一致）
+@accent:      #c2410c;
+@accent-soft: #ffedd5;
+
+// 课程页当前句选中态
+@selection:      #fff7ed;
+@selection-line: #f97316;
+
+// 浅色强调卡（知识点场景背景卡、会员权益卡等）
+@tint-card-bg:     #fffaf1;
+@tint-card-border: #f8e2c9;
+
+// 渐变、阴影与遮罩
+@hero-gradient:  linear-gradient(135deg, #fb923c 0%, #f97316 100%);
+@shadow-ink:     #784814;  // 有色卡片阴影基色，配 fade() 使用
+@shadow-neutral: #44403c;  // 弹层/浮层阴影基色
+@mask:           rgba(41, 37, 36, 0.5);
+@shadow-soft:    0 8rpx 24rpx fade(@shadow-ink, 7%);
+@shadow-primary: 0 8rpx 20rpx fade(@primary-dark, 22%);
+
+// 对话角色 6 色（course 竖线用 @tone-N；knowledge 说话人配对用同系子令牌）
+@tone-0: #0d9488;  @tone-0-deep: #0f766e;  @tone-0-soft: #f0fdfa;  @tone-0-edge: #99f6e4;  @tone-0-light: #2dd4bf;  @tone-0-tint: #f4fdfb;
+@tone-1: #7c3aed;  @tone-1-deep: #6d28d9;  @tone-1-soft: #f5f3ff;  @tone-1-edge: #ddd6fe;  @tone-1-light: #a78bfa;  @tone-1-tint: #f8f6ff;
+@tone-2: #0284c7;  @tone-2-deep: #0369a1;  @tone-2-soft: #f0f9ff;  @tone-2-edge: #bae6fd;  @tone-2-light: #38bdf8;  @tone-2-tint: #f2faff;
+@tone-3: #db2777;  @tone-3-deep: #be185d;  @tone-3-soft: #fdf2f8;  @tone-3-edge: #fbcfe8;  @tone-3-light: #f472b6;  @tone-3-tint: #fdf5f9;
+@tone-4: #ca8a04;  @tone-4-deep: #a16207;  @tone-4-soft: #fefce8;  @tone-4-edge: #fde047;  @tone-4-light: #eab308;  @tone-4-tint: #fefcf0;
+@tone-5: #78716c;  @tone-5-deep: #57534e;  @tone-5-soft: #f5f5f4;  @tone-5-edge: #d6d3d1;  @tone-5-light: #a8a29e;  @tone-5-tint: #faf9f7;

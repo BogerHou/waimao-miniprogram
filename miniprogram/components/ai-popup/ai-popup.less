@@ -1,3 +1,5 @@
+@import "../../styles/theme.less";
+
 .ai-mask {
   position: fixed;
   top: 0;
@@ -19,8 +21,8 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: #f7f7f7;
-  border-radius: 24rpx 24rpx 0 0;
+  background: @popup-bg;
+  border-radius: 28rpx 28rpx 0 0;
   z-index: 1000;
   transform: translateY(100%);
   display: flex;
@@ -35,21 +37,22 @@
   align-items: center;
   padding: 16rpx 30rpx 30rpx;
   background: #fff;
-  border-radius: 24rpx 24rpx 0 0;
-  border-bottom: 1rpx solid #eee;
+  border-radius: 28rpx 28rpx 0 0;
+  border-bottom: 1rpx solid @line;
   flex-shrink: 0;
 }
 
 .drag-handle {
   width: 80rpx;
   height: 8rpx;
-  background: #ccc;
+  background: @handle;
   border-radius: 4rpx;
   margin-bottom: 20rpx;
 }
 
 .ai-title {
-  font-size: 32rpx;
+  color: @text;
+  font-size: 37rpx;
   font-weight: bold;
 }
 
@@ -66,7 +69,7 @@
   align-items: flex-start;
   
   .avatar {
-    font-size: 40rpx;
+    font-size: 46rpx;
     width: 70rpx;
     height: 70rpx;
     display: flex;
@@ -119,7 +122,7 @@
 .md-header {
   color: #55a532;
   font-weight: bold;
-  font-size: 30rpx;
+  font-size: 34.5rpx;
   margin-top: 20rpx;
   margin-bottom: 10rpx;
   font-family: inherit; /* Ensure consistency */
@@ -130,20 +133,20 @@
 }
 
 .md-p {
-  color: #333;
+  color: @text;
   margin-bottom: 16rpx;
   line-height: 1.6;
 }
 
 .streaming-text {
-  color: #333;
+  color: @text;
   line-height: 1.7;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
   .md-list-item {
-    color: #333;
+    color: @text;
     margin-bottom: 12rpx;
     line-height: 1.6;
     padding-left: 20rpx;
@@ -163,23 +166,23 @@
 
 .md-bold {
   font-weight: bold;
-  color: #000;
+  color: @text;
 }
 
 .md-code {
-    background-color: #f0f0f0;
+    background-color: @page-bg-deep;
     padding: 2rpx 8rpx;
     border-radius: 6rpx;
     font-size: 90%;
     color: #c7254e; /* Or standard dark, user complained about format mix, usually code is just meant to be highlighted keyword */
     /* Let's make it look like a subtle keyword highlight */
-    color: #444; 
-    font-family: monospace; 
+    color: @text-soft;
+    font-family: monospace;
     margin: 0 4rpx;
 }
 
 .typing-cursor {
-  color: #333;
+  color: @text;
   animation: blink 1s infinite;
   margin-left: 4rpx;
 }
@@ -192,9 +195,9 @@
 
 .bubble {
   padding: 24rpx;
-  border-radius: 12rpx;
+  border-radius: 16rpx;
   max-width: 75%;
-  font-size: 28rpx;
+  font-size: 32rpx;
   line-height: 1.6;
   box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.05);
   white-space: pre-wrap; /* Verify important for streaming text */
@@ -210,7 +213,7 @@
 .ai-footer {
   padding: 20rpx 30rpx;
   background: #fff;
-  border-top: 1rpx solid #eee;
+  border-top: 1rpx solid @line;
   display: flex;
   align-items: center;
   flex-shrink: 0;
@@ -219,11 +222,11 @@
 
 .chat-input {
   flex: 1;
-  background: #f5f5f5;
+  background: @page-bg-deep;
   height: 72rpx;
   border-radius: 36rpx;
   padding: 0 30rpx;
-  font-size: 28rpx;
+  font-size: 32rpx;
   margin-right: 20rpx;
 }
 
@@ -238,10 +241,10 @@
   transition: all 0.2s;
   
   &.disabled {
-    background: #eee;
-    
+    background: @line;
+
     .send-icon {
-      border-left-color: #ccc;
+      border-left-color: @faint;
     }
   }
 }
@@ -265,7 +268,7 @@
 .dot-flashing-item {
   width: 12rpx;
   height: 12rpx;
-  background-color: #333;
+  background-color: @text;
   border-radius: 50%;
   margin: 0 6rpx;
   animation: dotScale 1.4s infinite ease-in-out both;

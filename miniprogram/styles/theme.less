@@ -1,0 +1,18 @@
+// 全站设计令牌入口。页面和组件只 @import 这个文件。
+//
+// == 主题切换 ==
+// 只启用下面两行之一（当前预览商务专业风）：
+//   palettes/warm.less     温暖学习风（米白底 + 橘色）
+//   palettes/business.less 商务专业风（冷灰底 + 藏青 + 金色点缀）
+// 分享海报的 canvas 颜色需同步切换：utils/share-poster.ts 里的 ACTIVE_SHARE_POSTER_THEME。
+// 令牌含义和使用规范见 docs/DESIGN.md。
+
+// @import "palettes/warm.less";
+@import "palettes/business.less";
+
+// 共享语义色（不随主题变化）
+@success:      #16a34a;
+@success-soft: #f0fdf4;
+@success-deep: #15803d;
+@error:        #dc2626;
+@error-soft:   #fef2f2;
