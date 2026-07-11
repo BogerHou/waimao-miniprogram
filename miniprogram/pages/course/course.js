@@ -52,7 +52,7 @@ const audioRequestLogger = typeof nativeConsole.info === 'function'
     : nativeConsole.log.bind(nativeConsole);
 function getAudioRequestSource(url) {
     const value = String(url || '');
-    if (/^https:\/\/audio\.englishecho\.site\/audio\//.test(value)) {
+    if (/^https:\/\/(?:waimao-)?audio\.englishecho\.site\/audio\//.test(value)) {
         return '七牛 CDN 整段';
     }
     if (/^https:\/\/englishecho\.site\/static\/audio-segments\//.test(value)) {
@@ -619,10 +619,15 @@ Page({
                 currentPlayMode: this.data.playMode,
                 shadowModeEnabled: appConfig.courseDetail.shadowModeEnabled,
             });
-            // 音频策略：按服务端配置选择音频源，默认七牛 -> mirror -> 服务器
-            const serverAudio = normalizeAudioUrl(detail.audio);
+            // 音频策略：新版接口提供七牛和服务器地址，旧接口仍只提供服务器地址。
+            const availableAudioSources = (detail.audioSources ?? []).map(source => ({
+                provider: source.provider,
+                url: normalizeAudioUrl(source.url),
+            }));
+            const serverAudio = availableAudioSources.find(source => source.provider === 'server')?.url
+                ?? normalizeAudioUrl(detail.audio);
             const audioSourceConfig = (0, audio_source_fallback_1.normalizeAudioSourceConfig)(appConfig.courseDetail.audioSource);
-            const audioSources = (0, audio_source_fallback_1.buildAudioSourceOptions)(serverAudio, audioSourceConfig);
+            const audioSources = (0, audio_source_fallback_1.buildAudioSourceOptions)(serverAudio, audioSourceConfig, availableAudioSources);
             const selectedAudioSource = audioSources[0] ?? {
                 provider: 'server',
                 url: serverAudio,
@@ -1036,7 +1041,8 @@ Page({
     },
     scheduleAudioLoadTimeout(src) {
         this.clearAudioLoadTimeout();
-        if (!(0, audio_source_fallback_1.isCdnAudioUrl)(src)) {
+        const sourceOption = this.audioSourceOptions.find((source) => source.url === src);
+        if (!sourceOption || sourceOption.provider === 'server') {
             return;
         }
         this.pendingAudioLoadSource = src;

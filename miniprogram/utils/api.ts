@@ -100,6 +100,10 @@ export type CourseDetailResponse = {
   title: string
   tag?: string
   audio: string
+  audioSources?: Array<{
+    provider: AudioSourceProvider
+    url: string
+  }>
   range?: {
     start: number
     end: number

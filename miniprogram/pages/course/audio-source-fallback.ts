@@ -21,12 +21,6 @@ export const DEFAULT_AUDIO_SOURCE_CONFIG: AudioSourceConfig = {
 
 const AUDIO_SOURCE_PROVIDERS: AudioSourceProvider[] = ['qiniu', 'mirror', 'server']
 
-export function isCdnAudioUrl(url: string) {
-  const value = String(url || '')
-  return /^https:\/\/cdn\.jsdmirror\.com\//.test(value)
-    || /^https:\/\/audio\.[^/]+\//.test(value)
-}
-
 export function normalizeAudioSourceConfig(input: unknown): AudioSourceConfig {
   const source = input && typeof input === 'object'
     ? input as Record<string, unknown>
@@ -62,11 +56,17 @@ export function normalizeAudioSourceConfig(input: unknown): AudioSourceConfig {
 export function buildAudioSourceOptions(
   serverAudioUrl: string,
   config: AudioSourceConfig = DEFAULT_AUDIO_SOURCE_CONFIG,
+  availableSources: AudioSourceOption[] = [],
 ): AudioSourceOption[] {
   const sources: Record<AudioSourceProvider, string> = {
     qiniu: '',
     mirror: '',
     server: serverAudioUrl,
+  }
+  for (const source of availableSources) {
+    if (source.url && !sources[source.provider]) {
+      sources[source.provider] = source.url
+    }
   }
 
   const options = config.priority
@@ -91,12 +91,12 @@ export function getNextAudioSourceOption(options: {
 }) {
   const timedOutSource = String(options.timedOutSource || '')
   const currentSource = String(options.currentSource || '')
-  if (!isCdnAudioUrl(timedOutSource) || currentSource !== timedOutSource) {
+  if (currentSource !== timedOutSource) {
     return null
   }
 
   const currentIndex = options.audioSources.findIndex(source => source.url === timedOutSource)
-  if (currentIndex < 0) {
+  if (currentIndex < 0 || options.audioSources[currentIndex].provider === 'server') {
     return null
   }
 

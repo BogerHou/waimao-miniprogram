@@ -1,7 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DEFAULT_AUDIO_SOURCE_CONFIG = void 0;
-exports.isCdnAudioUrl = isCdnAudioUrl;
 exports.normalizeAudioSourceConfig = normalizeAudioSourceConfig;
 exports.buildAudioSourceOptions = buildAudioSourceOptions;
 exports.getNextAudioSourceOption = getNextAudioSourceOption;
@@ -14,11 +13,6 @@ exports.DEFAULT_AUDIO_SOURCE_CONFIG = {
     },
 };
 const AUDIO_SOURCE_PROVIDERS = ['qiniu', 'mirror', 'server'];
-function isCdnAudioUrl(url) {
-    const value = String(url || '');
-    return /^https:\/\/cdn\.jsdmirror\.com\//.test(value)
-        || /^https:\/\/audio\.[^/]+\//.test(value);
-}
 function normalizeAudioSourceConfig(input) {
     const source = input && typeof input === 'object'
         ? input
@@ -46,12 +40,17 @@ function normalizeAudioSourceConfig(input) {
         enabled,
     };
 }
-function buildAudioSourceOptions(serverAudioUrl, config = exports.DEFAULT_AUDIO_SOURCE_CONFIG) {
+function buildAudioSourceOptions(serverAudioUrl, config = exports.DEFAULT_AUDIO_SOURCE_CONFIG, availableSources = []) {
     const sources = {
         qiniu: '',
         mirror: '',
         server: serverAudioUrl,
     };
+    for (const source of availableSources) {
+        if (source.url && !sources[source.provider]) {
+            sources[source.provider] = source.url;
+        }
+    }
     const options = config.priority
         .filter(provider => config.enabled[provider])
         .map(provider => ({
@@ -67,11 +66,11 @@ function buildAudioSourceOptions(serverAudioUrl, config = exports.DEFAULT_AUDIO_
 function getNextAudioSourceOption(options) {
     const timedOutSource = String(options.timedOutSource || '');
     const currentSource = String(options.currentSource || '');
-    if (!isCdnAudioUrl(timedOutSource) || currentSource !== timedOutSource) {
+    if (currentSource !== timedOutSource) {
         return null;
     }
     const currentIndex = options.audioSources.findIndex(source => source.url === timedOutSource);
-    if (currentIndex < 0) {
+    if (currentIndex < 0 || options.audioSources[currentIndex].provider === 'server') {
         return null;
     }
     return options.audioSources.slice(currentIndex + 1).find(source => source.url) ?? null;

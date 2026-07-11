@@ -28,6 +28,6 @@ npm test
 
 - `project.config.json` 使用真实外贸小程序 appid。
 - 后端环境变量中配置外贸小程序专用 `WAIMAO_MINI_WECHAT_APPID` / `WAIMAO_MINI_WECHAT_SECRET`。
-- 微信后台 `request` 与 `downloadFile` 合法域名包含 `https://englishecho.site` 和 `https://dict.youdao.com`，并在开启合法域名校验时重新编译。
+- 微信后台 `request` 与 `downloadFile` 合法域名包含 `https://englishecho.site` 和 `https://dict.youdao.com`；`downloadFile` 还需包含 `https://waimao-audio.englishecho.site`，并在开启合法域名校验时重新编译。
 - 邀请码解锁策略已确认：用户添加微信购买会员邀请码，小程序内不接微信支付。
-- 音频静态目录已部署，后续 CDN 优化已排期。
+- 七牛私有音频和服务器备用源均已部署，后续补双源持续监控。

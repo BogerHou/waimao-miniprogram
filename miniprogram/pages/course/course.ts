@@ -43,7 +43,6 @@ import {
   AudioSourceProvider,
   buildAudioSourceOptions,
   getNextAudioSourceOption,
-  isCdnAudioUrl,
   normalizeAudioSourceConfig,
 } from './audio-source-fallback'
 import { buildCourseShareCardModel } from './course-share-card'
@@ -109,7 +108,7 @@ const audioRequestLogger = typeof nativeConsole.info === 'function'
 
 function getAudioRequestSource(url: string) {
   const value = String(url || '')
-  if (/^https:\/\/audio\.englishecho\.site\/audio\//.test(value)) {
+  if (/^https:\/\/(?:waimao-)?audio\.englishecho\.site\/audio\//.test(value)) {
     return '七牛 CDN 整段'
   }
   if (/^https:\/\/englishecho\.site\/static\/audio-segments\//.test(value)) {
@@ -835,10 +834,19 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
         shadowModeEnabled: appConfig.courseDetail.shadowModeEnabled,
       })
 
-      // 音频策略：按服务端配置选择音频源，默认七牛 -> mirror -> 服务器
-      const serverAudio = normalizeAudioUrl(detail.audio)
+      // 音频策略：新版接口提供七牛和服务器地址，旧接口仍只提供服务器地址。
+      const availableAudioSources = (detail.audioSources ?? []).map(source => ({
+        provider: source.provider,
+        url: normalizeAudioUrl(source.url),
+      }))
+      const serverAudio = availableAudioSources.find(source => source.provider === 'server')?.url
+        ?? normalizeAudioUrl(detail.audio)
       const audioSourceConfig = normalizeAudioSourceConfig(appConfig.courseDetail.audioSource)
-      const audioSources = buildAudioSourceOptions(serverAudio, audioSourceConfig)
+      const audioSources = buildAudioSourceOptions(
+        serverAudio,
+        audioSourceConfig,
+        availableAudioSources,
+      )
       const selectedAudioSource = audioSources[0] ?? {
         provider: 'server' as const,
         url: serverAudio,
@@ -1294,7 +1302,8 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
 
   scheduleAudioLoadTimeout(src: string) {
     this.clearAudioLoadTimeout()
-    if (!isCdnAudioUrl(src)) {
+    const sourceOption = this.audioSourceOptions.find((source: AudioSourceOption) => source.url === src)
+    if (!sourceOption || sourceOption.provider === 'server') {
       return
     }
 

@@ -29,6 +29,7 @@ npm test
 
 - [x] `request 合法域名`：`https://englishecho.site`、`https://dict.youdao.com`
 - [x] `downloadFile 合法域名`：`https://englishecho.site`、`https://dict.youdao.com`
+- [ ] `downloadFile 合法域名`新增：`https://waimao-audio.englishecho.site`
 - 确认小程序类目与英语学习内容相符，并按主体资质选择可提交审核的教育类目。
 - 隐私保护指引说明头像和昵称仅用于小程序内学习档案；当前版本不读取位置、通讯录，不接微信支付，也不采集用户录音。
 - 后台音频能力与 `requiredBackgroundModes: ["audio"]` 保持一致。
@@ -42,6 +43,7 @@ npm test
 - 使用审核专用邀请码验证后 6 章开放；不要把邀请码提交进 Git 仓库。
 - 输入邀请码成功后，首页解锁提示消失，会员有效期正确显示。
 - 第一课 Shadow/Echo 可播放，音频停在小节范围内；逐句播放与中英文对应。
+- 第一课日志中的首选音频域名为 `waimao-audio.englishecho.site`；弱网或七牛失败时能回退 `englishecho.site`。
 - 知识点页内容完整，滚动到底后返回键和标题仍固定。
 - 查词释义和英美发音可用。
 - 交流与反馈页展示交流群二维码，且与购买二维码不是同一张图。

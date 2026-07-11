@@ -47,8 +47,8 @@ npm run waimao-mini:generate
 ## 发布前注意
 
 - `project.config.json` 已配置外贸小程序 appid；切换发布账号前需要再次确认。
-- 微信后台需要把 `https://englishecho.site` 和 `https://dict.youdao.com` 配置到 `request` 与 `downloadFile` 合法域名，并在开启合法域名校验时复验。
+- 微信后台需要把 `https://englishecho.site`、`https://dict.youdao.com` 和七牛私有域名 `https://waimao-audio.englishecho.site` 配置到对应合法域名；七牛域名至少需要加入 `downloadFile`，并在开启合法域名校验时复验。
 - 后端正式环境需要配置 `WAIMAO_MINI_WECHAT_APPID` / `WAIMAO_MINI_WECHAT_SECRET`，不要复用 EnglishPod 的微信密钥。
 - 线上发布前需要先部署后端 `/api/waimao-mini/*`，否则小程序会请求线上接口并返回 404。
-- 第一版音频走服务端静态资源 `/static/waimao-mini/audio/*`，未上 CDN；上线后需要评估 CDN/R2 优化。
+- 音频优先使用服务端签发的七牛私有 CDN 地址，失败时回退服务器签名地址；客户端不得把短期签名 URL 当作永久资源缓存。
 - 不接微信支付；会员购买通过添加微信完成，小程序内只负责展示二维码和兑换会员邀请码，邀请码权益为全部章节 1 年访问权。

@@ -30,8 +30,8 @@
 ## 数据流
 
 1. 小程序首页调用 `/api/waimao-mini/courses` 获取章节树、锁定状态、进度和 app config。
-2. 小节详情调用 `/api/waimao-mini/courses/:id` 获取场景字幕、整章音频地址、小节播放范围和知识点；字幕数据由后端生成脚本优先按外贸源数据的词级 SRT 切成短句 cue。
-3. Shadow 模式使用整章音频，但前端用小节 `range.start/end` 和短句 cue `start/end` 限制播放范围。
+2. 小节详情调用 `/api/waimao-mini/courses/:id` 获取场景字幕、整章音频源、小节播放范围和知识点；新版接口通过 `audioSources` 返回七牛私有签名地址和服务器签名备用源，旧 `audio` 字段保持服务器地址以兼容旧版客户端。
+3. Shadow 模式优先使用七牛整章音频，加载失败时按 `provider` 回退服务器源；前端继续用小节 `range.start/end` 和短句 cue `start/end` 限制播放范围。
 4. 完成小节后调用 `/api/waimao-mini/users/me/progress`，前端上报 `sceneId`、`cueIndex` 和 `totalCues`，后端按小节保存 cue 进度并汇总章节进度。
 5. 点击首页解锁提示或锁定小节时先强制微信登录，再进入解锁页。
 6. 邀请码解锁调用 `/api/waimao-mini/invite/redeem`，写入小程序专用 entitlement；会员权益为全部章节 1 年访问权。
@@ -39,5 +39,5 @@
 ## 约束
 
 - 不随意重做 EnglishPod 布局；只有用户确认的差异点可以改。
-- 第一版不上 CDN，音频从服务端静态目录加载。
-- Web 账号打通和 CDN 优化都是后续阶段；小程序不接微信支付，购买会员邀请码走添加微信人工交付。
+- 七牛密钥和私有 URL 签名只存在于后端；小程序仅接收短期地址，并始终保留服务器源作为回退。
+- Web 账号打通和双音频源持续监控属于后续阶段；小程序不接微信支付，购买会员邀请码走添加微信人工交付。

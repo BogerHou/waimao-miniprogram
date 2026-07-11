@@ -133,15 +133,24 @@ async function checkProductionService() {
   assert(Array.isArray(detail.subtitles) && detail.subtitles.length > 0, 'first course has no subtitles')
   assert(detail.range?.end > detail.range?.start, 'first course has an invalid playback range')
   assert(detail.subtitles.every(item => item.end > item.start), 'first course has invalid subtitle timing')
+  assert(Array.isArray(detail.audioSources), 'first course does not provide audio source fallbacks')
+  assert(detail.audioSources[0]?.provider === 'qiniu', 'first course does not prefer Qiniu audio')
+  assert(
+    detail.audioSources.some(source => source.provider === 'server'),
+    'first course does not provide a server audio fallback',
+  )
   pass(`first course: ${detail.subtitles.length} timed subtitle cues`)
 
-  const audioUrl = /^https?:\/\//.test(detail.audio)
-    ? detail.audio
-    : `${API_BASE_URL}${detail.audio}`
-  const audioResponse = await expectStatus('first course audio', audioUrl, 200, { method: 'HEAD' })
+  const primaryAudio = detail.audioSources[0].url
+  const primaryAudioUrl = /^https?:\/\//.test(primaryAudio)
+    ? primaryAudio
+    : `${API_BASE_URL}${primaryAudio}`
+  const audioResponse = await expectStatus('first course primary audio', primaryAudioUrl, 200, {
+    method: 'HEAD',
+  })
   assert(
     audioResponse.headers.get('content-type')?.startsWith('audio/'),
-    'first course audio response has an invalid content type',
+    'first course primary audio response has an invalid content type',
   )
 
   const assets = [
