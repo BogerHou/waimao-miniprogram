@@ -730,8 +730,12 @@ Page({
                 stage: modePresentation.effectiveStage,
                 playMode: modePresentation.effectivePlayMode,
             });
-            // 只读模式不初始化课程音频，避免隐藏播放入口时仍产生音频请求。
-            if (modePresentation.showPracticeControls) {
+            // 只读模式不初始化课程音频；通听走后台通道不预热前台音频，避免加载遮罩挡页面；
+            // 首次引导展示期间也推迟预热，引导关闭后再初始化。
+            const shouldPreheatEchoAudio = modePresentation.showPracticeControls &&
+                modePresentation.effectivePlayMode === 'echo' &&
+                !this.data.showStageGuide;
+            if (shouldPreheatEchoAudio) {
                 this.ensureAudioContext(audio);
             }
             else {
@@ -1641,7 +1645,10 @@ Page({
             this.stopBackgroundPlayback(true);
             this.pauseShadowPlayback();
         }
-        if (!this.data.showPracticeControls && modePresentation.showPracticeControls && this.data.course?.audio) {
+        if (!this.data.showPracticeControls &&
+            modePresentation.showPracticeControls &&
+            modePresentation.effectivePlayMode === 'echo' &&
+            this.data.course?.audio) {
             this.ensureAudioContext(this.data.course.audio);
         }
         if (this.data.showPracticeControls && !modePresentation.showPracticeControls) {
@@ -2427,8 +2434,11 @@ Page({
             this.lastEchoCompletion = null;
             return;
         }
-        // Echo 模式：不需要预加载，等待用户点击
+        // Echo 通道：懒加载前台音频（通听默认不再预热，进入精练/留白跟读时才初始化）
         this.lastEchoCompletion = null;
+        if (this.data.course?.audio) {
+            this.ensureAudioContext(this.data.course.audio);
+        }
         console.log(`[ModeChange] 切换到 Echo 通道，等待用户点击段落`);
     },
     // 学习阶段切换：阶段只是播放行为预设（通道 + 句末策略）
@@ -2464,13 +2474,16 @@ Page({
         }
         markStageGuideSeen();
         this.setData({ showStageGuide: false });
-        // 引导关闭后接上被推迟的自动通听
+        // 引导关闭后接上被推迟的初始化：通听自动连播，echo 通道预热前台音频
         if (this.data.stage === 'listen' &&
             this.data.playMode === 'shadow' &&
             !this.data.playing &&
             !this.data.currentSubtitleId &&
             this.data.subtitles.length > 0) {
             this.startShadowMode();
+        }
+        else if (this.data.playMode === 'echo' && this.data.course?.audio && !this.audioContext) {
+            this.ensureAudioContext(this.data.course.audio);
         }
     },
     clearGapTimer() {

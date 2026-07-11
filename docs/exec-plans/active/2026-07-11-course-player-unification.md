@@ -65,3 +65,4 @@
 - 2026-07-11：切片 B 顺带移除 `pendingAudioLoadSource` 死状态（只写从不读）；加载超时控制器改为可注入定时器，使"CDN 超时→存在下一源→回退"决策路径可在 Node 测试覆盖。切片 A+B 均为行为保持型改动，建议在切片 C 前后各做一次真机回归（echo/shadow、后台接力、弱网音源回退）。
 - 2026-07-11：切片 C 收窄范围——只抽离恢复状态存储 I/O（`createBackgroundResumeStore`，storage 可注入）；BackgroundAudioManager 的事件接线深度耦合页面 setData 与跨方法状态，在无法真机验证的前提下整体搬移风险大于收益，保留在页面，"Page 只剩 UI 编排"目标顺延到里程碑 2 之后按需推进。
 - 2026-07-11：里程碑 2/3 完成。默认阶段=通听（进课程自动连续播放，首次引导时推迟）；full-audio 逐句路径句末补记 `markEchoCompletionProgress`（与切片路径对齐，练完最后一句即记完成）；完成面板取代完成 toast；录音使用 aac、60s 上限，换句/切阶段/退出即弃；录音权限被拒时 toast 提示（隐私协议合规项在 release-compliance 计划内）。全部改动待真机回归后归档。
+- 2026-07-12：真机回归首个反馈修复——通听（后台通道）不再预热 echo 前台音频（其加载遮罩会盖住首次引导）；echo 前台音频改为进入精练/留白跟读或引导关闭时懒加载；引导/完成面板按钮改 flex 居中，不再依赖 line-height 对抗 button 的 UA 样式。
