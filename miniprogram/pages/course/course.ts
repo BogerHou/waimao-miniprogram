@@ -1,5 +1,6 @@
 import {
   fetchCourseDetail,
+  fetchCourseList,
   CourseDetailResponse,
   SubtitleEntry,
   updateUserProgress,
@@ -10,6 +11,15 @@ import {
   fetchWordDefinitionViaBackend,
 } from '../../utils/api'
 import { API_BASE_URL } from '../../config/env'
+import {
+  STARRED_CUES_STORAGE_KEY,
+  StarredCueMap,
+  getStarredCueIds,
+  isCueStarred,
+  normalizeStarredCueMap,
+  toggleStarredCue,
+} from '../../utils/practice-marks'
+import { NextSceneCandidate, resolveNextScene } from '../../utils/next-scene'
 import { debounce, throttle } from '../../utils/storage'
 import {
   subscribe,
@@ -230,6 +240,7 @@ type ViewSubtitle = SubtitleEntry & {
   sourceIndex: number
   segmentIndex: number
   segmentCount: number
+  starred?: boolean
 }
 
 type CourseSummary = {
@@ -287,6 +298,12 @@ type CoursePageData = {
   showShadowMode: boolean
   showPracticeControls: boolean
   showStageGuide: boolean
+  recording: boolean
+  recordReady: boolean
+  comparing: boolean
+  showCompletionPanel: boolean
+  completionStats: { totalCues: number; practicedCount: number }
+  nextScene: NextSceneCandidate | null
 }
 
 type SubtitleLike = Pick<SubtitleEntry, 'id' | 'start' | 'end'>
@@ -357,6 +374,12 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     showShadowMode: true,
     showPracticeControls: false,
     showStageGuide: false,
+    recording: false,
+    recordReady: false,
+    comparing: false,
+    showCompletionPanel: false,
+    completionStats: { totalCues: 0, practicedCount: 0 },
+    nextScene: null,
   },
   courseId: '' as string,
   // InnerAudioContext (用于 Shadow 模式)
@@ -370,6 +393,12 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
   pendingSubtitle: null as SubtitleLike | null,
   stopTimer: null as number | null,
   gapTimer: null as number | null,
+  recorderManager: null as WechatMiniprogram.RecorderManager | null,
+  recordingAudioContext: null as WechatMiniprogram.InnerAudioContext | null,
+  recordedTempPath: '' as string,
+  recordedCueId: '' as string,
+  compareStep: '' as '' | 'original' | 'mine',
+  practiceCounts: {} as Record<string, number>,
   // Shadow模式音频降级：服务器备用地址
   serverAudioUrl: '' as string,
   usingFallbackAudio: false,
@@ -452,10 +481,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     this.lastKnownCourseTime = this.courseRange?.end ?? this.lastKnownCourseTime
     void this.markSceneCompleted('scene-end')
     if (showToast) {
-      wx.showToast({
-        title: '本小节已完成，进度已保存',
-        icon: 'success',
-      })
+      void this.openCompletionPanel()
     }
   },
 
@@ -605,6 +631,10 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     const subtitleIndex = this.data.subtitles.findIndex(subtitle => subtitle.id === this.activeSubtitle?.id)
     if (this.data.subtitles.length > 0 && subtitleIndex === this.data.subtitles.length - 1) {
       void this.markSceneCompleted('echo-last-subtitle')
+      // 精练/留白跟读练到最后一句：弹出完成面板（重复与对比过程中不打扰）
+      if (!this.data.isRepeating && !this.data.comparing) {
+        void this.openCompletionPanel()
+      }
     }
     console.log('[Audio] 记录 Echo 完成进度', {
       reason,
@@ -788,8 +818,11 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     void this.syncCurrentSceneProgress('unload')
     void this.finalizeStudySession(true) // 立即上报，不防抖
     this.stopBackgroundPlayback(true)
+    this.discardRecording()
     this.destroyAudioContext()
     this.destroyWordAudioContext()
+    this.recordingAudioContext?.destroy()
+    this.recordingAudioContext = null
     this.hideAudioLoadingMask()
     this.storeUnsubscribe?.()
     this.stopTracking()
@@ -873,10 +906,16 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
       })
 
       const subtitles = mapSubtitles(detail.subtitles)
+      const starredIds = new Set(getStarredCueIds(this.readStarredCueMap(), detail.id))
+      const markedSubtitles = subtitles.map(subtitle => ({
+        ...subtitle,
+        starred: starredIds.has(subtitle.id),
+      }))
       const courseRange = normalizeCourseRange(detail, subtitles)
       const leadText = subtitles[0]?.text ?? ''
       this.courseRange = courseRange
       this.knowledgeContext = buildKnowledgeContext(detail)
+      this.practiceCounts = {}
 
       this.setData({
         course: {
@@ -885,12 +924,14 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
           tag: detail.tag,
           audio,
         },
-        subtitles,
+        subtitles: markedSubtitles,
         loading: false,
         leadText,
         scrollIntoView: '',
         scrollTop: 0,
         shareImageUrl: '',
+        showCompletionPanel: false,
+        nextScene: null,
         showModeSelector: modePresentation.showModeSelector,
         showShadowMode: modePresentation.showShadowMode,
         showPracticeControls: modePresentation.showPracticeControls,
@@ -2318,6 +2359,14 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
       const context = this.audioContext
       this.lastEchoCompletion = null
       this.clearGapTimer()
+      // 换句时丢弃上一句的录音（听完即弃）
+      if (this.recordedCueId && subtitle.id !== this.recordedCueId) {
+        this.discardRecording()
+      }
+      // 每句练习次数（对比听回放不计入）
+      if (this.compareStep !== 'original') {
+        this.practiceCounts[subtitle.id] = (this.practiceCounts[subtitle.id] ?? 0) + 1
+      }
       // 更新状态
       this.activeSubtitle = subtitle
       const index = this.data.subtitles.findIndex(s => s.id === subtitle.id)
@@ -2638,6 +2687,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     }
 
     this.clearGapTimer()
+    this.discardRecording()
     const previousMode = this.data.playMode
     const wasPlaying = this.data.playing
     const modeSwitchCourseTime = this.getCurrentCourseTime()
@@ -2789,6 +2839,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     }
 
     this.clearGapTimer()
+    this.discardRecording()
     this.setData({ stage })
     const plan = playerCore.resolveStagePlan(stage, this.data.gapEnabled)
     this.applyPlayModeChange(plan.channel)
@@ -2840,6 +2891,14 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     if (this.data.playMode !== 'echo') {
       return
     }
+
+    // 对比听：原句播完接自己的录音，跳过句末策略
+    if (this.compareStep === 'original') {
+      this.compareStep = 'mine'
+      this.playRecordedTake()
+      return
+    }
+
     const policy = playerCore.resolveStagePlan(this.data.stage, this.data.gapEnabled).cueEndPolicy
     if (policy === 'none') {
       return
@@ -2893,6 +2952,200 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     })
     this.scheduleSceneProgressSync()
     this.centerSubtitle(nextView.id)
+  },
+
+  // ==================== 录音对比（听完即弃） ====================
+
+  ensureRecorderManager() {
+    if (this.recorderManager) {
+      return this.recorderManager
+    }
+    const manager = wx.getRecorderManager()
+    manager.onStart(() => {
+      this.setData({ recording: true })
+    })
+    manager.onStop(res => {
+      const tempFilePath = res?.tempFilePath || ''
+      const forCurrentCue = Boolean(
+        tempFilePath &&
+        this.recordedCueId &&
+        this.recordedCueId === this.data.currentSubtitleId,
+      )
+      this.recordedTempPath = forCurrentCue ? tempFilePath : ''
+      this.setData({
+        recording: false,
+        recordReady: forCurrentCue,
+      })
+    })
+    manager.onError(err => {
+      console.warn('[Record] 录音失败', err)
+      this.recordedTempPath = ''
+      this.setData({ recording: false, recordReady: false })
+      wx.showToast({
+        title: '录音失败，请检查麦克风权限',
+        icon: 'none',
+      })
+    })
+    this.recorderManager = manager
+    return manager
+  },
+
+  handleToggleRecording() {
+    const currentId = this.data.currentSubtitleId
+    if (!currentId) {
+      wx.showToast({ title: '先选择一个句子', icon: 'none' })
+      return
+    }
+    const manager = this.ensureRecorderManager()
+    if (this.data.recording) {
+      manager.stop()
+      return
+    }
+
+    // 录音前停下播放和留白，避免录进原声
+    if (this.data.playing && this.audioContext) {
+      this.audioContext.pause()
+    }
+    this.clearGapTimer()
+    this.compareStep = ''
+    this.recordedTempPath = ''
+    this.recordedCueId = currentId
+    this.setData({ recordReady: false, comparing: false })
+    manager.start({
+      duration: 60000,
+      format: 'aac',
+      sampleRate: 44100,
+      encodeBitRate: 96000,
+      numberOfChannels: 1,
+    })
+  },
+
+  // 对比听：先播原句，句末接自己的录音
+  handleCompareRecording() {
+    if (!this.recordedTempPath || this.data.recording || this.data.comparing) {
+      return
+    }
+    const currentId = this.data.currentSubtitleId
+    if (!currentId || currentId !== this.recordedCueId) {
+      return
+    }
+    const currentView = this.data.subtitles.find(item => item.id === currentId)
+    if (!currentView) {
+      return
+    }
+    this.compareStep = 'original'
+    this.setData({ comparing: true })
+    this.playSubtitle(currentView)
+  },
+
+  playRecordedTake() {
+    if (!this.recordedTempPath) {
+      this.finishCompare()
+      return
+    }
+    if (!this.recordingAudioContext) {
+      const context = wx.createInnerAudioContext()
+      context.obeyMuteSwitch = false
+      context.onEnded(() => this.finishCompare())
+      context.onError(() => this.finishCompare())
+      this.recordingAudioContext = context
+    }
+    this.recordingAudioContext.src = this.recordedTempPath
+    this.recordingAudioContext.play()
+  },
+
+  finishCompare() {
+    this.compareStep = ''
+    if (this.data.comparing) {
+      this.setData({ comparing: false })
+    }
+  },
+
+  // 听完即弃：换句、切阶段、退出页面时丢掉录音
+  discardRecording() {
+    if (this.data.recording) {
+      this.recorderManager?.stop()
+    }
+    this.recordingAudioContext?.stop()
+    this.recordedTempPath = ''
+    this.recordedCueId = ''
+    this.compareStep = ''
+    if (this.data.recordReady || this.data.comparing) {
+      this.setData({ recordReady: false, comparing: false })
+    }
+  },
+
+  // ==================== 难句星标 ====================
+
+  readStarredCueMap(): StarredCueMap {
+    try {
+      return normalizeStarredCueMap(wx.getStorageSync(STARRED_CUES_STORAGE_KEY))
+    } catch (_error) {
+      return {}
+    }
+  },
+
+  handleToggleStar(event: WechatMiniprogram.BaseEvent) {
+    const cueId = (event.currentTarget.dataset as { id?: string }).id
+    if (!cueId || !this.courseId) {
+      return
+    }
+    const nextMap = toggleStarredCue(this.readStarredCueMap(), this.courseId, cueId)
+    try {
+      wx.setStorageSync(STARRED_CUES_STORAGE_KEY, nextMap)
+    } catch (_error) {
+      // 存储失败不阻断练习
+    }
+    const index = this.data.subtitles.findIndex(item => item.id === cueId)
+    if (index >= 0) {
+      this.setData({
+        [`subtitles[${index}].starred`]: isCueStarred(nextMap, this.courseId, cueId),
+      } as unknown as Partial<CoursePageData>)
+    }
+  },
+
+  // ==================== 小节完成面板 ====================
+
+  async openCompletionPanel() {
+    if (this.data.showCompletionPanel) {
+      return
+    }
+    const totalCues = this.data.subtitles.length
+    const practicedCount = Math.min(totalCues, Object.keys(this.practiceCounts).length)
+
+    let nextScene: NextSceneCandidate | null = null
+    try {
+      const response = await fetchCourseList(1, 50)
+      nextScene = resolveNextScene(response.data, this.courseId)
+    } catch (error) {
+      console.warn('[Completion] resolve next scene failed', error)
+    }
+
+    this.setData({
+      showCompletionPanel: true,
+      completionStats: { totalCues, practicedCount },
+      nextScene,
+    })
+  },
+
+  handleCompletionClose() {
+    this.setData({ showCompletionPanel: false })
+  },
+
+  handleCompletionReplay() {
+    this.setData({ showCompletionPanel: false, stage: 'listen' })
+    this.applyPlayModeChange('shadow')
+    this.startShadowMode()
+  },
+
+  handleCompletionNext() {
+    const nextScene = this.data.nextScene
+    if (!nextScene) {
+      return
+    }
+    wx.redirectTo({
+      url: `/pages/course/course?id=${nextScene.id}`,
+    })
   },
 
   // 开始影子跟读模式

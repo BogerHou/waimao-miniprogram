@@ -127,6 +127,31 @@
                 <text wx:else class="subtitle-text-raw">{{item.text}}</text>
               </view>
               <text wx:if="{{item.translation}}" class="subtitle-translation">{{item.translation}}</text>
+              <view wx:if="{{item.starred}}" class="subtitle-star">★</view>
+
+              <view
+                wx:if="{{showPracticeControls && stage === 'practice' && currentSubtitleId === item.id}}"
+                class="cue-actions"
+                catchtap=""
+              >
+                <view
+                  class="cue-action {{item.starred ? 'cue-action--starred' : ''}}"
+                  catchtap="handleToggleStar"
+                  data-id="{{item.id}}"
+                  aria-role="button"
+                >{{item.starred ? '★ 已标记' : '☆ 标记难句'}}</view>
+                <view
+                  class="cue-action {{recording ? 'cue-action--recording' : ''}}"
+                  catchtap="handleToggleRecording"
+                  aria-role="button"
+                >{{recording ? '■ 停止录音' : '● 录音跟读'}}</view>
+                <view
+                  wx:if="{{recordReady}}"
+                  class="cue-action cue-action--primary"
+                  catchtap="handleCompareRecording"
+                  aria-role="button"
+                >{{comparing ? '对比中…' : '▶ 对比听'}}</view>
+              </view>
             </view>
           </block>
 
@@ -233,6 +258,28 @@
     <view class="fab-pdf" bindtap="handleOpenPDFPage" aria-role="button" aria-label="知识点">
       <image class="fab-book-icon" src="/assets/icons/book-open-text-primary.svg" mode="aspectFit"></image>
       <text class="fab-text">知识点</text>
+    </view>
+
+    <view wx:if="{{showCompletionPanel}}" class="completion-panel">
+      <view class="completion-panel__mask" bindtap="handleCompletionClose"></view>
+      <view class="completion-panel__card">
+        <view class="completion-panel__badge">✓</view>
+        <text class="completion-panel__title">本小节完成</text>
+        <text class="completion-panel__stats">共 {{completionStats.totalCues}} 句{{completionStats.practicedCount > 0 ? ' · 本次精练 ' + completionStats.practicedCount + ' 句' : ''}}</text>
+
+        <button
+          wx:if="{{nextScene}}"
+          class="completion-panel__primary"
+          bindtap="handleCompletionNext"
+        >学下一节 · {{nextScene.title}}</button>
+
+        <view class="completion-panel__secondary-row">
+          <button class="completion-panel__secondary" bindtap="handleCompletionReplay">再听一遍</button>
+          <button class="completion-panel__secondary" open-type="share">分享给同事</button>
+        </view>
+
+        <text class="completion-panel__dismiss" bindtap="handleCompletionClose">留在本节继续练</text>
+      </view>
     </view>
 
     <view wx:if="{{showStageGuide}}" class="stage-guide">

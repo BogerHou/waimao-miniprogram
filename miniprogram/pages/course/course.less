@@ -317,6 +317,163 @@
   background: fade(@selection-line, 10%);
 }
 
+.subtitle-star {
+  position: absolute;
+  right: 14rpx;
+  bottom: 10rpx;
+  color: @tone-4;
+  font-size: 24rpx;
+  line-height: 1;
+}
+
+.cue-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
+  margin-top: 14rpx;
+  padding-top: 14rpx;
+  border-top: 1rpx dashed @line;
+}
+
+.cue-action {
+  padding: 8rpx 18rpx;
+  border: 1rpx solid @line;
+  border-radius: 999rpx;
+  background: #ffffff;
+  color: @muted;
+  font-size: 24rpx;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.cue-action:active {
+  transform: scale(0.97);
+}
+
+.cue-action--starred {
+  border-color: fade(@tone-4, 45%);
+  background: @tone-4-soft;
+  color: @tone-4-deep;
+}
+
+.cue-action--recording {
+  border-color: fade(@error, 40%);
+  background: @error-soft;
+  color: @error;
+}
+
+.cue-action--primary {
+  border-color: fade(@primary, 40%);
+  background: @selection;
+  color: @primary-deep;
+}
+
+.completion-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 85;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48rpx;
+}
+
+.completion-panel__mask {
+  position: absolute;
+  inset: 0;
+  background: @mask;
+}
+
+.completion-panel__card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 600rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14rpx;
+  padding: 44rpx 36rpx 30rpx;
+  border-radius: 24rpx;
+  background: #ffffff;
+  box-shadow: 0 18rpx 50rpx fade(@shadow-neutral, 20%);
+  box-sizing: border-box;
+}
+
+.completion-panel__badge {
+  width: 88rpx;
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: @success-soft;
+  color: @success-deep;
+  font-size: 44rpx;
+  font-weight: 750;
+}
+
+.completion-panel__title {
+  color: @text;
+  font-size: 38rpx;
+  font-weight: 750;
+}
+
+.completion-panel__stats {
+  color: @muted;
+  font-size: 27rpx;
+  line-height: 1.4;
+}
+
+.completion-panel__primary {
+  width: 100%;
+  height: 88rpx;
+  margin: 12rpx 0 0;
+  padding: 0 24rpx;
+  overflow: hidden;
+  border-radius: 16rpx;
+  background: @primary;
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: 700;
+  line-height: 88rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.completion-panel__secondary-row {
+  width: 100%;
+  display: flex;
+  gap: 14rpx;
+  margin-top: 4rpx;
+}
+
+.completion-panel__secondary {
+  flex: 1;
+  height: 78rpx;
+  margin: 0;
+  padding: 0 16rpx;
+  border: 1rpx solid @line;
+  border-radius: 16rpx;
+  background: #ffffff;
+  color: @text;
+  font-size: 27rpx;
+  font-weight: 650;
+  line-height: 78rpx;
+}
+
+.completion-panel__primary::after,
+.completion-panel__secondary::after {
+  border: none;
+}
+
+.completion-panel__dismiss {
+  margin-top: 6rpx;
+  padding: 10rpx;
+  color: @faint;
+  font-size: 25rpx;
+}
+
 .subtitle-token,
 .subtitle-text-raw {
   color: inherit;
