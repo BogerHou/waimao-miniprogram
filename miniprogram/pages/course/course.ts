@@ -26,11 +26,11 @@ import {
 import { drawShareBrandFooter, SHARE_POSTER_PALETTE } from '../../utils/share-poster'
 import * as playerCore from './player-core'
 import {
-  BACKGROUND_AUDIO_RESUME_KEY,
   BackgroundAudioResumeState,
+  BackgroundResumeStore,
   buildBackgroundPlaybackMeta,
+  createBackgroundResumeStore,
   findSubtitleByCourseTime,
-  normalizeBackgroundAudioResumeState,
   resolveEchoToShadowSwitchState,
   resolveCourseTimeFromForeground,
   resolveForegroundResumeState,
@@ -383,6 +383,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
   lastEchoCompletion: null as { subtitleId: string; courseTime: number } | null,
   lastKnownCourseTime: 0,
   audioLoadTimeoutController: null as playerCore.AudioLoadTimeoutController | null,
+  backgroundResumeStore: null as BackgroundResumeStore | null,
   audioRequestStartedAt: 0,
   backgroundAudioRequestStartedAt: 0,
   audioLoadingMaskVisible: false,
@@ -729,6 +730,16 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
       },
       log: (message, payload) => console.log(message, payload),
       warn: (message, payload) => console.warn(message, payload),
+    })
+    this.backgroundResumeStore = createBackgroundResumeStore({
+      storage: {
+        get: key => wx.getStorageSync(key),
+        set: (key, value) => wx.setStorageSync(key, value),
+        remove: key => wx.removeStorageSync(key),
+      },
+      onError: (stage, error) => {
+        this.debugShadowBackground(`${stage} background audio resume state failed`, { error })
+      },
     })
 
     this.storeUnsubscribe = subscribe(state => this.handleStoreUpdate(state))
@@ -1580,12 +1591,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
   },
 
   readBackgroundAudioResumeState() {
-    try {
-      return normalizeBackgroundAudioResumeState(wx.getStorageSync(BACKGROUND_AUDIO_RESUME_KEY))
-    } catch (error) {
-      this.debugShadowBackground('read background audio resume state failed', { error })
-      return null
-    }
+    return this.backgroundResumeStore?.read() ?? null
   },
 
   saveBackgroundAudioResumeState(courseTime: number, manager: any) {
@@ -1602,20 +1608,14 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
       savedAt: Date.now(),
     }
 
-    try {
-      wx.setStorageSync(BACKGROUND_AUDIO_RESUME_KEY, state)
+    const saved = this.backgroundResumeStore?.save(state) ?? false
+    if (saved) {
       this.debugShadowBackground('saved background audio resume state', state as unknown as Record<string, unknown>)
-    } catch (error) {
-      this.debugShadowBackground('save background audio resume state failed', { error })
     }
   },
 
   clearBackgroundAudioResumeState() {
-    try {
-      wx.removeStorageSync(BACKGROUND_AUDIO_RESUME_KEY)
-    } catch (error) {
-      this.debugShadowBackground('clear background audio resume state failed', { error })
-    }
+    this.backgroundResumeStore?.clear()
   },
 
   restoreBackgroundAudioFromStorage() {

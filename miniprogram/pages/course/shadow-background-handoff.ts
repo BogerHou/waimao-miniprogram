@@ -373,3 +373,53 @@ export function buildBackgroundPlaybackMeta(course: ShadowCourseMeta, courseTime
     coverImgUrl: '',
   }
 }
+
+// ==================== 恢复状态存储（里程碑 1 切片 C） ====================
+
+export type BackgroundResumeStorage = {
+  get(key: string): unknown
+  set(key: string, value: unknown): void
+  remove(key: string): void
+}
+
+export type BackgroundResumeStore = {
+  read(): BackgroundAudioResumeState | null
+  save(state: BackgroundAudioResumeState): boolean
+  clear(): boolean
+}
+
+// 后台音频恢复状态的存取封装：storage 可注入，读取时统一走 normalize 校验，
+// 任一 storage 异常都吞掉并通过 onError 上报调试信息，不阻断播放主流程。
+export function createBackgroundResumeStore(options: {
+  storage: BackgroundResumeStorage
+  onError?: (stage: 'read' | 'save' | 'clear', error: unknown) => void
+}): BackgroundResumeStore {
+  return {
+    read() {
+      try {
+        return normalizeBackgroundAudioResumeState(options.storage.get(BACKGROUND_AUDIO_RESUME_KEY))
+      } catch (error) {
+        options.onError?.('read', error)
+        return null
+      }
+    },
+    save(state: BackgroundAudioResumeState) {
+      try {
+        options.storage.set(BACKGROUND_AUDIO_RESUME_KEY, state)
+        return true
+      } catch (error) {
+        options.onError?.('save', error)
+        return false
+      }
+    },
+    clear() {
+      try {
+        options.storage.remove(BACKGROUND_AUDIO_RESUME_KEY)
+        return true
+      } catch (error) {
+        options.onError?.('clear', error)
+        return false
+      }
+    },
+  }
+}

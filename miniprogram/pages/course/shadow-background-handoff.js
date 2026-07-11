@@ -14,6 +14,7 @@ exports.buildCourseNavigationUrl = buildCourseNavigationUrl;
 exports.normalizeBackgroundAudioResumeState = normalizeBackgroundAudioResumeState;
 exports.shouldRestoreBackgroundAudioRoute = shouldRestoreBackgroundAudioRoute;
 exports.buildBackgroundPlaybackMeta = buildBackgroundPlaybackMeta;
+exports.createBackgroundResumeStore = createBackgroundResumeStore;
 exports.BACKGROUND_AUDIO_RESUME_KEY = 'waimao_mini_background_audio_resume';
 exports.BACKGROUND_AUDIO_RESUME_TTL_MS = 12 * 60 * 60 * 1000;
 function normalizeCourseTime(value) {
@@ -241,5 +242,40 @@ function buildBackgroundPlaybackMeta(course, courseTime) {
         epname: '外贸英语影子跟读',
         singer: '外贸英语影子跟读',
         coverImgUrl: '',
+    };
+}
+// 后台音频恢复状态的存取封装：storage 可注入，读取时统一走 normalize 校验，
+// 任一 storage 异常都吞掉并通过 onError 上报调试信息，不阻断播放主流程。
+function createBackgroundResumeStore(options) {
+    return {
+        read() {
+            try {
+                return normalizeBackgroundAudioResumeState(options.storage.get(exports.BACKGROUND_AUDIO_RESUME_KEY));
+            }
+            catch (error) {
+                options.onError?.('read', error);
+                return null;
+            }
+        },
+        save(state) {
+            try {
+                options.storage.set(exports.BACKGROUND_AUDIO_RESUME_KEY, state);
+                return true;
+            }
+            catch (error) {
+                options.onError?.('save', error);
+                return false;
+            }
+        },
+        clear() {
+            try {
+                options.storage.remove(exports.BACKGROUND_AUDIO_RESUME_KEY);
+                return true;
+            }
+            catch (error) {
+                options.onError?.('clear', error);
+                return false;
+            }
+        },
     };
 }

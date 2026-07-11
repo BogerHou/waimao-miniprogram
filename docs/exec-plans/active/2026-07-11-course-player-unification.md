@@ -52,7 +52,7 @@
 - [ ] 里程碑 1：引擎抽离 + 测试。
   - [x] 切片 A：范围钳制与进度 cue 纯逻辑抽到 `pages/course/player-core.ts` + 单元测试（2026-07-11）。
   - [x] 切片 B：音频加载超时控制器（可注入定时器）与播放事件纯决策（错误提示映射、重复停止窗口、Echo 切片地址）抽到 `player-core.ts` + 单元测试（2026-07-11）。
-  - [ ] 切片 C：BackgroundAudioManager 与后台接力抽离，Page 只剩 UI 编排。
+  - [x] 切片 C：后台音频恢复状态存取抽为 `createBackgroundResumeStore`（storage 可注入）+ 单元测试；BackgroundAudioManager 事件接线经评估保留在页面（见决策记录）（2026-07-11）。
 - [ ] 里程碑 2：行为参数化 + 阶段预设 UI + 留白跟读 + 三阶段引导。
 - [ ] 里程碑 3：录音对比（即弃）+ 难句标记 + 完成面板。
 - [ ] 更新 docs/FRONTEND.md 页面边界与设计约束、记 history。
@@ -62,3 +62,4 @@
 - 2026-07-11：确立"一个引擎 + 行为参数 + 阶段预设"的方向，替代 shadow/echo 顶层双模式；分三步重构以控制播放状态机回归风险。
 - 2026-07-11：与用户确认四个开放问题——跟读阶段不默认隐藏中文；留白跟读进第一期；录音听完即弃不保存；需要首次三阶段引导并合并 practice-hint。设计冻结。
 - 2026-07-11：切片 B 顺带移除 `pendingAudioLoadSource` 死状态（只写从不读）；加载超时控制器改为可注入定时器，使"CDN 超时→存在下一源→回退"决策路径可在 Node 测试覆盖。切片 A+B 均为行为保持型改动，建议在切片 C 前后各做一次真机回归（echo/shadow、后台接力、弱网音源回退）。
+- 2026-07-11：切片 C 收窄范围——只抽离恢复状态存储 I/O（`createBackgroundResumeStore`，storage 可注入）；BackgroundAudioManager 的事件接线深度耦合页面 setData 与跨方法状态，在无法真机验证的前提下整体搬移风险大于收益，保留在页面，"Page 只剩 UI 编排"目标顺延到里程碑 2 之后按需推进。

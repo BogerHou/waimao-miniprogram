@@ -203,3 +203,60 @@ testResolveObservedShadowCourseTimeKeepsPendingTargetWhenIosReportsZero();
 testShouldApplyShadowSeekCorrectionWhenObservedTimeStillNearZero();
 testShouldNotApplyShadowSeekCorrectionWhenAlreadyNearTarget();
 console.log("shadow background handoff tests passed.");
+// ==================== createBackgroundResumeStore ====================
+{
+    const backing = new Map();
+    const errors = [];
+    const store = (0, shadow_background_handoff_1.createBackgroundResumeStore)({
+        storage: {
+            get: (key) => backing.get(key),
+            set: (key, value) => backing.set(key, value),
+            remove: (key) => backing.delete(key),
+        },
+        onError: stage => errors.push(stage),
+    });
+    // 空存储读出 null
+    strict_1.default.equal(store.read(), null);
+    // save → read 走 normalize 校验后原样返回
+    const state = {
+        courseId: "scene-01",
+        courseTime: 12.5,
+        subtitleId: "s2",
+        audioSrc: "https://cdn/audio.mp3",
+        wasPlaying: true,
+        savedAt: Date.now(),
+    };
+    strict_1.default.equal(store.save(state), true);
+    const restored = store.read();
+    strict_1.default.ok(restored);
+    strict_1.default.equal(restored.courseId, "scene-01");
+    strict_1.default.equal(restored.subtitleId, "s2");
+    // clear 之后读不到
+    strict_1.default.equal(store.clear(), true);
+    strict_1.default.equal(store.read(), null);
+    strict_1.default.deepEqual(errors, []);
+}
+// storage 抛错时吞掉异常并上报 stage
+{
+    const errors = [];
+    const store = (0, shadow_background_handoff_1.createBackgroundResumeStore)({
+        storage: {
+            get: () => { throw new Error("boom"); },
+            set: () => { throw new Error("boom"); },
+            remove: () => { throw new Error("boom"); },
+        },
+        onError: stage => errors.push(stage),
+    });
+    strict_1.default.equal(store.read(), null);
+    strict_1.default.equal(store.save({
+        courseId: "scene-01",
+        courseTime: 0,
+        subtitleId: null,
+        audioSrc: "",
+        wasPlaying: false,
+        savedAt: Date.now(),
+    }), false);
+    strict_1.default.equal(store.clear(), false);
+    strict_1.default.deepEqual(errors, ["read", "save", "clear"]);
+}
+console.log("background resume store tests passed.");

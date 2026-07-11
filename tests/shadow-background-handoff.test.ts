@@ -4,6 +4,7 @@ import {
   BACKGROUND_AUDIO_RESUME_TTL_MS,
   buildBackgroundPlaybackMeta,
   buildCourseNavigationUrl,
+  createBackgroundResumeStore,
   normalizeBackgroundAudioResumeState,
   resolveEchoToShadowSwitchState,
   findSubtitleByCourseTime,
@@ -267,3 +268,67 @@ testResolveObservedShadowCourseTimeKeepsPendingTargetWhenIosReportsZero()
 testShouldApplyShadowSeekCorrectionWhenObservedTimeStillNearZero()
 testShouldNotApplyShadowSeekCorrectionWhenAlreadyNearTarget()
 console.log("shadow background handoff tests passed.")
+
+// ==================== createBackgroundResumeStore ====================
+
+{
+  const backing = new Map<string, unknown>()
+  const errors: string[] = []
+  const store = createBackgroundResumeStore({
+    storage: {
+      get: (key: string) => backing.get(key),
+      set: (key: string, value: unknown) => backing.set(key, value),
+      remove: (key: string) => backing.delete(key),
+    },
+    onError: stage => errors.push(stage),
+  })
+
+  // 空存储读出 null
+  assert.equal(store.read(), null)
+
+  // save → read 走 normalize 校验后原样返回
+  const state = {
+    courseId: "scene-01",
+    courseTime: 12.5,
+    subtitleId: "s2",
+    audioSrc: "https://cdn/audio.mp3",
+    wasPlaying: true,
+    savedAt: Date.now(),
+  }
+  assert.equal(store.save(state), true)
+  const restored = store.read()
+  assert.ok(restored)
+  assert.equal(restored!.courseId, "scene-01")
+  assert.equal(restored!.subtitleId, "s2")
+
+  // clear 之后读不到
+  assert.equal(store.clear(), true)
+  assert.equal(store.read(), null)
+  assert.deepEqual(errors, [])
+}
+
+// storage 抛错时吞掉异常并上报 stage
+{
+  const errors: string[] = []
+  const store = createBackgroundResumeStore({
+    storage: {
+      get: () => { throw new Error("boom") },
+      set: () => { throw new Error("boom") },
+      remove: () => { throw new Error("boom") },
+    },
+    onError: stage => errors.push(stage),
+  })
+  assert.equal(store.read(), null)
+  assert.equal(store.save({
+    courseId: "scene-01",
+    courseTime: 0,
+    subtitleId: null,
+    audioSrc: "",
+    wasPlaying: false,
+    savedAt: Date.now(),
+  }), false)
+  assert.equal(store.clear(), false)
+  assert.deepEqual(errors, ["read", "save", "clear"])
+}
+
+console.log("background resume store tests passed.")
