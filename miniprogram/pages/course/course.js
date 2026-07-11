@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 const api_1 = require("../../utils/api");
 const env_1 = require("../../config/env");
@@ -6,6 +39,7 @@ const storage_1 = require("../../utils/storage");
 const index_1 = require("../../store/index");
 const share_1 = require("../../utils/share");
 const share_poster_1 = require("../../utils/share-poster");
+const playerCore = __importStar(require("./player-core"));
 const shadow_background_handoff_1 = require("./shadow-background-handoff");
 const audio_source_fallback_1 = require("./audio-source-fallback");
 const course_share_card_1 = require("./course-share-card");
@@ -254,19 +288,10 @@ Page({
         return this.suppressMainAudioContextEvents || this.data.playMode === 'shadow';
     },
     clampCourseTimeToScene(courseTime, options = {}) {
-        const safeTime = Math.max(0, Number(courseTime) || 0);
-        const range = this.courseRange;
-        if (!range) {
-            return safeTime;
-        }
-        if (options.restartWhenPastEnd && safeTime >= range.end - 0.1) {
-            return range.start;
-        }
-        return Math.min(Math.max(safeTime, range.start), range.end);
+        return playerCore.clampCourseTimeToScene(courseTime, this.courseRange, options);
     },
     hasReachedSceneEnd(courseTime) {
-        const range = this.courseRange;
-        return Boolean(range && courseTime >= range.end - 0.08);
+        return playerCore.hasReachedSceneEnd(courseTime, this.courseRange);
     },
     finishScenePlayback(showToast = false) {
         this.pauseShadowPlayback();
@@ -287,30 +312,16 @@ Page({
         }
     },
     getProgressCueIndex() {
-        const subtitles = this.data.subtitles;
-        const totalCues = subtitles.length;
-        if (totalCues <= 0) {
-            return 0;
-        }
-        const preferredSubtitleId = this.lastEchoCompletion?.subtitleId ||
-            this.activeSubtitle?.id ||
-            this.data.currentSubtitleId;
-        const subtitleIndex = preferredSubtitleId
-            ? subtitles.findIndex(subtitle => subtitle.id === preferredSubtitleId)
-            : -1;
-        if (subtitleIndex >= 0) {
-            return subtitleIndex;
-        }
-        return Math.min(Math.max(this.currentSubtitleIndex, 0), totalCues - 1);
+        return playerCore.resolveProgressCueIndex({
+            subtitles: this.data.subtitles,
+            preferredSubtitleId: this.lastEchoCompletion?.subtitleId ||
+                this.activeSubtitle?.id ||
+                this.data.currentSubtitleId,
+            fallbackIndex: this.currentSubtitleIndex,
+        });
     },
     buildCompletionProgressPayload() {
-        const totalCues = this.data.subtitles.length;
-        return {
-            totalCues,
-            cueIndex: totalCues > 0
-                ? Math.max(this.getProgressCueIndex(), totalCues - 1)
-                : 0,
-        };
+        return playerCore.buildCompletionCuePayload(this.data.subtitles.length, this.getProgressCueIndex());
     },
     scheduleCourseShareImage: (0, storage_1.debounce)(function () {
         void this.generateCourseShareImage();

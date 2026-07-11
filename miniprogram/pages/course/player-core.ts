@@ -1,0 +1,63 @@
+// 课程播放引擎的纯逻辑核心。
+// 里程碑 1 切片 A（见 docs/exec-plans/active/2026-07-11-course-player-unification.md）：
+// 先收拢与页面无关的范围钳制、进度 cue 计算，后续切片继续把音频上下文管理迁入。
+
+export type SceneRange = {
+  start: number
+  end: number
+}
+
+// 距小节末尾不足该值时视为"已越过末尾"，restartWhenPastEnd 会回到小节开头。
+export const SCENE_RESTART_EPSILON = 0.1
+// 播放时间进入该容差窗口即判定小节播放完成；比 restart 容差更紧，避免完成判定抢先触发重启。
+export const SCENE_END_EPSILON = 0.08
+
+export function clampCourseTimeToScene(
+  courseTime: number,
+  range: SceneRange | null,
+  options: { restartWhenPastEnd?: boolean } = {},
+): number {
+  const safeTime = Math.max(0, Number(courseTime) || 0)
+  if (!range) {
+    return safeTime
+  }
+  if (options.restartWhenPastEnd && safeTime >= range.end - SCENE_RESTART_EPSILON) {
+    return range.start
+  }
+  return Math.min(Math.max(safeTime, range.start), range.end)
+}
+
+export function hasReachedSceneEnd(courseTime: number, range: SceneRange | null): boolean {
+  return Boolean(range && courseTime >= range.end - SCENE_END_EPSILON)
+}
+
+export function resolveProgressCueIndex(options: {
+  subtitles: Array<{ id: string }>
+  preferredSubtitleId?: string | null
+  fallbackIndex: number
+}): number {
+  const totalCues = options.subtitles.length
+  if (totalCues <= 0) {
+    return 0
+  }
+
+  const preferred = options.preferredSubtitleId
+  const subtitleIndex = preferred
+    ? options.subtitles.findIndex(subtitle => subtitle.id === preferred)
+    : -1
+  if (subtitleIndex >= 0) {
+    return subtitleIndex
+  }
+
+  return Math.min(Math.max(options.fallbackIndex, 0), totalCues - 1)
+}
+
+export function buildCompletionCuePayload(totalCues: number, progressCueIndex: number): {
+  totalCues: number
+  cueIndex: number
+} {
+  return {
+    totalCues,
+    cueIndex: totalCues > 0 ? Math.max(progressCueIndex, totalCues - 1) : 0,
+  }
+}

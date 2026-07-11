@@ -13,6 +13,7 @@ require("./knowledge-dialogue-format.test");
 require("./knowledge-format.test");
 require("./page-json-schema.test");
 require("./pdf-image-scan.test");
+require("./player-core.test");
 require("./progress-payload.test");
 require("./shadow-background-handoff.test");
 require("./share-card.test");

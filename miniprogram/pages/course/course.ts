@@ -24,6 +24,7 @@ import {
   enablePageShareMenu,
 } from '../../utils/share'
 import { drawShareBrandFooter, SHARE_POSTER_PALETTE } from '../../utils/share-poster'
+import * as playerCore from './player-core'
 import {
   BACKGROUND_AUDIO_RESUME_KEY,
   BackgroundAudioResumeState,
@@ -426,20 +427,11 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
   },
 
   clampCourseTimeToScene(courseTime: number, options: { restartWhenPastEnd?: boolean } = {}) {
-    const safeTime = Math.max(0, Number(courseTime) || 0)
-    const range = this.courseRange
-    if (!range) {
-      return safeTime
-    }
-    if (options.restartWhenPastEnd && safeTime >= range.end - 0.1) {
-      return range.start
-    }
-    return Math.min(Math.max(safeTime, range.start), range.end)
+    return playerCore.clampCourseTimeToScene(courseTime, this.courseRange, options)
   },
 
   hasReachedSceneEnd(courseTime: number) {
-    const range = this.courseRange
-    return Boolean(range && courseTime >= range.end - 0.08)
+    return playerCore.hasReachedSceneEnd(courseTime, this.courseRange)
   },
 
   finishScenePlayback(showToast = false) {
@@ -462,34 +454,21 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
   },
 
   getProgressCueIndex() {
-    const subtitles = this.data.subtitles
-    const totalCues = subtitles.length
-    if (totalCues <= 0) {
-      return 0
-    }
-
-    const preferredSubtitleId =
-      this.lastEchoCompletion?.subtitleId ||
-      this.activeSubtitle?.id ||
-      this.data.currentSubtitleId
-    const subtitleIndex = preferredSubtitleId
-      ? subtitles.findIndex(subtitle => subtitle.id === preferredSubtitleId)
-      : -1
-    if (subtitleIndex >= 0) {
-      return subtitleIndex
-    }
-
-    return Math.min(Math.max(this.currentSubtitleIndex, 0), totalCues - 1)
+    return playerCore.resolveProgressCueIndex({
+      subtitles: this.data.subtitles,
+      preferredSubtitleId:
+        this.lastEchoCompletion?.subtitleId ||
+        this.activeSubtitle?.id ||
+        this.data.currentSubtitleId,
+      fallbackIndex: this.currentSubtitleIndex,
+    })
   },
 
   buildCompletionProgressPayload() {
-    const totalCues = this.data.subtitles.length
-    return {
-      totalCues,
-      cueIndex: totalCues > 0
-        ? Math.max(this.getProgressCueIndex(), totalCues - 1)
-        : 0,
-    }
+    return playerCore.buildCompletionCuePayload(
+      this.data.subtitles.length,
+      this.getProgressCueIndex(),
+    )
   },
 
   scheduleCourseShareImage: debounce(function (this: any) {
