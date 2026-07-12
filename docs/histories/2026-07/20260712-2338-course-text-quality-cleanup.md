@@ -11,6 +11,7 @@
 - 保留 `30cm`、`50pcs` 等数字后单位的长按查词能力。
 - 源站数据校验器与后端课程生成器增加已知文本脏模式门禁；词典生成从 99% 阈值收紧为真实课程词零缺失。
 - 新增小程序字幕分词测试与后端实体分词/文本质量测试。
+- 修复字幕分句器对邮箱和 URL 内部点号的误判，避免 `BrendaMiller1212@xxx.com` 被拆成 `@xxx.` 与 `com.`；新增同类回归测试并重新生成课程和词典。
 
 ## 设计动机
 
@@ -20,12 +21,15 @@
 
 - 源站：7 课、923 cue 数据校验与生产构建通过。
 - 后端：重新生成 7 章 50 场景；2,169 个唯一课程词和 15,885 次出现全部覆盖，`missingWords` 为空；构建与全量测试通过。
+- 后端补充修复：场景 1-05 的完整邮箱已保留在单条字幕中，独立 `com.` 字幕消失；词典去除 `xxx`、`com` 两个分句噪声后为 2,167/2,167 个唯一词、15,883/15,883 次出现，`missingWords` 仍为空。
 - 小程序：类型检查、全量测试与 72 个 TypeScript/JavaScript 产物一致性检查通过。
 - 生产：代码、词典和 50 场景数据已部署；免费场景正文、结构化实体 404 边界、零缺失覆盖及完整 `release:check` 通过。
+- 生产补充修复：备份数据库、课程数据与词典后部署；线上场景 1-05 返回完整邮箱且不再包含独立 `com.`，`xxx/com` 返回 404，正常课程词与英美音标仍可用，完整 `release:check` 通过。
 
 ## 关键文件
 
 - 权威课程源 `course-private/data/lessons.json`
 - 源站 `tools/validate_lesson_data.py`
 - 后端课程/词典生成脚本与 `waimaoMiniDictionaryTokens.ts`、`waimaoMiniTextQuality.ts`
+- 后端字幕分句器 `waimaoMiniSentenceTiming.ts` 及回归测试
 - `miniprogram/pages/course/subtitle-tokenizer.ts`
