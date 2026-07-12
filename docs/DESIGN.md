@@ -46,6 +46,7 @@
 
 - 圆角：卡片 `20rpx`（课程字幕卡 `18rpx`）、hero 大卡 `24rpx`、按钮和输入框 `16rpx`、底部弹层 `28rpx 28rpx 0 0`。
 - 阴影：一律 `fade(@shadow-ink, N%)` / `fade(@shadow-neutral, N%)` / `@shadow-soft` / `@shadow-primary`，柔和低透明度；不硬编码阴影色。
+- 解锁页会员通行证使用 `@hero-gradient` 和低透明度同心圆营造票证层次；正文流程回到 `@surface`，金色只用于小标签和步骤强调，避免整页同时出现多块高饱和视觉焦点。
 
 ## 例外（不跟随主题）
 
