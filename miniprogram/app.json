@@ -53,11 +53,6 @@
   "requiredBackgroundModes": [
     "audio"
   ],
-  "permission": {
-    "scope.record": {
-      "desc": "用于录制你的跟读并与原声对比，帮助改进发音；录音仅在本地播放对比，不会保存或上传"
-    }
-  },
   "componentFramework": "glass-easel",
   "sitemapLocation": "sitemap.json",
   "lazyCodeLoading": "requiredComponents"

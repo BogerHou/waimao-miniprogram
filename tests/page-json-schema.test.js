@@ -22,5 +22,16 @@ function testPageJsonDoesNotUseUnsupportedShareKeys() {
         }
     }
 }
+function testGlobalConfigurationDoesNotUseUnsupportedRecordPermission() {
+    const appConfig = JSON.parse((0, node_fs_1.readFileSync)(node_path_1.default.join(process.cwd(), "miniprogram", "app.json"), "utf8"));
+    strict_1.default.equal(appConfig.permission?.["scope.record"], undefined, "app.json permission only supports documented permission keys; recording is authorized at runtime");
+}
+function testProjectConfigurationKeepsImportedModulesInBuilds() {
+    const projectConfig = JSON.parse((0, node_fs_1.readFileSync)(node_path_1.default.join(process.cwd(), "project.config.json"), "utf8"));
+    strict_1.default.equal(projectConfig.setting?.ignoreDevUnusedFiles, false);
+    strict_1.default.equal(projectConfig.setting?.ignoreUploadUnusedFiles, false);
+}
 testPageJsonDoesNotUseUnsupportedShareKeys();
+testGlobalConfigurationDoesNotUseUnsupportedRecordPermission();
+testProjectConfigurationKeepsImportedModulesInBuilds();
 console.log("page json schema tests passed.");

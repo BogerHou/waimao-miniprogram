@@ -21,5 +21,26 @@ function testPageJsonDoesNotUseUnsupportedShareKeys() {
   }
 }
 
+function testGlobalConfigurationDoesNotUseUnsupportedRecordPermission() {
+  const appConfig = JSON.parse(
+    readFileSync(path.join(process.cwd(), "miniprogram", "app.json"), "utf8"),
+  ) as { permission?: Record<string, unknown> }
+  assert.equal(
+    appConfig.permission?.["scope.record"],
+    undefined,
+    "app.json permission only supports documented permission keys; recording is authorized at runtime",
+  )
+}
+
+function testProjectConfigurationKeepsImportedModulesInBuilds() {
+  const projectConfig = JSON.parse(
+    readFileSync(path.join(process.cwd(), "project.config.json"), "utf8"),
+  ) as { setting?: Record<string, unknown> }
+  assert.equal(projectConfig.setting?.ignoreDevUnusedFiles, false)
+  assert.equal(projectConfig.setting?.ignoreUploadUnusedFiles, false)
+}
+
 testPageJsonDoesNotUseUnsupportedShareKeys()
+testGlobalConfigurationDoesNotUseUnsupportedRecordPermission()
+testProjectConfigurationKeepsImportedModulesInBuilds()
 console.log("page json schema tests passed.")
