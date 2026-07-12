@@ -11,7 +11,8 @@ function listPageJsonFiles() {
     const pagesDir = node_path_1.default.join(process.cwd(), "miniprogram", "pages");
     return (0, node_fs_1.readdirSync)(pagesDir, { withFileTypes: true })
         .filter(entry => entry.isDirectory())
-        .map(entry => node_path_1.default.join(pagesDir, entry.name, `${entry.name}.json`));
+        .map(entry => node_path_1.default.join(pagesDir, entry.name, `${entry.name}.json`))
+        .filter(filePath => (0, node_fs_1.existsSync)(filePath));
 }
 function testPageJsonDoesNotUseUnsupportedShareKeys() {
     for (const filePath of listPageJsonFiles()) {

@@ -25,44 +25,21 @@ export type SharePosterPalette = {
   accent: string
 }
 
-// 与 miniprogram/styles/theme.less 的主题切换保持一致：
-// warm = 温暖学习风（橘），business = 商务专业风（藏青）。
-export const SHARE_POSTER_PALETTES: Record<'warm' | 'business', SharePosterPalette> = {
-  warm: {
-    bgStart: '#FFFBF4',
-    bgEnd: '#FDEFDD',
-    circleLarge: '#FDE3C3',
-    circleSmall: '#FAD1A0',
-    badgeBg: '#FFEDD5',
-    badgeText: '#EA580C',
-    tagBg: '#F4EEE3',
-    tagText: '#57534E',
-    title: '#292524',
-    snippetBg: '#FAF6EF',
-    snippetText: '#44403C',
-    brandMuted: '#A8A29E',
-    accent: '#EA580C',
-  },
-  business: {
-    bgStart: '#F8FAFF',
-    bgEnd: '#E9EFFA',
-    circleLarge: '#DCE5F7',
-    circleSmall: '#C6D4F0',
-    badgeBg: '#E8EDFB',
-    badgeText: '#1E40AF',
-    tagBg: '#EEF1F7',
-    tagText: '#475569',
-    title: '#0F172A',
-    snippetBg: '#F5F7FB',
-    snippetText: '#1E293B',
-    brandMuted: '#94A3B8',
-    accent: '#1E40AF',
-  },
+export const SHARE_POSTER_PALETTE: SharePosterPalette = {
+  bgStart: '#F8FAFF',
+  bgEnd: '#E9EFFA',
+  circleLarge: '#DCE5F7',
+  circleSmall: '#C6D4F0',
+  badgeBg: '#E8EDFB',
+  badgeText: '#1E40AF',
+  tagBg: '#EEF1F7',
+  tagText: '#475569',
+  title: '#0F172A',
+  snippetBg: '#F5F7FB',
+  snippetText: '#1E293B',
+  brandMuted: '#94A3B8',
+  accent: '#1E40AF',
 }
-
-export const ACTIVE_SHARE_POSTER_THEME: 'warm' | 'business' = 'business'
-
-export const SHARE_POSTER_PALETTE = SHARE_POSTER_PALETTES[ACTIVE_SHARE_POSTER_THEME]
 
 export function drawShareRoundedRect(
   ctx: WechatMiniprogram.CanvasContext,

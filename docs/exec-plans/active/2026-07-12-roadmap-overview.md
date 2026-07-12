@@ -4,7 +4,7 @@
 
 ## 已定稿决策
 
-- 视觉主题定稿 **business（商务专业风）**：release-compliance 计划负责删除 `styles/palettes/warm.less`、切换入口简化、`share-poster.ts` 的 `ACTIVE_SHARE_POSTER_THEME` 固定 business、收尾 wxml 硬编码色、更新 DESIGN.md/FRONTEND.md 为单主题。
+- 视觉主题定稿 **business（商务专业风）**：令牌和分享海报均只保留 business 调色板，wxml 内联颜色与 DESIGN.md/FRONTEND.md 已同步为单主题。
 - 编码执行方式：具体实现可调用本地 `codex exec`（模型走其默认），Claude 负责拆解、接线校对、`npm run typecheck && npm test` 与真机验证把关。
 
 ## 执行顺序（按上线优先级）
@@ -32,7 +32,7 @@
 3. 学习记录页（连续天数/时长/打卡日历，后端按日聚合）。
 
 ### 阶段 E：工程收尾（engineering-hardening 里程碑 3-5）
-1. 词典查询收拢到后端代理，移除有道合法域名依赖。
+1. 课程词义收拢到自托管词典；按用户要求保留英美发音域名。
 2. 死代码清理（profile-edit / logs / pdf-viewer 定位确认）。
 3. release-check 增加 tsc 产物一致性校验（`.ts`/`.js` 双份同步）。
 
@@ -51,4 +51,4 @@
 - [x] 阶段 B：observability + 网络健壮性代码完成（2026-07-12）；待体验版弱网/音源回退 smoke 与部署后日志采集确认。
 - [ ] 阶段 C：转化漏斗（2026-07-12 用户决定暂缓，不阻塞阶段 D）。
 - [x] 阶段 D：留存闭环及“课程 / 复习 / 我的”三 Tab 信息架构完成（2026-07-12）；学习记录接口已部署并在开发者工具登录态恢复 4 周日历，待体验版完成 Tab、搜索、查词回源和难句复习 smoke。
-- [ ] 阶段 E：工程收尾。
+- [x] 阶段 E：课程词典、死代码与海报清理、产物一致性门禁完成（2026-07-12）；待用户在体验版验证查词和英美发音。

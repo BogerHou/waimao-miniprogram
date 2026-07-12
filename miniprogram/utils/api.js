@@ -7,8 +7,6 @@ exports.fetchCourseList = fetchCourseList;
 exports.fetchCourseDetail = fetchCourseDetail;
 exports.fetchAppConfig = fetchAppConfig;
 exports.fetchWordLookup = fetchWordLookup;
-exports.fetchWordBasics = fetchWordBasics;
-exports.fetchWordDefinitionViaBackend = fetchWordDefinitionViaBackend;
 exports.loginWithCode = loginWithCode;
 exports.logout = logout;
 exports.fetchCurrentUser = fetchCurrentUser;
@@ -24,16 +22,15 @@ exports.redeemInviteCode = redeemInviteCode;
 const env_1 = require("../config/env");
 const request_1 = require("./request");
 const storage_1 = require("./storage");
+const word_lookup_1 = require("./word-lookup");
 // ==================== 缓存实例 ====================
 // 课程列表缓存 (10分钟过期)
 const WAIMAO_MINI_API_PREFIX = '/api/waimao-mini';
 const courseListCache = new storage_1.LocalCache('waimao_mini_course_list', 10 * 60 * 1000);
 // 课程详情缓存 (30分钟过期)
 const courseDetailCache = new storage_1.DictCache('waimao_mini_course_detail', 30 * 60 * 1000);
-// 词典查询缓存 (7天)
-const wordLookupCache = new storage_1.DictCache('waimao_mini_word_lookup', 7 * 24 * 60 * 60 * 1000);
-const YOUDAO_JSONAPI_URL = 'https://dict.youdao.com/jsonapi';
-const YOUDAO_AUDIO_BASE = 'https://dict.youdao.com/dictvoice?audio=';
+// 课程词典版本稳定，客户端缓存 30 天；服务端词典更新后可通过 forceRefresh 主动刷新。
+const wordLookupCache = new storage_1.DictCache('waimao_mini_word_lookup', 30 * 24 * 60 * 60 * 1000);
 // 清除所有缓存的函数
 function clearAllCache() {
     courseListCache.clear();
@@ -153,203 +150,24 @@ function fetchAppConfig() {
     });
 }
 async function fetchWordLookup(word, forceRefresh = false) {
-    const key = word.trim().toLowerCase();
+    const key = (0, word_lookup_1.normalizeLookupWord)(word);
     if (!key) {
         return Promise.reject(new Error('Invalid word'));
     }
     if (!forceRefresh) {
         const cached = wordLookupCache.get(key);
-        if (cached && cached.source === 'backend-ai' && (cached.phoneticUk || cached.phoneticUs)) {
-            return Promise.resolve(cached);
-        }
+        if (cached)
+            return cached;
     }
-    let youdaoPayload = null;
-    try {
-        youdaoPayload = await fetchYoudaoRaw(key);
-    }
-    catch (error) {
-        console.warn('[WordLookup] youdao request failed', error);
-    }
-    const basic = parseYoudaoBasic(youdaoPayload, key);
-    let aiDefinition = null;
-    try {
-        aiDefinition = await fetchWordDefinitionViaBackend(key);
-    }
-    catch (error) {
-        console.warn('[WordLookup] backend definition failed', error);
-    }
-    if (aiDefinition) {
-        const result = {
-            word: basic.word || key,
-            normalized: key,
-            translation: aiDefinition,
-            phoneticUk: basic.phoneticUk,
-            phoneticUs: basic.phoneticUs,
-            audioUk: basic.audioUk,
-            audioUs: basic.audioUs,
-            source: 'backend-ai',
-        };
-        wordLookupCache.set(key, result);
-        return result;
-    }
-    const cached = wordLookupCache.get(key);
-    if (cached) {
-        return cached;
-    }
-    if (!basic.translation) {
-        return Promise.reject(new Error('No definition'));
-    }
-    const fallback = {
-        word: basic.word || key,
-        normalized: key,
-        translation: basic.translation,
-        phoneticUk: basic.phoneticUk,
-        phoneticUs: basic.phoneticUs,
-        audioUk: basic.audioUk,
-        audioUs: basic.audioUs,
-        source: 'youdao-jsonapi',
-    };
-    wordLookupCache.set(key, fallback);
-    return fallback;
-}
-async function fetchWordBasics(word) {
-    const key = word.trim().toLowerCase();
-    if (!key) {
-        throw new Error('Invalid word');
-    }
-    const payload = await fetchYoudaoRaw(key);
-    return parseYoudaoBasic(payload, key);
-}
-function fetchYoudaoRaw(word) {
-    return new Promise((resolve, reject) => {
-        wx.request({
-            url: YOUDAO_JSONAPI_URL,
-            method: 'GET',
-            data: { q: word },
-            success(res) {
-                if (res.statusCode < 200 || res.statusCode >= 300) {
-                    reject(new Error(`Request failed with status ${res.statusCode}`));
-                    return;
-                }
-                resolve(res.data);
-            },
-            fail(err) {
-                reject(err);
-            },
-        });
+    const response = await (0, request_1.request)({
+        url: `${WAIMAO_MINI_API_PREFIX}/dictionary/${encodeURIComponent(key)}`,
+        method: 'GET',
     });
-}
-async function fetchWordDefinitionViaBackend(word) {
-    const result = await (0, request_1.request)({
-        url: '/api/words/definition',
-        method: 'POST',
-        data: { word },
-    });
-    if (!result.definition) {
-        throw new Error('Definition empty');
-    }
-    return result.definition;
-}
-function parseYoudaoBasic(data, input) {
-    if (!data || typeof data !== 'object') {
-        return {
-            word: input,
-            translation: null,
-            phoneticUk: null,
-            phoneticUs: null,
-            audioUk: `${YOUDAO_AUDIO_BASE}${encodeURIComponent(input)}&type=1`,
-            audioUs: `${YOUDAO_AUDIO_BASE}${encodeURIComponent(input)}&type=2`,
-        };
-    }
-    const payload = data;
-    const simple = payload?.simple?.word?.[0];
-    const word = simple?.['return-phrase'] ?? input;
-    const usphone = simple?.usphone ?? '';
-    const ukphone = simple?.ukphone ?? '';
-    const translationList = collectYoudaoTranslations(payload);
-    let translation = translationList.length ? translationList.join('；') : null;
-    translation = translation ? stripHtml(translation).trim() : null;
-    if (translation) {
-        translation = translation.replace(/；/g, '\n');
-    }
-    return {
-        word,
-        translation,
-        phoneticUk: ukphone || null,
-        phoneticUs: usphone || null,
-        audioUk: `${YOUDAO_AUDIO_BASE}${encodeURIComponent(word)}&type=1`,
-        audioUs: `${YOUDAO_AUDIO_BASE}${encodeURIComponent(word)}&type=2`,
-    };
-}
-function stripHtml(value) {
-    return value.replace(/<[^>]+>/g, '');
-}
-function collectYoudaoTranslations(payload) {
-    const results = [];
-    const maxItems = 6;
-    const add = (text) => {
-        if (!text)
-            return;
-        const cleaned = stripHtml(String(text)).trim();
-        if (!cleaned)
-            return;
-        if (!results.includes(cleaned)) {
-            results.push(cleaned);
-        }
-    };
-    const senses = payload?.video_sents?.word_info?.sense;
-    if (Array.isArray(senses)) {
-        senses.forEach((sense) => add(sense));
-    }
-    const expand = payload?.expand_ec?.word?.[0]?.transList;
-    if (Array.isArray(expand)) {
-        expand.forEach((item) => add(item?.trans));
-    }
-    const ecTrs = payload?.ec?.word?.[0]?.trs;
-    if (Array.isArray(ecTrs)) {
-        ecTrs.forEach((item) => {
-            const tr = item?.tr?.[0]?.l?.i;
-            if (Array.isArray(tr)) {
-                tr.forEach((t) => add(t));
-            }
-            else if (typeof tr === 'string') {
-                add(tr);
-            }
-        });
-    }
-    const simpleTrs = payload?.simple?.word?.[0]?.trs;
-    if (Array.isArray(simpleTrs)) {
-        simpleTrs.forEach((item) => {
-            if (typeof item === 'string') {
-                add(item);
-            }
-            else {
-                add(item?.tr);
-            }
-        });
-    }
-    const simpleTrans = payload?.simple?.word?.[0]?.trans;
-    if (typeof simpleTrans === 'string') {
-        add(simpleTrans);
-    }
-    if (results.length < maxItems) {
-        const webTrans = payload?.web_trans?.['web-translation'];
-        if (Array.isArray(webTrans)) {
-            webTrans.forEach((entry) => {
-                if (results.length >= maxItems)
-                    return;
-                const trans = entry?.trans;
-                if (Array.isArray(trans)) {
-                    trans.forEach((t) => {
-                        if (results.length >= maxItems)
-                            return;
-                        add(t?.value);
-                    });
-                }
-            });
-        }
-    }
-    return results.slice(0, maxItems);
+    const result = (0, word_lookup_1.normalizeWordLookupResponse)(response, key);
+    if (!result.translation)
+        throw new Error('No definition');
+    wordLookupCache.set(key, result);
+    return result;
 }
 function loginWithCode(code, payload) {
     return (0, request_1.request)({

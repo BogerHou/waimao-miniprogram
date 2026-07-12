@@ -27,7 +27,7 @@ npm test
 
 ## 微信后台
 
-- [x] `request 合法域名`：`https://englishecho.site`、`https://dict.youdao.com`
+- [x] `request 合法域名`：`https://englishecho.site`
 - [x] `downloadFile 合法域名`：`https://englishecho.site`、`https://dict.youdao.com`
 - [ ] `downloadFile 合法域名`新增：`https://waimao-audio.englishecho.site`
 - 确认小程序类目与英语学习内容相符，并按主体资质选择可提交审核的教育类目。
@@ -48,6 +48,7 @@ npm test
 - 断网重进首页时先展示上次课程树，不出现长时间空白；登录用户的已解锁状态和学习进度不被匿名缓存覆盖。
 - 知识点页内容完整，滚动到底后返回键和标题仍固定。
 - 查词释义和英美发音可用。
+- 匿名查词请求命中 `/api/waimao-mini/dictionary/:word`，不再出现 `dict.youdao.com/jsonapi` 或逐词 AI 释义请求；英美发音仍允许访问 `dict.youdao.com/dictvoice`。
 - 交流与反馈页展示交流群二维码，且与购买二维码不是同一张图。
 
 ## 审核说明

@@ -49,12 +49,10 @@ const shadow_background_handoff_1 = require("./shadow-background-handoff");
 const audio_source_fallback_1 = require("./audio-source-fallback");
 const course_share_card_1 = require("./course-share-card");
 const course_mode_config_1 = require("./course-mode-config");
+const course_completion_poster_1 = require("./course-completion-poster");
 const dialogue_format_1 = require("../../utils/dialogue-format");
 const BACKGROUND_AUDIO_COVER_URL = `${env_1.API_BASE_URL}/static/waimao-mini/icon.png`;
 const COURSE_SHARE_CANVAS_ID = 'course-share-canvas';
-const COURSE_SHARE_CANVAS_WIDTH = 600;
-// 完成成就海报底图（imagegen 生成的庆祝插画，5:4；缺失时走渐变兜底绘制）
-const COMPLETION_SHARE_BG_PATH = '/assets/images/completion-share-bg.jpg';
 // 主题主色（business 藏青），供 wxml 内联属性使用（slider activeColor 等吃不到 less 变量）
 const THEME_ACCENT_COLOR = '#1e40af';
 const COURSE_DEBUG_STORAGE_KEY = 'waimao_mini_debug_logs';
@@ -1872,101 +1870,40 @@ Page({
             normalized: lookupKey,
             cueId: dataset.cueId ?? '',
         });
-        let fallbackTranslation = null;
-        (0, api_1.fetchWordBasics)(lookupKey)
-            .then(basics => {
-            if (this.pendingWordLookup !== lookupKey) {
-                return;
-            }
-            fallbackTranslation = basics.translation || null;
-            this.setData({
-                wordPopupWord: basics.word || dataset.raw || word,
-                wordPopupPhoneticUk: basics.phoneticUk ?? '',
-                wordPopupPhoneticUs: basics.phoneticUs ?? '',
-                wordPopupAudioUk: basics.audioUk ?? '',
-                wordPopupAudioUs: basics.audioUs ?? '',
-            });
-            this.saveWordToReview({
-                word: basics.word || dataset.raw || word,
-                normalized: lookupKey,
-                phoneticUk: basics.phoneticUk ?? '',
-                phoneticUs: basics.phoneticUs ?? '',
-                audioUk: basics.audioUk ?? '',
-                audioUs: basics.audioUs ?? '',
-                definition: basics.translation ?? '',
-                cueId: dataset.cueId ?? '',
-            });
-        })
-            .catch(error => {
-            console.warn('[WordLookup] Basic fetch failed:', error);
-        });
-        (0, api_1.fetchWordDefinitionViaBackend)(lookupKey)
-            .then(definition => {
-            console.log('[Word] backend AI definition', definition);
+        (0, api_1.fetchWordLookup)(lookupKey)
+            .then(result => {
             if (this.pendingWordLookup !== lookupKey) {
                 return;
             }
             this.setData({
-                wordPopupDefinition: definition || '暂无释义',
+                wordPopupWord: result.word || dataset.raw || word,
+                wordPopupDefinition: result.translation || '暂无释义',
+                wordPopupPhoneticUk: result.phoneticUk ?? '',
+                wordPopupPhoneticUs: result.phoneticUs ?? '',
+                wordPopupAudioUk: result.audioUk ?? '',
+                wordPopupAudioUs: result.audioUs ?? '',
                 wordPopupLoading: false,
                 wordPopupError: '',
             });
             this.saveWordToReview({
-                word: this.data.wordPopupWord || dataset.raw || word,
+                word: result.word || dataset.raw || word,
                 normalized: lookupKey,
-                definition: definition || fallbackTranslation || '',
+                definition: result.translation ?? '',
+                phoneticUk: result.phoneticUk ?? '',
+                phoneticUs: result.phoneticUs ?? '',
+                audioUk: result.audioUk ?? '',
+                audioUs: result.audioUs ?? '',
                 cueId: dataset.cueId ?? '',
             });
             this.updateWordPopupPosition(dataset.wordId);
         })
             .catch(error => {
-            console.warn('[WordLookup] Backend AI failed:', error);
-            if (this.pendingWordLookup !== lookupKey) {
+            console.warn('[WordLookup] Course dictionary failed:', error);
+            if (this.pendingWordLookup !== lookupKey)
                 return;
-            }
-            if (fallbackTranslation) {
-                this.setData({
-                    wordPopupDefinition: fallbackTranslation,
-                    wordPopupLoading: false,
-                    wordPopupError: '',
-                });
-                this.updateWordPopupPosition(dataset.wordId);
-                return;
-            }
-            (0, api_1.fetchWordLookup)(lookupKey)
-                .then(result => {
-                if (this.pendingWordLookup !== lookupKey) {
-                    return;
-                }
-                this.setData({
-                    wordPopupDefinition: result.translation || '暂无释义',
-                    wordPopupPhoneticUk: result.phoneticUk ?? '',
-                    wordPopupPhoneticUs: result.phoneticUs ?? '',
-                    wordPopupAudioUk: result.audioUk ?? '',
-                    wordPopupAudioUs: result.audioUs ?? '',
-                    wordPopupLoading: false,
-                    wordPopupError: '',
-                });
-                this.saveWordToReview({
-                    word: result.word || dataset.raw || word,
-                    normalized: lookupKey,
-                    definition: result.translation ?? '',
-                    phoneticUk: result.phoneticUk ?? '',
-                    phoneticUs: result.phoneticUs ?? '',
-                    audioUk: result.audioUk ?? '',
-                    audioUs: result.audioUs ?? '',
-                    cueId: dataset.cueId ?? '',
-                });
-                this.updateWordPopupPosition(dataset.wordId);
-            })
-                .catch(() => {
-                if (this.pendingWordLookup !== lookupKey) {
-                    return;
-                }
-                this.setData({
-                    wordPopupLoading: false,
-                    wordPopupError: '暂未找到词义',
-                });
+            this.setData({
+                wordPopupLoading: false,
+                wordPopupError: '暂未找到词义',
             });
         });
     },
@@ -2937,93 +2874,8 @@ Page({
         if (!this.data.course) {
             return;
         }
-        const ctx = wx.createCanvasContext(COURSE_SHARE_CANVAS_ID);
-        const width = COURSE_SHARE_CANVAS_WIDTH;
-        const height = 480;
-        const palette = share_poster_1.SHARE_POSTER_PALETTE;
-        const GOLD = '#E0A93E';
-        const GOLD_SOFT = '#F6DFAE';
-        // 兜底底色与庆祝装饰（若插画底图存在会被其覆盖）
-        const gradient = ctx.createLinearGradient(0, 0, 0, height);
-        gradient.addColorStop(0, palette.bgStart);
-        gradient.addColorStop(1, palette.bgEnd);
-        ctx.setFillStyle(gradient);
-        ctx.fillRect(0, 0, width, height);
-        ctx.setFillStyle(palette.circleLarge);
-        ctx.beginPath();
-        ctx.arc(width - 40, 70, 90, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.setFillStyle(palette.circleSmall);
-        ctx.beginPath();
-        ctx.arc(40, height - 60, 70, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.setFillStyle(GOLD_SOFT);
-        ctx.beginPath();
-        ctx.arc(70, 80, 18, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.setFillStyle(GOLD);
-        ctx.beginPath();
-        ctx.arc(120, 44, 7, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(width - 70, height - 90, 9, 0, Math.PI * 2);
-        ctx.fill();
         try {
-            ctx.drawImage(COMPLETION_SHARE_BG_PATH, 0, 0, width, height);
-        }
-        catch (_error) {
-            // 底图缺失：保留兜底绘制
-        }
-        // 中央成就卡（浅金描边增强与奶油底图的层次）
-        (0, share_poster_1.drawShareRoundedRect)(ctx, 52, 60, width - 104, height - 120, 26, GOLD_SOFT);
-        (0, share_poster_1.drawShareRoundedRect)(ctx, 56, 64, width - 112, height - 128, 24, '#FFFFFF');
-        ctx.setFillStyle(GOLD_SOFT);
-        ctx.beginPath();
-        ctx.arc(width / 2, 130, 44, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.setFillStyle(GOLD);
-        ctx.beginPath();
-        ctx.arc(width / 2, 130, 34, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.setTextAlign('center');
-        ctx.setFillStyle('#FFFFFF');
-        ctx.setFontSize(34);
-        ctx.fillText('✓', width / 2, 142);
-        ctx.setFillStyle(palette.title);
-        ctx.setFontSize(32);
-        ctx.fillText('本小节完成', width / 2, 218);
-        ctx.setFillStyle(palette.snippetText);
-        ctx.setFontSize(25);
-        (0, share_poster_1.drawShareWrappedText)(ctx, this.data.course.title, width / 2, 262, width - 220, 36, 2);
-        const stats = this.data.completionStats;
-        const statsLabel = stats.practicedCount > 0
-            ? `共 ${stats.totalCues} 句 · 本次精练 ${stats.practicedCount} 句`
-            : `共 ${stats.totalCues} 句`;
-        ctx.setFillStyle(palette.tagText);
-        ctx.setFontSize(21);
-        ctx.fillText(statsLabel, width / 2, 344);
-        ctx.setFillStyle(palette.brandMuted);
-        ctx.setFontSize(19);
-        ctx.fillText('外贸英语影子跟读 · 一起来练口语', width / 2, 388);
-        ctx.setTextAlign('left');
-        try {
-            await new Promise(resolve => {
-                ctx.draw(false, () => resolve());
-            });
-            const tempFilePath = await new Promise((resolve, reject) => {
-                wx.canvasToTempFilePath({
-                    canvasId: COURSE_SHARE_CANVAS_ID,
-                    x: 0,
-                    y: 0,
-                    width,
-                    height,
-                    destWidth: width * 2,
-                    destHeight: height * 2,
-                    fileType: 'png',
-                    success: res => resolve(res.tempFilePath),
-                    fail: reject,
-                }, this);
-            });
+            const tempFilePath = await (0, course_completion_poster_1.renderCourseCompletionPoster)(this, COURSE_SHARE_CANVAS_ID, this.data.course.title, this.data.completionStats);
             this.setData({ shareImageUrl: tempFilePath });
         }
         catch (error) {

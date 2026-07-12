@@ -7,7 +7,7 @@
 - `miniprogram/`：微信小程序源码和编译后的 `.js` 文件。
 - `miniprogram/app.json`：定义“课程 / 复习 / 我的”三个原生一级 Tab；课程详情、知识点、解锁等保持二级页面，不出现在 Tab Bar。
 - `miniprogram/pages/index/`：课程 Tab，展示 7 章外贸场景小节，默认第一章展开，并在课程树上方提供纯前端场景搜索。
-- `miniprogram/pages/course/`：课程详情，保留 EnglishPod 的 Shadow/Echo/查词/AI 讲解交互。
+- `miniprogram/pages/course/`：课程详情，提供通听、精练、跟读三阶段，以及课程词典查词、英美发音和 AI 讲解。
 - `miniprogram/pages/learning/`：“我的”Tab，展示累计学习、连续天数、完成数、练习次数和最近 4 周日历，并承载会员、练习帮助与反馈入口；未登录时保留访客状态，不自动跳页。
 - `miniprogram/pages/review/`：“复习”Tab，本地资料库合并自动沉淀的生词与用户标记的难句，支持回到来源句。
 - `miniprogram/pages/knowledge/`：外贸知识点新页面，展示 Web 数据中的背景、重点表达、纠错、备注和对话。
@@ -27,6 +27,7 @@
 - 静态音频：`server/static/waimao-mini/audio`
 - 客户端观测入口：`POST /api/waimao-mini/metrics`；只接收音源回退、音频加载超时和 API 错误三类低基数事件，结构化写入服务端日志。
 - 学习记录：`POST /api/waimao-mini/users/me/study-time` 同时接收本次学习秒数和精练次数；`GET /api/waimao-mini/users/me/study-records` 按日聚合并返回摘要。`waimao_mini_study_sessions.practice_count` 通过启动迁移兼容既有数据库。
+- 课程词典：构建时从固定版本 ECDICT 中抽取当前 50 个场景实际出现的词，叠加项目外贸术语覆盖，生成约 480 KB 的 `resources/waimao-mini/dictionary.json`；`GET /api/waimao-mini/dictionary/:word` 匿名、限流并返回中文释义、英美音标及英美发音地址。
 - 数据生成脚本：`npm run waimao-mini:generate`
 - 邀请码脚本：`npm run waimao-mini:invite -- <code>`
 
@@ -43,6 +44,7 @@
 7. API 5xx/网络失败、CDN 音频加载超时和实际切源先在客户端采样聚合，再直连 `/api/waimao-mini/metrics` 批量上报；该请求不经过通用请求封装，失败静默丢弃，避免递归和弱网流量放大。
 8. 首页场景搜索只过滤已经加载的章节树，不产生额外请求；查词结果与难句正文写入本地 `waimao_review_library_v1`，不上传录音或复习正文。
 9. 学习主页调用 `/api/waimao-mini/users/me/study-records?days=28` 获取按日数据；累计资料数量从本地复习库读取，因此第一期不承诺跨设备同步。
+10. 课程长按查词只调用自家课程词典接口；中文释义和英美音标来自构建产物，英音/美音播放按用户决策继续使用有道发音地址。客户端不再请求有道 JSON 或为每个单词调用 AI。
 
 ## 约束
 

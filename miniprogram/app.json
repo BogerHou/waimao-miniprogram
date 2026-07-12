@@ -8,7 +8,6 @@
     "pages/course/course",
     "pages/knowledge/knowledge",
     "pages/unlock/unlock",
-    "pages/logs/logs",
     "pages/contact/contact",
     "pages/pdf-viewer/pdf-viewer"
   ],

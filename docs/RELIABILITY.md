@@ -12,6 +12,7 @@
 - 通听与跟读的连续播放必须停在当前小节 `range.end`，不能继续播放整章后续场景。
 - 首页有历史课程树时必须先显示缓存再静默刷新；15 秒请求超时或断网后允许回退过期课程树，登录态进度和权益继续以本地 store 为准。
 - 前台逐句与后台连续播放通道都必须在 CDN 加载 10 秒未就绪或收到错误时切到下一音源，并保留播放位置与 autoplay 意图；音源回退、音频加载超时和 API 5xx/网络失败应进入 `/api/waimao-mini/metrics` 结构化日志。观测失败不得阻断请求、播放或触发递归上报。
+- 匿名用户长按课程单词时，`/api/waimao-mini/dictionary/:word` 应返回课程词典释义、英美音标和两个发音地址；缺词返回 404，非法输入返回 400，不得回退为每次调用 AI。
 
 ## 本地验证
 
@@ -40,13 +41,14 @@ npm run dev:backend
 
 ## 运行注意
 
-- `npm run waimao-mini:generate` 会从外贸 Web 数据源生成章节、课程详情和静态音频。
+- `npm run waimao-mini:generate` 会从外贸 Web 数据源生成章节与课程详情，并从校验过 SHA256 的固定 ECDICT 版本生成课程专用词典；可用 `ECDICT_SOURCE_PATH` 指向已经下载的原始 CSV。
 - 微信开发者工具、体验版和正式版默认都请求线上 `https://englishecho.site`；需要本地联调时再临时切换 `DEVELOPMENT_API_BASE_URL`。
-- 发布验收必须开启合法域名校验；微信后台 `request` 和 `downloadFile` 需包含 `https://englishecho.site` 与 `https://dict.youdao.com`，`downloadFile` 还需包含 `https://waimao-audio.englishecho.site`。
+- 发布验收必须开启合法域名校验；微信后台 `request` 需包含 `https://englishecho.site`，`downloadFile` 需包含 `https://englishecho.site`、`https://dict.youdao.com` 与 `https://waimao-audio.englishecho.site`。
 - 已缓存登录态刷新失败时，只要持久化 token 仍存在就保留本地用户与权益；只有请求层确认 401 并清除 token 后才重新登录。
 - 线上音频优先使用两小时有效的七牛私有签名地址，失败时自动切换服务器签名源；进入课程会重新获取地址，不应持久化缓存。
 - AI 讲解会在外贸知识点上下文存在时启用外贸沟通语境提示；普通 EnglishPod 接口不应受影响。
 - 生词和难句第一期只保存在本机；清理小程序数据或更换设备会丢失，不能作为跨端真源。录音不保存、不上传。
+- 中文查词不再依赖有道 JSON；按用户要求保留的英音/美音仍使用 `dict.youdao.com/dictvoice`，因此微信 `downloadFile` 合法域名暂时不能移除该域名。
 - 通用 API 请求超时为 15 秒。metrics 在本地最多缓冲 50 条、默认 10 条或 30 秒 flush，退后台时主动 flush；服务端单批最多接收 10 条并按 IP 限流。
 
 ## 已知短板

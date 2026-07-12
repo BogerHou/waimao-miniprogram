@@ -12,7 +12,7 @@
 ## 背景
 
 - 相关文档：`docs/QUALITY_SCORE.md`（安全行待办"确认隐私保护指引"）、`docs/DESIGN.md`（双主题切换机制）。
-- 相关代码路径：`miniprogram/styles/theme.less`、`miniprogram/styles/palettes/`、`miniprogram/pages/course/course.wxml`（倍速 slider `activeColor="#6366F1"` 旧紫色硬编码、navigation-bar `background="#FFF"`；行号以实际为准）、`miniprogram/utils/share-poster.ts`（`ACTIVE_SHARE_POSTER_THEME`）、`miniprogram/pages/index/index.ts`（头像 base64 直传）、`miniprogram/pages/course/course.ts`（录音 `wx.getRecorderManager`，`scope.record`）。
+- 相关代码路径：`miniprogram/styles/theme.less`、`miniprogram/styles/palettes/`、`miniprogram/pages/course/course.wxml`、`miniprogram/utils/share-poster.ts`、`miniprogram/pages/index/index.ts`（头像上传）、`miniprogram/pages/course/course.ts`（录音权限）。
 - 已知约束：wxml 内联属性吃不到 less 变量，定稿色需写死或从 ts data 注入。
 
 ## 风险
@@ -23,7 +23,7 @@
 ## 里程碑
 
 1. ~~主题择一定稿~~（已定：**business 商务专业风**，2026-07-12）。
-2. 删除 `styles/palettes/warm.less`、简化 `theme.less` 切换入口为单 import、`share-poster.ts` 的 `ACTIVE_SHARE_POSTER_THEME` 固定 business（或直接内联），收尾 course.wxml 两处硬编码色（slider activeColor 取主题主色、navbar background 取页面底色），更新 DESIGN.md/FRONTEND.md 为单主题表述。
+2. 删除 `styles/palettes/warm.less`、简化 `theme.less` 为单 import、`share-poster.ts` 只保留 business 调色板，收尾 course.wxml 两处硬编码色并更新 DESIGN.md/FRONTEND.md。
 3. 隐私指引核对（头像/昵称/录音三项收集说明）+ 授权流程验证 + 头像上传前压缩（`wx.compressImage`）。
 
 ## 验证方式

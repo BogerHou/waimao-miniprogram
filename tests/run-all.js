@@ -8,12 +8,12 @@ require("./auth-session.test");
 require("./audio-source-fallback.test");
 require("./course-mode-config.test");
 require("./course-share-card.test");
+require("./course-completion-poster.test");
 require("./env-config.test");
 require("./knowledge-dialogue-format.test");
 require("./knowledge-format.test");
 const network_resilience_test_1 = require("./network-resilience.test");
 require("./page-json-schema.test");
-require("./pdf-image-scan.test");
 require("./player-core.test");
 require("./practice-marks.test");
 require("./progress-payload.test");
@@ -25,6 +25,7 @@ require("./review-library.test");
 require("./scene-search.test");
 require("./learning-records.test");
 require("./tab-navigation.test");
+require("./word-lookup.test");
 Promise.all([app_config_sync_test_1.appConfigSyncTestDone, network_resilience_test_1.networkResilienceTestDone])
     .then(() => {
     console.log("all miniprogram tests passed.");

@@ -12,6 +12,8 @@
 - 具体项目落地后，必须提交可审计的依赖清单和 lockfile。
 - 后续新增 GitHub Actions 时，应固定到不可变的 commit SHA，而不是漂移的版本标签。
 
+阶段 E 新增的课程词典数据来自 ECDICT：生成脚本固定上游 commit 与 SHA256，原始 66 MB CSV 只进入本地 `.cache`，仓库和部署制品只保存当前课程约 325 KB 的抽取结果、来源版本和 MIT 许可信息。后端 CSV、CMU 发音词典及 ARPABET 转 IPA依赖均锁定在 `package-lock.json`。
+
 ## 后续可接入的工具
 
 - `actions/dependency-review-action`：审查 PR 依赖变更。

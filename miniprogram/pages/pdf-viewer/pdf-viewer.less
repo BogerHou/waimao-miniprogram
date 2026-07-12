@@ -1,98 +1,33 @@
-// ============================================
-// 知识点页面样式（与详情页统一）
-// ============================================
-
 @import "../../styles/theme.less";
 
 page {
   height: 100%;
-  background: #FFFFFF;
+  background: @page-bg;
 }
 
-// 导航栏容器
-.navbar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 100;
-}
-
-// 页面内容区域
-.page-content {
-  height: 100%;
-  padding-top: calc(44px + env(safe-area-inset-top));
-  box-sizing: border-box;
-}
-
-// Loading & Error States
-.loading-state, .error-state {
+.legacy-redirect {
   height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 24rpx;
+  gap: 28rpx;
 }
 
-.spinner {
-  width: 64rpx;
-  height: 64rpx;
-  border: 6rpx solid @line;
+.legacy-redirect__spinner {
+  width: 56rpx;
+  height: 56rpx;
+  border: 5rpx solid @line;
   border-top-color: @primary;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.loading-text {
-  font-size: 34.5rpx;
+.legacy-redirect__text {
+  font-size: 30rpx;
   color: @muted;
 }
 
-.error-text {
-  font-size: 34.5rpx;
-  color: @error;
-}
-
-.retry-btn {
-  background: @primary;
-  color: white;
-  font-size: 32rpx;
-  padding: 16rpx 48rpx;
-  border-radius: 40rpx;
-  margin-top: 16rpx;
-}
-
-// Image List
-.image-scroll {
-  height: 100%;
-}
-
-.image-wrapper {
-  width: 100%;
-  min-height: 200rpx;
-  background: linear-gradient(90deg, @page-bg-deep 25%, @line 50%, @page-bg-deep 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-}
-
-@keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-
-.page-image {
-  width: 100%;
-  display: block;
-}
-
-// 图片加载完成后隐藏占位背景
-.image-wrapper.loaded {
-  background: none;
-  animation: none;
-  min-height: auto;
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }

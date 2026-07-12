@@ -5,7 +5,7 @@
 ## 主题结构
 
 - 令牌定义在 `miniprogram/styles/palettes/business.less`，由 `miniprogram/styles/theme.less` 引用（共享语义色 `success`/`error` 在 `theme.less`）。
-- 分享海报 canvas 颜色在 `miniprogram/utils/share-poster.ts` 的 `SHARE_POSTER_PALETTE`（`ACTIVE_SHARE_POSTER_THEME` 固定 `'business'`）。
+- 分享海报 canvas 颜色在 `miniprogram/utils/share-poster.ts` 的单一 `SHARE_POSTER_PALETTE`。
 - 新增令牌先加进 `business.less` 再使用。
 
 ## 视觉原则

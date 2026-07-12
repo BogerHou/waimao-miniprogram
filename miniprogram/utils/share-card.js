@@ -3,8 +3,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildIndexShareCardModel = buildIndexShareCardModel;
 exports.buildContactShareCardModel = buildContactShareCardModel;
 exports.buildPracticeHelpShareCardModel = buildPracticeHelpShareCardModel;
-exports.buildPdfShareCardModel = buildPdfShareCardModel;
-exports.buildLogsShareCardModel = buildLogsShareCardModel;
 function normalizeText(value) {
     return String(value || '')
         .replace(/\s+/g, ' ')
@@ -49,25 +47,5 @@ function buildPracticeHelpShareCardModel() {
         badge: '练习方法',
         highlight: '听懂 · 练顺 · 跟上',
         snippet: '一节外贸场景课，按三个阶段分别解决理解、难句和流畅度。',
-    };
-}
-function buildPdfShareCardModel(options) {
-    const courseTitle = normalizeText(options.courseTitle) || '课程知识点';
-    return {
-        title: courseTitle,
-        badge: `知识点 ${Math.max(0, options.imageCount)} 页`,
-        highlight: '图解重点内容',
-        snippet: '课程知识点图解与重点内容整理。',
-    };
-}
-function buildLogsShareCardModel(options) {
-    const latestLogDate = normalizeText(options.latestLogDate);
-    return {
-        title: '外贸英语影子跟读启动日志',
-        badge: `最近 ${Math.max(0, options.logCount)} 条`,
-        highlight: '运行状态记录',
-        snippet: latestLogDate
-            ? `最近一次启动：${truncateText(latestLogDate, 40)}`
-            : '查看最近的小程序启动时间记录。',
     };
 }

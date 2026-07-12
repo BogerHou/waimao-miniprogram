@@ -79,6 +79,8 @@ async function checkStaticConfiguration() {
     envSource.includes('DEVELOPMENT_API_BASE_URL = PRODUCTION_API_BASE_URL'),
     'development builds may still point to a local API',
   )
+  const apiSource = await readFile(path.join(ROOT, 'miniprogram/utils/api.ts'), 'utf8')
+  assert(!apiSource.includes('dict.youdao.com/jsonapi'), 'mini program still queries Youdao dictionary JSON directly')
   pass(`all mini program environments use ${API_BASE_URL}`)
 
   const packageBytes = await directorySize(MINI_PROGRAM_ROOT)
@@ -170,11 +172,18 @@ async function checkProductionService() {
     body: JSON.stringify({ code: 'RELEASE-CHECK-NOT-A-REAL-CODE' }),
   })
 
-  await expectStatus(
-    'Youdao lookup dependency',
-    'https://dict.youdao.com/jsonapi?q=quotation',
+  const dictionaryResponse = await expectStatus(
+    'course dictionary lookup',
+    '/api/waimao-mini/dictionary/quotation',
     200,
   )
+  const dictionary = await dictionaryResponse.json()
+  assert(/报价/.test(dictionary.translation ?? ''), 'course dictionary does not return the business definition')
+  assert(dictionary.phoneticUk && dictionary.phoneticUs, 'course dictionary is missing UK/US phonetics')
+  assert(/type=1$/.test(dictionary.audioUk ?? ''), 'course dictionary is missing UK pronunciation audio')
+  assert(/type=2$/.test(dictionary.audioUs ?? ''), 'course dictionary is missing US pronunciation audio')
+  pass(`course dictionary: ${dictionary.dictionaryVersion}`)
+
   const pronunciationResponse = await expectStatus(
     'Youdao pronunciation dependency',
     'https://dict.youdao.com/dictvoice?audio=quotation&type=2',
@@ -191,7 +200,7 @@ async function main() {
   console.log('Waimao mini program release check')
   await checkStaticConfiguration()
   await checkProductionService()
-  console.log('[manual] Verify request/download domains in WeChat admin: englishecho.site and dict.youdao.com')
+  console.log('[manual] Verify request domain englishecho.site; download domains englishecho.site, dict.youdao.com, and waimao-audio.englishecho.site')
   console.log('[ready] Automated release checks passed')
 }
 

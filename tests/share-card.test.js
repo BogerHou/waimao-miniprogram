@@ -25,33 +25,13 @@ function testBuildContactShareCardModelUsesDefaultText() {
     strict_1.default.equal(model.badge, "学习交流");
     strict_1.default.equal(model.snippet, "扫码加入社群，和小伙伴一起坚持听力打卡。");
 }
-function testBuildPdfShareCardModelUsesImageCount() {
-    const model = (0, share_card_1.buildPdfShareCardModel)({
-        courseTitle: "Difficult Customer",
-        imageCount: 4,
-    });
-    strict_1.default.equal(model.title, "Difficult Customer");
-    strict_1.default.equal(model.badge, "知识点 4 页");
-    strict_1.default.equal(model.snippet, "课程知识点图解与重点内容整理。");
-}
 function testBuildPracticeHelpShareCardModelUsesGuideText() {
     const model = (0, share_card_1.buildPracticeHelpShareCardModel)();
     strict_1.default.equal(model.title, "通听、精练、跟读三步练习法");
     strict_1.default.equal(model.badge, "练习方法");
     strict_1.default.equal(model.highlight, "听懂 · 练顺 · 跟上");
 }
-function testBuildLogsShareCardModelUsesLatestLog() {
-    const model = (0, share_card_1.buildLogsShareCardModel)({
-        logCount: 3,
-        latestLogDate: "2026/03/18 21:30:00",
-    });
-    strict_1.default.equal(model.title, "外贸英语影子跟读启动日志");
-    strict_1.default.equal(model.badge, "最近 3 条");
-    strict_1.default.equal(model.snippet, "最近一次启动：2026/03/18 21:30:00");
-}
 testBuildIndexShareCardModelUsesCourseStats();
 testBuildContactShareCardModelUsesDefaultText();
-testBuildPdfShareCardModelUsesImageCount();
 testBuildPracticeHelpShareCardModelUsesGuideText();
-testBuildLogsShareCardModelUsesLatestLog();
 console.log("share card tests passed.");

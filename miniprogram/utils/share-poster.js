@@ -1,48 +1,27 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SHARE_POSTER_CARD_HEIGHT = exports.SHARE_POSTER_PALETTE = exports.ACTIVE_SHARE_POSTER_THEME = exports.SHARE_POSTER_PALETTES = exports.SHARE_POSTER_ICON_PATH = exports.SHARE_POSTER_HEIGHT = exports.SHARE_POSTER_WIDTH = void 0;
+exports.SHARE_POSTER_CARD_HEIGHT = exports.SHARE_POSTER_PALETTE = exports.SHARE_POSTER_ICON_PATH = exports.SHARE_POSTER_HEIGHT = exports.SHARE_POSTER_WIDTH = void 0;
 exports.drawShareRoundedRect = drawShareRoundedRect;
 exports.drawShareWrappedText = drawShareWrappedText;
 exports.renderSharePoster = renderSharePoster;
 exports.SHARE_POSTER_WIDTH = 600;
 exports.SHARE_POSTER_HEIGHT = 840;
 exports.SHARE_POSTER_ICON_PATH = '/assets/images/icon.png';
-// 与 miniprogram/styles/theme.less 的主题切换保持一致：
-// warm = 温暖学习风（橘），business = 商务专业风（藏青）。
-exports.SHARE_POSTER_PALETTES = {
-    warm: {
-        bgStart: '#FFFBF4',
-        bgEnd: '#FDEFDD',
-        circleLarge: '#FDE3C3',
-        circleSmall: '#FAD1A0',
-        badgeBg: '#FFEDD5',
-        badgeText: '#EA580C',
-        tagBg: '#F4EEE3',
-        tagText: '#57534E',
-        title: '#292524',
-        snippetBg: '#FAF6EF',
-        snippetText: '#44403C',
-        brandMuted: '#A8A29E',
-        accent: '#EA580C',
-    },
-    business: {
-        bgStart: '#F8FAFF',
-        bgEnd: '#E9EFFA',
-        circleLarge: '#DCE5F7',
-        circleSmall: '#C6D4F0',
-        badgeBg: '#E8EDFB',
-        badgeText: '#1E40AF',
-        tagBg: '#EEF1F7',
-        tagText: '#475569',
-        title: '#0F172A',
-        snippetBg: '#F5F7FB',
-        snippetText: '#1E293B',
-        brandMuted: '#94A3B8',
-        accent: '#1E40AF',
-    },
+exports.SHARE_POSTER_PALETTE = {
+    bgStart: '#F8FAFF',
+    bgEnd: '#E9EFFA',
+    circleLarge: '#DCE5F7',
+    circleSmall: '#C6D4F0',
+    badgeBg: '#E8EDFB',
+    badgeText: '#1E40AF',
+    tagBg: '#EEF1F7',
+    tagText: '#475569',
+    title: '#0F172A',
+    snippetBg: '#F5F7FB',
+    snippetText: '#1E293B',
+    brandMuted: '#94A3B8',
+    accent: '#1E40AF',
 };
-exports.ACTIVE_SHARE_POSTER_THEME = 'business';
-exports.SHARE_POSTER_PALETTE = exports.SHARE_POSTER_PALETTES[exports.ACTIVE_SHARE_POSTER_THEME];
 function drawShareRoundedRect(ctx, x, y, width, height, radius, fillColor) {
     const safeRadius = Math.max(0, Math.min(radius, width / 2, height / 2));
     ctx.beginPath();

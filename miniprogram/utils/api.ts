@@ -1,6 +1,13 @@
 import { PAGE_SIZE_DEFAULT } from '../config/env'
 import { request } from './request'
 import { LocalCache, DictCache, getToken } from './storage'
+import {
+  normalizeLookupWord,
+  normalizeWordLookupResponse,
+  type WordLookupResponse,
+} from './word-lookup'
+
+export type { WordLookupResponse } from './word-lookup'
 
 export type CourseStatus = 'completed' | 'pending'
 export type ProgressStatus = 'completed'
@@ -186,17 +193,6 @@ export type HomeAdConfig = {
   contactTip: string
 }
 
-export type WordLookupResponse = {
-  word: string
-  normalized: string
-  translation: string | null
-  phoneticUk: string | null
-  phoneticUs: string | null
-  audioUk: string | null
-  audioUs: string | null
-  source: string
-}
-
 export type UserProfile = {
   id: string
   nickname: string
@@ -272,11 +268,8 @@ const courseListCache = new LocalCache<CourseListResponse>('waimao_mini_course_l
 
 // 课程详情缓存 (30分钟过期)
 const courseDetailCache = new DictCache<CourseDetailResponse>('waimao_mini_course_detail', 30 * 60 * 1000)
-// 词典查询缓存 (7天)
-const wordLookupCache = new DictCache<WordLookupResponse>('waimao_mini_word_lookup', 7 * 24 * 60 * 60 * 1000)
-
-const YOUDAO_JSONAPI_URL = 'https://dict.youdao.com/jsonapi'
-const YOUDAO_AUDIO_BASE = 'https://dict.youdao.com/dictvoice?audio='
+// 课程词典版本稳定，客户端缓存 30 天；服务端词典更新后可通过 forceRefresh 主动刷新。
+const wordLookupCache = new DictCache<WordLookupResponse>('waimao_mini_word_lookup', 30 * 24 * 60 * 60 * 1000)
 
 // 清除所有缓存的函数
 export function clearAllCache() {
@@ -420,232 +413,24 @@ export function fetchAppConfig(): Promise<AppConfigResponse> {
 
 
 export async function fetchWordLookup(word: string, forceRefresh = false): Promise<WordLookupResponse> {
-  const key = word.trim().toLowerCase()
+  const key = normalizeLookupWord(word)
   if (!key) {
     return Promise.reject(new Error('Invalid word'))
   }
 
   if (!forceRefresh) {
     const cached = wordLookupCache.get(key)
-    if (cached && cached.source === 'backend-ai' && (cached.phoneticUk || cached.phoneticUs)) {
-      return Promise.resolve(cached)
-    }
+    if (cached) return cached
   }
 
-  let youdaoPayload: any = null
-  try {
-    youdaoPayload = await fetchYoudaoRaw(key)
-  } catch (error) {
-    console.warn('[WordLookup] youdao request failed', error)
-  }
-  const basic = parseYoudaoBasic(youdaoPayload, key)
-
-  let aiDefinition: string | null = null
-  try {
-    aiDefinition = await fetchWordDefinitionViaBackend(key)
-  } catch (error) {
-    console.warn('[WordLookup] backend definition failed', error)
-  }
-
-  if (aiDefinition) {
-    const result: WordLookupResponse = {
-      word: basic.word || key,
-      normalized: key,
-      translation: aiDefinition,
-      phoneticUk: basic.phoneticUk,
-      phoneticUs: basic.phoneticUs,
-      audioUk: basic.audioUk,
-      audioUs: basic.audioUs,
-      source: 'backend-ai',
-    }
-    wordLookupCache.set(key, result)
-    return result
-  }
-
-  const cached = wordLookupCache.get(key)
-  if (cached) {
-    return cached
-  }
-  if (!basic.translation) {
-    return Promise.reject(new Error('No definition'))
-  }
-  const fallback: WordLookupResponse = {
-    word: basic.word || key,
-    normalized: key,
-    translation: basic.translation,
-    phoneticUk: basic.phoneticUk,
-    phoneticUs: basic.phoneticUs,
-    audioUk: basic.audioUk,
-    audioUs: basic.audioUs,
-    source: 'youdao-jsonapi',
-  }
-  wordLookupCache.set(key, fallback)
-  return fallback
-}
-
-export type WordBasics = {
-  word: string
-  translation: string | null
-  phoneticUk: string | null
-  phoneticUs: string | null
-  audioUk: string | null
-  audioUs: string | null
-}
-
-export async function fetchWordBasics(word: string): Promise<WordBasics> {
-  const key = word.trim().toLowerCase()
-  if (!key) {
-    throw new Error('Invalid word')
-  }
-  const payload = await fetchYoudaoRaw(key)
-  return parseYoudaoBasic(payload, key)
-}
-
-
-function fetchYoudaoRaw(word: string): Promise<any> {
-  return new Promise((resolve, reject) => {
-    wx.request({
-      url: YOUDAO_JSONAPI_URL,
-      method: 'GET',
-      data: { q: word },
-      success(res) {
-        if (res.statusCode < 200 || res.statusCode >= 300) {
-          reject(new Error(`Request failed with status ${res.statusCode}`))
-          return
-        }
-        resolve(res.data)
-      },
-      fail(err) {
-        reject(err)
-      },
-    })
+  const response = await request<WordLookupResponse>({
+    url: `${WAIMAO_MINI_API_PREFIX}/dictionary/${encodeURIComponent(key)}`,
+    method: 'GET',
   })
-}
-
-export async function fetchWordDefinitionViaBackend(word: string): Promise<string> {
-  const result = await request<{ word: string; definition: string }>({
-    url: '/api/words/definition',
-    method: 'POST',
-    data: { word },
-  })
-  if (!result.definition) {
-    throw new Error('Definition empty')
-  }
-  return result.definition
-}
-
-function parseYoudaoBasic(data: unknown, input: string): {
-  word: string
-  translation: string | null
-  phoneticUk: string | null
-  phoneticUs: string | null
-  audioUk: string | null
-  audioUs: string | null
-} {
-  if (!data || typeof data !== 'object') {
-    return {
-      word: input,
-      translation: null,
-      phoneticUk: null,
-      phoneticUs: null,
-      audioUk: `${YOUDAO_AUDIO_BASE}${encodeURIComponent(input)}&type=1`,
-      audioUs: `${YOUDAO_AUDIO_BASE}${encodeURIComponent(input)}&type=2`,
-    }
-  }
-  const payload = data as any
-  const simple = payload?.simple?.word?.[0]
-  const word = (simple?.['return-phrase'] as string | undefined) ?? input
-  const usphone = (simple?.usphone as string | undefined) ?? ''
-  const ukphone = (simple?.ukphone as string | undefined) ?? ''
-
-  const translationList = collectYoudaoTranslations(payload)
-  let translation = translationList.length ? translationList.join('；') : null
-  translation = translation ? stripHtml(translation).trim() : null
-  if (translation) {
-    translation = translation.replace(/；/g, '\n')
-  }
-
-  return {
-    word,
-    translation,
-    phoneticUk: ukphone || null,
-    phoneticUs: usphone || null,
-    audioUk: `${YOUDAO_AUDIO_BASE}${encodeURIComponent(word)}&type=1`,
-    audioUs: `${YOUDAO_AUDIO_BASE}${encodeURIComponent(word)}&type=2`,
-  }
-}
-
-function stripHtml(value: string) {
-  return value.replace(/<[^>]+>/g, '')
-}
-
-
-function collectYoudaoTranslations(payload: any): string[] {
-  const results: string[] = []
-  const maxItems = 6
-  const add = (text?: string) => {
-    if (!text) return
-    const cleaned = stripHtml(String(text)).trim()
-    if (!cleaned) return
-    if (!results.includes(cleaned)) {
-      results.push(cleaned)
-    }
-  }
-
-  const senses = payload?.video_sents?.word_info?.sense
-  if (Array.isArray(senses)) {
-    senses.forEach((sense: any) => add(sense))
-  }
-
-  const expand = payload?.expand_ec?.word?.[0]?.transList
-  if (Array.isArray(expand)) {
-    expand.forEach((item: any) => add(item?.trans))
-  }
-
-  const ecTrs = payload?.ec?.word?.[0]?.trs
-  if (Array.isArray(ecTrs)) {
-    ecTrs.forEach((item: any) => {
-      const tr = item?.tr?.[0]?.l?.i
-      if (Array.isArray(tr)) {
-        tr.forEach((t: any) => add(t))
-      } else if (typeof tr === 'string') {
-        add(tr)
-      }
-    })
-  }
-
-  const simpleTrs = payload?.simple?.word?.[0]?.trs
-  if (Array.isArray(simpleTrs)) {
-    simpleTrs.forEach((item: any) => {
-      if (typeof item === 'string') {
-        add(item)
-      } else {
-        add(item?.tr)
-      }
-    })
-  }
-  const simpleTrans = payload?.simple?.word?.[0]?.trans
-  if (typeof simpleTrans === 'string') {
-    add(simpleTrans)
-  }
-
-  if (results.length < maxItems) {
-    const webTrans = payload?.web_trans?.['web-translation']
-    if (Array.isArray(webTrans)) {
-      webTrans.forEach((entry: any) => {
-        if (results.length >= maxItems) return
-        const trans = entry?.trans
-        if (Array.isArray(trans)) {
-          trans.forEach((t: any) => {
-            if (results.length >= maxItems) return
-            add(t?.value)
-          })
-        }
-      })
-    }
-  }
-
-  return results.slice(0, maxItems)
+  const result = normalizeWordLookupResponse(response, key)
+  if (!result.translation) throw new Error('No definition')
+  wordLookupCache.set(key, result)
+  return result
 }
 
 export function loginWithCode(code: string, payload?: { nickname?: string; avatarUrl?: string }) {

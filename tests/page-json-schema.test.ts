@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { readdirSync, readFileSync } from "node:fs"
+import { existsSync, readdirSync, readFileSync } from "node:fs"
 import path from "node:path"
 
 const INVALID_PAGE_JSON_KEYS = ["enableShareAppMessage", "enableShareTimeline"]
@@ -9,6 +9,7 @@ function listPageJsonFiles() {
   return readdirSync(pagesDir, { withFileTypes: true })
     .filter(entry => entry.isDirectory())
     .map(entry => path.join(pagesDir, entry.name, `${entry.name}.json`))
+    .filter(filePath => existsSync(filePath))
 }
 
 function testPageJsonDoesNotUseUnsupportedShareKeys() {
