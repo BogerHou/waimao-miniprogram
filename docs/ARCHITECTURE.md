@@ -27,7 +27,7 @@
 - 静态音频：`server/static/waimao-mini/audio`
 - 客户端观测入口：`POST /api/waimao-mini/metrics`；只接收音源回退、音频加载超时和 API 错误三类低基数事件，结构化写入服务端日志。
 - 学习记录：`POST /api/waimao-mini/users/me/study-time` 同时接收本次学习秒数和精练次数；`GET /api/waimao-mini/users/me/study-records` 按日聚合并返回摘要。`waimao_mini_study_sessions.practice_count` 通过启动迁移兼容既有数据库。
-- 课程词典：构建时从固定版本 ECDICT 中抽取当前 50 个场景实际出现的词，叠加项目外贸术语覆盖，生成约 480 KB 的 `resources/waimao-mini/dictionary.json`；`GET /api/waimao-mini/dictionary/:word` 匿名、限流并返回中文释义、英美音标及英美发音地址。
+- 课程词典：构建时从固定版本 ECDICT 中抽取当前 50 个场景实际出现的普通单词，叠加项目外贸术语覆盖，生成约 480 KB 的 `resources/waimao-mini/dictionary.json`；邮箱、网址和产品型号不进入词典，任何真实课程词缺失都会让生成失败；`GET /api/waimao-mini/dictionary/:word` 匿名、限流并返回中文释义、英美音标及英美发音地址。
 - 数据生成脚本：`npm run waimao-mini:generate`
 - 邀请码脚本：`npm run waimao-mini:invite -- <code>`
 
@@ -44,7 +44,7 @@
 7. API 5xx/网络失败、CDN 音频加载超时和实际切源先在客户端采样聚合，再直连 `/api/waimao-mini/metrics` 批量上报；该请求不经过通用请求封装，失败静默丢弃，避免递归和弱网流量放大。
 8. 首页场景搜索只过滤已经加载的章节树，不产生额外请求；查词结果与难句正文写入本地 `waimao_review_library_v1`，不上传录音或复习正文。
 9. 学习主页调用 `/api/waimao-mini/users/me/study-records?days=28` 获取按日数据；累计资料数量从本地复习库读取，因此第一期不承诺跨设备同步。
-10. 课程长按查词只调用自家课程词典接口；中文释义和英美音标来自构建产物，英音/美音播放按用户决策继续使用有道发音地址。客户端不再请求有道 JSON 或为每个单词调用 AI。
+10. 课程长按查词只调用自家课程词典接口；中文释义和英美音标来自构建产物，英音/美音播放按用户决策继续使用有道发音地址。邮箱、网址和产品型号在字幕中保持原样但不可长按查词，数字后的 `cm/mm/pcs` 等单位仍可查询。客户端不再请求有道 JSON 或为每个单词调用 AI。
 
 ## 约束
 

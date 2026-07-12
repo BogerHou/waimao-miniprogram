@@ -50,6 +50,7 @@ const audio_source_fallback_1 = require("./audio-source-fallback");
 const course_share_card_1 = require("./course-share-card");
 const course_mode_config_1 = require("./course-mode-config");
 const course_completion_poster_1 = require("./course-completion-poster");
+const subtitle_tokenizer_1 = require("./subtitle-tokenizer");
 const dialogue_format_1 = require("../../utils/dialogue-format");
 const BACKGROUND_AUDIO_COVER_URL = `${env_1.API_BASE_URL}/static/waimao-mini/icon.png`;
 const COURSE_SHARE_CANVAS_ID = 'course-share-canvas';
@@ -3468,7 +3469,7 @@ function mapSubtitles(entries) {
                 rawEnd: entry.rawEnd ?? end,
                 timeLabel: formatSeconds(start),
                 durationLabel: formatSeconds(end - start),
-                tokens: tokenizeSubtitle(segment.text),
+                tokens: (0, subtitle_tokenizer_1.tokenizeSubtitle)(segment.text),
                 toneClass,
                 sourceSubtitleId: entry.sourceSubtitleId ?? entry.id,
                 sourceIndex: entry.sourceIndex ?? entry.index ?? entryIndex,
@@ -3481,33 +3482,4 @@ function mapSubtitles(entries) {
 }
 function sumPracticeCounts(counts) {
     return Object.values(counts).reduce((sum, count) => sum + Math.max(0, Number(count) || 0), 0);
-}
-function tokenizeSubtitle(text) {
-    const tokens = [];
-    const pattern = /[A-Za-z]+(?:['-][A-Za-z]+)*/g;
-    let lastIndex = 0;
-    let match;
-    while ((match = pattern.exec(text))) {
-        if (match.index > lastIndex) {
-            tokens.push({
-                text: text.slice(lastIndex, match.index),
-                isWord: false,
-            });
-        }
-        const raw = match[0];
-        const normalized = raw.replace(/[’‘]/g, "'").toLowerCase();
-        tokens.push({
-            text: raw,
-            word: normalized,
-            isWord: true,
-        });
-        lastIndex = match.index + raw.length;
-    }
-    if (lastIndex < text.length) {
-        tokens.push({
-            text: text.slice(lastIndex),
-            isWord: false,
-        });
-    }
-    return tokens;
 }

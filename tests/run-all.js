@@ -20,6 +20,7 @@ require("./progress-payload.test");
 require("./record-auth.test");
 require("./shadow-background-handoff.test");
 require("./share-card.test");
+require("./subtitle-tokenizer.test");
 require("./unlock-format.test");
 require("./review-library.test");
 require("./scene-search.test");

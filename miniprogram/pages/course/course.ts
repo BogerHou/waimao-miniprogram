@@ -70,6 +70,7 @@ import {
 import { buildCourseShareCardModel } from './course-share-card'
 import { resolveStagePresentation } from './course-mode-config'
 import { renderCourseCompletionPoster } from './course-completion-poster'
+import { tokenizeSubtitle, type SubtitleToken } from './subtitle-tokenizer'
 import {
   buildTimedDialogueSentences,
   resolveSpeakerToneClass,
@@ -156,12 +157,6 @@ function logAudioRequest(event: string, url: string, extra: Record<string, unkno
     url,
     ...extra,
   })
-}
-
-type SubtitleToken = {
-  text: string
-  word?: string
-  isWord: boolean
 }
 
 type ViewSubtitle = SubtitleEntry & {
@@ -3976,39 +3971,4 @@ function mapSubtitles(entries: SubtitleEntry[]): ViewSubtitle[] {
 
 function sumPracticeCounts(counts: Record<string, number>) {
   return Object.values(counts).reduce((sum, count) => sum + Math.max(0, Number(count) || 0), 0)
-}
-
-function tokenizeSubtitle(text: string): SubtitleToken[] {
-  const tokens: SubtitleToken[] = []
-  const pattern = /[A-Za-z]+(?:['-][A-Za-z]+)*/g
-  let lastIndex = 0
-
-  let match: RegExpExecArray | null
-  while ((match = pattern.exec(text))) {
-    if (match.index > lastIndex) {
-      tokens.push({
-        text: text.slice(lastIndex, match.index),
-        isWord: false,
-      })
-    }
-
-    const raw = match[0]
-    const normalized = raw.replace(/[’‘]/g, "'").toLowerCase()
-    tokens.push({
-      text: raw,
-      word: normalized,
-      isWord: true,
-    })
-
-    lastIndex = match.index + raw.length
-  }
-
-  if (lastIndex < text.length) {
-    tokens.push({
-      text: text.slice(lastIndex),
-      isWord: false,
-    })
-  }
-
-  return tokens
 }
