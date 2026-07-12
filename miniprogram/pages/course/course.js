@@ -51,8 +51,8 @@ const BACKGROUND_AUDIO_COVER_URL = `${env_1.API_BASE_URL}/static/waimao-mini/ico
 const COURSE_SHARE_CANVAS_ID = 'course-share-canvas';
 const COURSE_SHARE_CANVAS_WIDTH = 600;
 const COURSE_SHARE_CANVAS_HEIGHT = 840;
-// 完成成就海报底图（由 imagegen 生成的插画资产；缺失时走渐变兜底绘制）
-const COMPLETION_SHARE_BG_PATH = '/assets/images/completion-share-bg.png';
+// 完成成就海报底图（imagegen 生成的庆祝插画，5:4；缺失时走渐变兜底绘制）
+const COMPLETION_SHARE_BG_PATH = '/assets/images/completion-share-bg.jpg';
 const COURSE_DEBUG_STORAGE_KEY = 'waimao_mini_debug_logs';
 const COURSE_STAGE_GUIDE_SEEN_KEY = 'waimao_course_stage_guide_seen_v1';
 function getCourseWindowInfo() {
@@ -2484,11 +2484,9 @@ Page({
         this.discardRecording();
         this.setData({ stage });
         const plan = playerCore.resolveStagePlan(stage, this.data.gapEnabled);
-        // 跟读阶段：不做断点续播，直接回到对话开头从头播
-        this.applyPlayModeChange(plan.channel, { skipResume: stage === 'follow' });
-        if (stage === 'follow') {
-            this.startFollowPlayback();
-        }
+        // 任一阶段切换都不做断点续播，统一定位到对话第一句
+        this.applyPlayModeChange(plan.channel, { skipResume: true });
+        this.startStageFromBeginning(stage);
         this.scheduleCourseShareImage();
     },
     // 留白跟读开关（仅跟读阶段可用）：开=前台逐句通道句末留白，关=后台连续通道
@@ -2502,7 +2500,7 @@ Page({
         const plan = playerCore.resolveStagePlan(this.data.stage, gapEnabled);
         // 切换留白开关等于重设跟读方式：回到开头重新开始
         this.applyPlayModeChange(plan.channel, { skipResume: true });
-        this.startFollowPlayback();
+        this.startStageFromBeginning('follow');
     },
     dismissStageGuide() {
         if (!this.data.showStageGuide) {
@@ -2586,8 +2584,9 @@ Page({
         this.scheduleSceneProgressSync();
         this.centerSubtitle(view.id);
     },
-    // 跟读阶段：定位到对话开头并从头播放
-    startFollowPlayback() {
+    // 阶段切换/重听统一从对话开头开始：通听与跟读（连续）自动起播，
+    // 留白跟读选中首句起播，精练只定位到第一句等用户操作
+    startStageFromBeginning(stage) {
         const first = this.data.subtitles[0];
         if (!first) {
             return;
@@ -2596,8 +2595,11 @@ Page({
             this.startShadowMode();
             return;
         }
-        // 留白跟读（前台逐句通道）
         this.selectCue(first.id);
+        if (stage === 'practice') {
+            return;
+        }
+        // 留白跟读：自动起播
         if (this.audioReady && !this.data.audioLoading) {
             this.playSubtitle(first);
         }
@@ -2768,14 +2770,15 @@ Page({
         // 分享封面切换为成就海报
         void this.generateCompletionShareImage();
     },
-    // 成就分享海报：底图（生成插画，缺失时渐变+金色庆祝元素兜底）+ 成就卡
+    // 成就分享海报：微信分享卡封面为 5:4，在共享 canvas 顶部按 600x480 绘制并区域导出。
+    // 底图（生成插画）存在时全幅铺底，缺失时渐变+金色庆祝元素兜底。
     async generateCompletionShareImage() {
         if (!this.data.course) {
             return;
         }
         const ctx = wx.createCanvasContext(COURSE_SHARE_CANVAS_ID);
         const width = COURSE_SHARE_CANVAS_WIDTH;
-        const height = COURSE_SHARE_CANVAS_HEIGHT;
+        const height = 480;
         const palette = share_poster_1.SHARE_POSTER_PALETTE;
         const GOLD = '#E0A93E';
         const GOLD_SOFT = '#F6DFAE';
@@ -2787,28 +2790,22 @@ Page({
         ctx.fillRect(0, 0, width, height);
         ctx.setFillStyle(palette.circleLarge);
         ctx.beginPath();
-        ctx.arc(width - 60, 110, 110, 0, Math.PI * 2);
+        ctx.arc(width - 40, 70, 90, 0, Math.PI * 2);
         ctx.fill();
         ctx.setFillStyle(palette.circleSmall);
         ctx.beginPath();
-        ctx.arc(70, height - 150, 90, 0, Math.PI * 2);
+        ctx.arc(40, height - 60, 70, 0, Math.PI * 2);
         ctx.fill();
         ctx.setFillStyle(GOLD_SOFT);
         ctx.beginPath();
-        ctx.arc(90, 150, 24, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(width - 130, height - 230, 16, 0, Math.PI * 2);
+        ctx.arc(70, 80, 18, 0, Math.PI * 2);
         ctx.fill();
         ctx.setFillStyle(GOLD);
         ctx.beginPath();
-        ctx.arc(150, 90, 9, 0, Math.PI * 2);
+        ctx.arc(120, 44, 7, 0, Math.PI * 2);
         ctx.fill();
         ctx.beginPath();
-        ctx.arc(width - 90, 280, 11, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(56, height / 2 - 40, 7, 0, Math.PI * 2);
+        ctx.arc(width - 70, height - 90, 9, 0, Math.PI * 2);
         ctx.fill();
         try {
             ctx.drawImage(COMPLETION_SHARE_BG_PATH, 0, 0, width, height);
@@ -2816,35 +2813,38 @@ Page({
         catch (_error) {
             // 底图缺失：保留兜底绘制
         }
-        // 中央成就卡
-        drawShareRoundedRect(ctx, 48, 210, width - 96, 388, 28, '#FFFFFF');
+        // 中央成就卡（浅金描边增强与奶油底图的层次）
+        drawShareRoundedRect(ctx, 52, 60, width - 104, height - 120, 26, GOLD_SOFT);
+        drawShareRoundedRect(ctx, 56, 64, width - 112, height - 128, 24, '#FFFFFF');
         ctx.setFillStyle(GOLD_SOFT);
         ctx.beginPath();
-        ctx.arc(width / 2, 288, 56, 0, Math.PI * 2);
+        ctx.arc(width / 2, 130, 44, 0, Math.PI * 2);
         ctx.fill();
         ctx.setFillStyle(GOLD);
         ctx.beginPath();
-        ctx.arc(width / 2, 288, 42, 0, Math.PI * 2);
+        ctx.arc(width / 2, 130, 34, 0, Math.PI * 2);
         ctx.fill();
         ctx.setTextAlign('center');
         ctx.setFillStyle('#FFFFFF');
-        ctx.setFontSize(42);
-        ctx.fillText('✓', width / 2, 303);
+        ctx.setFontSize(34);
+        ctx.fillText('✓', width / 2, 142);
         ctx.setFillStyle(palette.title);
-        ctx.setFontSize(40);
-        ctx.fillText('本小节完成', width / 2, 394);
+        ctx.setFontSize(32);
+        ctx.fillText('本小节完成', width / 2, 218);
         ctx.setFillStyle(palette.snippetText);
-        ctx.setFontSize(30);
-        drawShareWrappedText(ctx, this.data.course.title, width / 2, 448, width - 200, 44, 2);
+        ctx.setFontSize(25);
+        drawShareWrappedText(ctx, this.data.course.title, width / 2, 262, width - 220, 36, 2);
         const stats = this.data.completionStats;
         const statsLabel = stats.practicedCount > 0
             ? `共 ${stats.totalCues} 句 · 本次精练 ${stats.practicedCount} 句`
             : `共 ${stats.totalCues} 句`;
         ctx.setFillStyle(palette.tagText);
-        ctx.setFontSize(26);
-        ctx.fillText(statsLabel, width / 2, 548);
+        ctx.setFontSize(21);
+        ctx.fillText(statsLabel, width / 2, 344);
+        ctx.setFillStyle(palette.brandMuted);
+        ctx.setFontSize(19);
+        ctx.fillText('外贸英语影子跟读 · 一起来练口语', width / 2, 388);
         ctx.setTextAlign('left');
-        (0, share_poster_1.drawShareBrandFooter)(ctx, width, height, '一起来练外贸英语口语');
         try {
             await new Promise(resolve => {
                 ctx.draw(false, () => resolve());
@@ -2852,6 +2852,8 @@ Page({
             const tempFilePath = await new Promise((resolve, reject) => {
                 wx.canvasToTempFilePath({
                     canvasId: COURSE_SHARE_CANVAS_ID,
+                    x: 0,
+                    y: 0,
                     width,
                     height,
                     destWidth: width * 2,
@@ -2877,7 +2879,7 @@ Page({
         this.setData({ showCompletionPanel: false, stage: 'follow' });
         const plan = playerCore.resolveStagePlan('follow', this.data.gapEnabled);
         this.applyPlayModeChange(plan.channel, { skipResume: true });
-        this.startFollowPlayback();
+        this.startStageFromBeginning('follow');
     },
     handleCompletionNext() {
         const nextScene = this.data.nextScene;

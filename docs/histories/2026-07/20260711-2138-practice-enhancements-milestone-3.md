@@ -42,3 +42,4 @@
 ### Notes
 
 - 录音功能依赖 `scope.record`，隐私协议合规弹窗在 `2026-07-11-release-compliance-theme-finalize` 计划内处理。
+- 2026-07-12 补齐 `miniprogram/assets/images/completion-share-bg.png`：1500×1200 暖金/奶油色扁平庆祝插画，四角装饰、中央留出成就卡安全区，无文字、Logo 或人物。
