@@ -1,63 +1,42 @@
 <view class="app-page">
-<navigation-bar title="练习帮助" back="{{true}}" color="black" background="#F5F7FB"></navigation-bar>
+<navigation-bar title="练习方法" back="{{true}}" color="black" background="#F5F7FB"></navigation-bar>
 
 <scroll-view class="help-scroll" scroll-y>
   <view class="help-page">
     <view class="help-hero">
-      <text class="help-hero__eyebrow">练习方法</text>
-      <text class="help-hero__title">一节课，按这三步练</text>
-      <text class="help-hero__desc">先听懂，再逐句模仿，最后跟上原声节奏。每次练 10 到 15 分钟即可。</text>
-    </view>
-
-    <view class="method-section">
-      <view class="method-heading">
-        <view class="method-heading__mark">句</view>
-        <view class="method-heading__copy">
-          <text class="method-heading__title">逐句跟读</text>
-          <text class="method-heading__desc">适合打磨发音和语气</text>
-        </view>
-      </view>
-      <view class="step-list">
-        <view wx:for="{{echoSteps}}" wx:key="label" class="step-item">
-          <text class="step-item__label">{{item.label}}</text>
-          <view class="step-item__body">
-            <text class="step-item__title">{{item.title}}</text>
-            <text class="step-item__desc">{{item.desc}}</text>
-          </view>
-        </view>
+      <text class="help-hero__eyebrow">THREE-STAGE PRACTICE</text>
+      <text class="help-hero__title">一节课，按三步练熟</text>
+      <text class="help-hero__desc">通听理解场景，精练解决难句，最后连续跟读。每次只完成当前阶段的目标。</text>
+      <view class="help-hero__route">
+        <text>通听</text><view class="help-hero__line"></view><text>精练</text><view class="help-hero__line"></view><text>跟读</text>
       </view>
     </view>
 
-    <view class="method-section">
-      <view class="method-heading">
-        <view class="method-heading__mark">影</view>
-        <view class="method-heading__copy">
-          <text class="method-heading__title">影子跟读</text>
-          <text class="method-heading__desc">适合练节奏和流畅度</text>
-        </view>
-      </view>
-      <view class="step-list">
-        <view wx:for="{{shadowSteps}}" wx:key="label" class="step-item">
-          <text class="step-item__label">{{item.label}}</text>
-          <view class="step-item__body">
-            <text class="step-item__title">{{item.title}}</text>
-            <text class="step-item__desc">{{item.desc}}</text>
+    <view class="stage-list">
+      <view wx:for="{{stageSteps}}" wx:key="label" class="stage-card">
+        <view class="stage-card__header">
+          <text class="stage-card__label">{{item.label}}</text>
+          <view class="stage-card__heading">
+            <text class="stage-card__title">{{item.title}}</text>
+            <text class="stage-card__subtitle">{{item.subtitle}}</text>
           </view>
         </view>
+        <text class="stage-card__desc">{{item.desc}}</text>
+        <text class="stage-card__action">{{item.action}}</text>
       </view>
     </view>
 
     <view class="help-section">
       <view class="section-heading">
-        <text class="section-heading__title">一节课这样练</text>
-        <text class="section-heading__desc">每一遍只完成一个目标</text>
+        <text class="section-heading__title">卡住时这样处理</text>
+        <text class="section-heading__desc">一次只解决一个最明显的问题</text>
       </view>
-      <view class="routine-list">
-        <view wx:for="{{routineSteps}}" wx:key="label" class="routine-item">
-          <text class="routine-item__label">{{item.label}}</text>
-          <view class="routine-item__content">
-            <text class="routine-item__title">{{item.title}}</text>
-            <text class="routine-item__desc">{{item.desc}}</text>
+      <view class="tip-list">
+        <view wx:for="{{practiceTips}}" wx:key="title" class="tip-item">
+          <view class="tip-item__dot"></view>
+          <view class="tip-item__body">
+            <text class="tip-item__title">{{item.title}}</text>
+            <text class="tip-item__desc">{{item.desc}}</text>
           </view>
         </view>
       </view>
@@ -69,7 +48,7 @@
       </view>
       <view class="checkpoint-list">
         <view wx:for="{{checkpoints}}" wx:key="title" class="checkpoint-item">
-          <icon class="checkpoint-item__icon" type="success_no_circle" size="18" color="#10b981" />
+          <icon class="checkpoint-item__icon" type="success_no_circle" size="18" color="#16a34a" />
           <view class="checkpoint-item__body">
             <text class="checkpoint-item__title">{{item.title}}</text>
             <text class="checkpoint-item__desc">{{item.desc}}</text>
@@ -79,7 +58,7 @@
     </view>
 
     <view class="help-actions">
-      <button class="help-action help-action--primary" bindtap="goToCourses">开始练习</button>
+      <button class="help-action help-action--primary" bindtap="goToCourses">去选一节课</button>
       <button class="help-action help-action--secondary" open-type="share">分享练习方法</button>
     </view>
   </view>

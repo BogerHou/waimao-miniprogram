@@ -36,9 +36,9 @@ function testBuildPdfShareCardModelUsesImageCount() {
 }
 function testBuildPracticeHelpShareCardModelUsesGuideText() {
     const model = (0, share_card_1.buildPracticeHelpShareCardModel)();
-    strict_1.default.equal(model.title, "逐句跟读与影子跟读练习指南");
-    strict_1.default.equal(model.badge, "练习帮助");
-    strict_1.default.equal(model.highlight, "先听懂，再跟上");
+    strict_1.default.equal(model.title, "通听、精练、跟读三步练习法");
+    strict_1.default.equal(model.badge, "练习方法");
+    strict_1.default.equal(model.highlight, "听懂 · 练顺 · 跟上");
 }
 function testBuildLogsShareCardModelUsesLatestLog() {
     const model = (0, share_card_1.buildLogsShareCardModel)({

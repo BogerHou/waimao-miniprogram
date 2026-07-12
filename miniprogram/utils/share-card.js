@@ -45,10 +45,10 @@ function buildContactShareCardModel() {
 }
 function buildPracticeHelpShareCardModel() {
     return {
-        title: '逐句跟读与影子跟读练习指南',
-        badge: '练习帮助',
-        highlight: '先听懂，再跟上',
-        snippet: '用一节课掌握逐句跟读和影子跟读的练习节奏。',
+        title: '通听、精练、跟读三步练习法',
+        badge: '练习方法',
+        highlight: '听懂 · 练顺 · 跟上',
+        snippet: '一节外贸场景课，按三个阶段分别解决理解、难句和流畅度。',
     };
 }
 function buildPdfShareCardModel(options) {
