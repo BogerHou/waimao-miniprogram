@@ -1,5 +1,5 @@
 <view class="app-page">
-<navigation-bar title="练习帮助" back="{{true}}" color="black" background="#FFF"></navigation-bar>
+<navigation-bar title="练习帮助" back="{{true}}" color="black" background="#F5F7FB"></navigation-bar>
 
 <scroll-view class="help-scroll" scroll-y>
   <view class="help-page">

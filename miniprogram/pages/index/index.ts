@@ -417,31 +417,43 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
         return
       }
 
-      wx.getFileSystemManager().readFile({
-        filePath: tempFilePath,
-        encoding: 'base64',
-        success: (res) => {
-          const avatar = `data:image/png;base64,${res.data as string}`
-          wx.request({
-            url: `${API_BASE_URL}/api/waimao-mini/users/me/avatar`,
-            method: 'POST',
-            header: {
-              'content-type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-            data: { avatar },
-            success: (uploadRes) => {
-              if (uploadRes.statusCode === 200) {
-                const data = uploadRes.data as { avatarUrl: string }
-                resolve(`${API_BASE_URL}${data.avatarUrl}`)
-              } else {
-                reject(new Error('上传失败'))
-              }
-            },
-            fail: reject,
-          })
-        },
-        fail: reject,
+      // 上传前压缩，控制体积（头像无需原图，base64 直传对大图尤其敏感）
+      const readAndUpload = (filePath: string) => {
+        wx.getFileSystemManager().readFile({
+          filePath,
+          encoding: 'base64',
+          success: (res) => {
+            const avatar = `data:image/jpeg;base64,${res.data as string}`
+            wx.request({
+              url: `${API_BASE_URL}/api/waimao-mini/users/me/avatar`,
+              method: 'POST',
+              header: {
+                'content-type': 'application/json',
+                Authorization: `Bearer ${token}`,
+              },
+              data: { avatar },
+              success: (uploadRes) => {
+                if (uploadRes.statusCode === 200) {
+                  const data = uploadRes.data as { avatarUrl: string }
+                  resolve(`${API_BASE_URL}${data.avatarUrl}`)
+                } else {
+                  reject(new Error('上传失败'))
+                }
+              },
+              fail: reject,
+            })
+          },
+          fail: reject,
+        })
+      }
+
+      wx.compressImage({
+        src: tempFilePath,
+        quality: 80,
+        compressedWidth: 400,
+        success: (res) => readAndUpload(res.tempFilePath),
+        // 压缩不支持或失败时退回原图，不阻断登录
+        fail: () => readAndUpload(tempFilePath),
       })
     })
   },

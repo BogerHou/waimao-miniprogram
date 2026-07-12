@@ -3,7 +3,7 @@
   title="{{courseTitle}}"
   back="{{true}}"
   color="black"
-  background="#FFF"
+  background="#F5F7FB"
 ></navigation-bar>
 
 <view class="knowledge-page">

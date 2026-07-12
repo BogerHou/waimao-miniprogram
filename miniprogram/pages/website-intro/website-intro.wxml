@@ -1,4 +1,4 @@
-<navigation-bar title="{{navTitle}}" back="{{true}}" color="black" background="#FFF"></navigation-bar>
+<navigation-bar title="{{navTitle}}" back="{{true}}" color="black" background="#F5F7FB"></navigation-bar>
 
 <scroll-view class="intro-scroll" scroll-y>
   <view class="page">

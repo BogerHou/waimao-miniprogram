@@ -20,6 +20,7 @@ import {
   toggleStarredCue,
 } from '../../utils/practice-marks'
 import { NextSceneCandidate, resolveNextScene } from '../../utils/next-scene'
+import { decideRecordAuthAction } from './record-auth'
 import { debounce, throttle } from '../../utils/storage'
 import {
   subscribe,
@@ -73,6 +74,8 @@ const COURSE_SHARE_CANVAS_ID = 'course-share-canvas'
 const COURSE_SHARE_CANVAS_WIDTH = 600
 // 完成成就海报底图（imagegen 生成的庆祝插画，5:4；缺失时走渐变兜底绘制）
 const COMPLETION_SHARE_BG_PATH = '/assets/images/completion-share-bg.jpg'
+// 主题主色（business 藏青），供 wxml 内联属性使用（slider activeColor 等吃不到 less 变量）
+const THEME_ACCENT_COLOR = '#1e40af'
 const COURSE_DEBUG_STORAGE_KEY = 'waimao_mini_debug_logs'
 const COURSE_STAGE_GUIDE_SEEN_KEY = 'waimao_course_stage_guide_seen_v1'
 
@@ -225,6 +228,7 @@ type CoursePageData = {
   showShadowMode: boolean
   showPracticeControls: boolean
   showStageGuide: boolean
+  themeAccent: string
   recording: boolean
   recordReady: boolean
   comparing: boolean
@@ -301,6 +305,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     showShadowMode: true,
     showPracticeControls: false,
     showStageGuide: false,
+    themeAccent: THEME_ACCENT_COLOR,
     recording: false,
     recordReady: false,
     comparing: false,
@@ -2938,12 +2943,45 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
       wx.showToast({ title: '先选择一个句子', icon: 'none' })
       return
     }
-    const manager = this.ensureRecorderManager()
     if (this.data.recording) {
-      manager.stop()
+      this.ensureRecorderManager().stop()
       return
     }
+    // 录音属敏感权限：先确认系统授权（隐私协议由微信在首次 authorize 时统一拦截）
+    wx.getSetting({
+      success: res => {
+        const decision = decideRecordAuthAction({ recordAuth: res.authSetting['scope.record'] })
+        if (decision.action === 'start') {
+          this.beginRecording(currentId)
+        } else if (decision.action === 'request') {
+          wx.authorize({
+            scope: 'scope.record',
+            success: () => this.beginRecording(currentId),
+            fail: () => this.promptRecordSetting(),
+          })
+        } else {
+          this.promptRecordSetting()
+        }
+      },
+      fail: () => this.beginRecording(currentId),
+    })
+  },
 
+  promptRecordSetting() {
+    wx.showModal({
+      title: '需要麦克风权限',
+      content: '开启麦克风后可录音跟读、对比自己的发音。是否前往设置开启？',
+      confirmText: '去设置',
+      success: res => {
+        if (res.confirm) {
+          wx.openSetting()
+        }
+      },
+    })
+  },
+
+  beginRecording(currentId: string) {
+    const manager = this.ensureRecorderManager()
     // 录音前停下播放和留白，避免录进原声
     if (this.data.playing && this.audioContext) {
       this.audioContext.pause()

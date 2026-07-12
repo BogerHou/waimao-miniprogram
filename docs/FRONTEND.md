@@ -1,6 +1,6 @@
 # 前端协作说明
 
-前端是微信小程序，源码位于 `miniprogram/`。本项目最初复刻 EnglishPod，布局和交互默认沿用原版；视觉层已于 2026-07 改版为自有主题体系，当前有 warm（温暖学习风）/ business（商务专业风）两套候选配色待定稿，切换方式见 `docs/DESIGN.md`。
+前端是微信小程序，源码位于 `miniprogram/`。本项目最初复刻 EnglishPod，布局和交互默认沿用原版；视觉层已于 2026-07 改版为自有主题体系「business 商务专业风」（冷灰底 + 藏青主色 + 金色点缀，2026-07-12 定稿），令牌规范见 `docs/DESIGN.md`。
 
 ## 本地命令
 
@@ -25,7 +25,7 @@ npm test
 
 ## 设计约束
 
-- 配色使用自有主题令牌体系，两套候选主题（warm 米白+橘 / business 冷灰+藏青+金）定义在 `miniprogram/styles/palettes/`，由 `miniprogram/styles/theme.less` 切换启用；页面和组件 less 通过 `@import` 引用令牌，不再各自维护变量块，带透明度的衍生色用 `fade()` 表达。令牌含义与切换方式见 `docs/DESIGN.md`。
+- 配色使用自有主题令牌体系「business 商务专业风」（冷灰底 + 藏青 + 金色点缀），定义在 `miniprogram/styles/palettes/business.less`，由 `miniprogram/styles/theme.less` 引用；页面和组件 less 通过 `@import` 引用令牌，不再各自维护变量块，带透明度的衍生色用 `fade()` 表达。wxml 内联属性（如 slider `activeColor`、navigation-bar `background`）吃不到 less 变量，取主色时从页面 data 注入（course 页 `themeAccent`）或写主题底色常量。令牌规范见 `docs/DESIGN.md`。
 - 微信品牌绿（`#95ec69/#55a532/#e1f3d8`，AI 弹层气泡和头像）与语义红绿（错误、纠错对照、完成状态）不跟随主题换色。
 - 引用自定义组件的页面使用 `.app-page` 根容器承载全屏布局；页面 WXSS 使用 class 选择器，不使用标签名、ID 或属性选择器，避免新版组件化编译警告。
 - 首页保持 EnglishPod 的“个人卡片 + 继续学习 + 提示位 + 列表”结构，章节和小节列表只展示进入训练所需的信息；首屏不展示连续学习天数。

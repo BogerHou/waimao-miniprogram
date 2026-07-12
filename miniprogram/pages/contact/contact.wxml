@@ -1,5 +1,5 @@
 <view class="app-page">
-<navigation-bar title="交流与反馈" back="{{true}}" color="black" background="#FFF"></navigation-bar>
+<navigation-bar title="交流与反馈" back="{{true}}" color="black" background="#F5F7FB"></navigation-bar>
 
 <scroll-view class="contact-scroll" scroll-y>
   <view class="contact-page">

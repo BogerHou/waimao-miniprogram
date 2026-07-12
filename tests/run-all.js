@@ -16,6 +16,7 @@ require("./pdf-image-scan.test");
 require("./player-core.test");
 require("./practice-marks.test");
 require("./progress-payload.test");
+require("./record-auth.test");
 require("./shadow-background-handoff.test");
 require("./share-card.test");
 require("./unlock-format.test");

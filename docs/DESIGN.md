@@ -1,15 +1,12 @@
 # 设计原则
 
-这份文档沉淀小程序的视觉设计体系。2026-07 改版脱离 EnglishPod 复刻配色，当前有两套候选主题**待定稿**：
+这份文档沉淀小程序的视觉设计体系。2026-07 改版脱离 EnglishPod 复刻配色，定稿主题为 **business 商务专业风**：冷调浅灰底 + 藏青主色 `#1e40af` + 金色点缀 `#b45309`，突出外贸商务定位（2026-07-12 定稿）。
 
-- **warm 温暖学习风**：米白底 + 暖棕灰文字 + 橘色主色，亲和感接近学习类 App。
-- **business 商务专业风**：冷调浅灰底 + 藏青主色 + 金色点缀，突出外贸商务定位。
+## 主题结构
 
-## 主题切换
-
-- 页面样式：改 `miniprogram/styles/theme.less` 顶部的 `@import` 行（二选一启用 `palettes/warm.less` 或 `palettes/business.less`），微信开发者工具重新编译即生效。
-- 分享海报：同步改 `miniprogram/utils/share-poster.ts` 里的 `ACTIVE_SHARE_POSTER_THEME`（`'warm' | 'business'`），然后 `npm run build` 重新生成 `.js`。
-- 两套调色板必须维持同一套令牌名；新增令牌要在两个 palette 文件里同时定义。
+- 令牌定义在 `miniprogram/styles/palettes/business.less`，由 `miniprogram/styles/theme.less` 引用（共享语义色 `success`/`error` 在 `theme.less`）。
+- 分享海报 canvas 颜色在 `miniprogram/utils/share-poster.ts` 的 `SHARE_POSTER_PALETTE`（`ACTIVE_SHARE_POSTER_THEME` 固定 `'business'`）。
+- 新增令牌先加进 `business.less` 再使用。
 
 ## 视觉原则
 
@@ -19,31 +16,31 @@
 
 ## 颜色令牌
 
-唯一真源：`miniprogram/styles/theme.less`（切换入口 + 共享语义色）+ `miniprogram/styles/palettes/*.less`（两套完整调色板）。
+唯一真源：`miniprogram/styles/theme.less`（共享语义色）+ `miniprogram/styles/palettes/business.less`（完整调色板）。
 
-| 令牌 | warm | business | 用途 |
-|---|---|---|---|
-| `@page-bg` | `#faf6ef` | `#f5f7fb` | 页面底色 |
-| `@page-bg-deep` | `#f4eee3` | `#e9edf5` | 内嵌区域、分段控件底、骨架屏 |
-| `@surface` / `@surface-alt` | `#ffffff` / `#fdfbf7` | `#ffffff` / `#fbfcfe` | 卡片表面 / 锁定卡、渐变末端 |
-| `@popup-bg` | `#f7f4ee` | `#f3f5f9` | AI 弹层底 |
-| `@text` / `@text-soft` | `#44403c` / `#57534e` | `#1e293b` / `#475569` | 主文字 / 强调正文 |
-| `@muted` / `@faint` | `#78716c` / `#a8a29e` | `#64748b` / `#94a3b8` | 次要 / 辅助文字 |
-| `@line` / `@handle` / `@disabled-bg` | 暖灰系 | 冷灰系 | 分隔线 / 弹层把手 / 禁用底 |
-| `@primary` 系 | 橘 `#f97316/#ea580c/#c2410c/#ffedd5` | 藏青 `#1e40af/#1e3a8a/#1e3a8a/#e8edfb` | 主操作、强调 |
-| `@accent` / `@accent-soft` | `#c2410c` / `#ffedd5`（同主色深档） | 金 `#b45309` / `#fdf3dc` | eyebrow、标签、徽章等小面积点缀 |
-| `@selection` / `@selection-line` | `#fff7ed` / `#f97316` | `#eef3fd` / `#1e40af` | 课程页当前播放句 |
-| `@tint-card-bg` / `@tint-card-border` | `#fffaf1` / `#f8e2c9` | `#f7f9ff` / `#d9e2f5` | 场景背景卡、会员权益卡 |
-| `@hero-gradient` | 橘渐变 | 藏青渐变 | 首页个人卡、主按钮渐变 |
-| `@shadow-ink` / `@shadow-neutral` / `@mask` | 暖棕系 | 藏青/石板系 | 阴影基色（配 `fade()`）与遮罩 |
-| `@success` / `@error` 系 | 共享 | 共享 | 语义色，定义在 theme.less，不随主题变化 |
-| `@tone-0..5`（含 `-deep/-soft/-edge/-light/-tint`） | teal/violet/sky/pink/gold/stone | teal/violet/orange/pink/gold/slate | 对话角色区分色 |
+| 令牌 | business | 用途 |
+|---|---|---|
+| `@page-bg` | `#f5f7fb` | 页面底色 |
+| `@page-bg-deep` | `#e9edf5` | 内嵌区域、分段控件底、骨架屏 |
+| `@surface` / `@surface-alt` | `#ffffff` / `#fbfcfe` | 卡片表面 / 锁定卡、渐变末端 |
+| `@popup-bg` | `#f3f5f9` | AI 弹层底 |
+| `@text` / `@text-soft` | `#1e293b` / `#475569` | 主文字 / 强调正文 |
+| `@muted` / `@faint` | `#64748b` / `#94a3b8` | 次要 / 辅助文字 |
+| `@line` / `@handle` / `@disabled-bg` | 冷灰系 | 分隔线 / 弹层把手 / 禁用底 |
+| `@primary` 系 | 藏青 `#1e40af/#1e3a8a/#1e3a8a/#e8edfb` | 主操作、强调 |
+| `@accent` / `@accent-soft` | 金 `#b45309` / `#fdf3dc` | eyebrow、标签、徽章等小面积点缀 |
+| `@selection` / `@selection-line` | `#eef3fd` / `#1e40af` | 课程页当前播放句 |
+| `@tint-card-bg` / `@tint-card-border` | `#f7f9ff` / `#d9e2f5` | 场景背景卡、会员权益卡 |
+| `@hero-gradient` | 藏青渐变 | 首页个人卡、主按钮渐变 |
+| `@shadow-ink` / `@shadow-neutral` / `@mask` | 藏青/石板系 | 阴影基色（配 `fade()`）与遮罩 |
+| `@success` / `@error` 系 | 共享 | 语义色，定义在 theme.less，不随主题变化 |
+| `@tone-0..5`（含 `-deep/-soft/-edge/-light/-tint`） | teal/violet/orange/pink/gold/slate | 对话角色区分色 |
 
 ## 角色色规范
 
 - 课程页字幕卡：左侧 8rpx 竖线用 `@tone-N`，卡片保持白底；当前句用 `@selection-line` 边框 + `@selection` 浅底，优先级高于角色色。
 - 知识点页对话：说话人徽章用 `@tone-N-deep/-soft/-edge`，气泡用 `@tone-N-light/-tint`，不同说话人色相差异必须明显。
-- 角色色刻意避开当前主题的主色色相（warm 避开橘、business 避开蓝），避免与选中态、主按钮混淆。
+- 角色色刻意避开主色蓝色相，避免与选中态、主按钮混淆。
 
 ## 形状与阴影
 

@@ -34,10 +34,13 @@
 ## 进度记录
 
 - [x] 主题定稿：business（2026-07-12 用户决策）。
-- [ ] 视觉收尾与文档更新（删 warm、清 wxml 硬编码、单主题文档）。
-- [ ] 隐私合规核对与验证（含录音权限）。
+- [x] 视觉收尾与文档更新（删 warm palette、theme.less 单 import、course.wxml slider activeColor 走 `themeAccent`/navbar 与全站 navbar 背景改 `#F5F7FB`、unlock 图标改主色、DESIGN.md/FRONTEND.md 改单主题）（2026-07-12）。
+- [x] 头像上传前 `wx.compressImage`（400 宽/quality 80，失败回退原图）、改 jpeg base64（2026-07-12）。
+- [x] 录音权限流程：`decideRecordAuthAction` 纯逻辑判定 + 页面 getSetting/authorize/openSetting 接线；app.json 声明 `permission.scope.record` 说明（2026-07-12）。
+- [ ] 微信管理后台：配置隐私保护指引（头像/昵称/录音三项收集说明），确认审核专用邀请码（人工，后台操作）。
 
 ## 决策记录
 
 - 2026-07-11：建档。主题当前保留双套供对比，收尾动作在定稿后执行。
 - 2026-07-12：主题定稿 business；里程碑 1 关闭。录音权限（里程碑 3 期间新增的功能）纳入隐私合规范围。
+- 2026-07-12：代码侧合规完成（权限声明、授权流程、头像压缩）。隐私保护指引正文属微信管理后台配置项，无法在仓库内完成，留作上线前人工操作项。

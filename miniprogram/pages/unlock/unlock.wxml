@@ -3,7 +3,7 @@
   title="解锁课程"
   back="{{true}}"
   color="black"
-  background="#FFF"
+  background="#F5F7FB"
 ></navigation-bar>
 
 <scroll-view class="unlock-scroll" scroll-y>
@@ -26,21 +26,21 @@
 
       <view class="member-benefits">
         <view class="member-benefit">
-          <icon class="member-benefit__icon" type="success_no_circle" size="18" color="#6366f1" />
+          <icon class="member-benefit__icon" type="success_no_circle" size="18" color="#1e40af" />
           <view class="member-benefit__body">
             <text class="member-benefit__title">后 6 章全部开放</text>
             <text class="member-benefit__desc">覆盖询盘、报价、订单、物流和售后场景</text>
           </view>
         </view>
         <view class="member-benefit">
-          <icon class="member-benefit__icon" type="success_no_circle" size="18" color="#6366f1" />
+          <icon class="member-benefit__icon" type="success_no_circle" size="18" color="#1e40af" />
           <view class="member-benefit__body">
             <text class="member-benefit__title">完整跟读功能</text>
             <text class="member-benefit__desc">逐句跟读、影子跟读、讲解和知识点完整使用</text>
           </view>
         </view>
         <view class="member-benefit">
-          <icon class="member-benefit__icon" type="success_no_circle" size="18" color="#6366f1" />
+          <icon class="member-benefit__icon" type="success_no_circle" size="18" color="#1e40af" />
           <view class="member-benefit__body">
             <text class="member-benefit__title">学习进度持续保存</text>
             <text class="member-benefit__desc">1 年内不限次数学习和复习</text>

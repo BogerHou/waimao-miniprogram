@@ -13,7 +13,7 @@
     title="{{course ? course.title : '课程练习'}}"
     back="{{true}}"
     color="black"
-    background="#FFF"
+    background="#F5F7FB"
   ></navigation-bar>
 </view>
 
@@ -244,7 +244,7 @@
         </view>
         <view class="speed-slider-container">
           <text class="speed-label">0.5×</text>
-          <slider class="speed-slider" min="50" max="200" step="5" value="{{playbackRate * 100}}" activeColor="#6366F1" block-size="20" bindchange="handleSpeedChange" />
+          <slider class="speed-slider" min="50" max="200" step="5" value="{{playbackRate * 100}}" activeColor="{{themeAccent}}" block-size="20" bindchange="handleSpeedChange" />
           <text class="speed-label">2×</text>
         </view>
         <view class="speed-presets">

@@ -3,7 +3,7 @@
   title="外贸英语影子跟读"
   back="{{false}}"
   color="black"
-  background="#FFF"
+  background="#F5F7FB"
 ></navigation-bar>
 
 <view class="page-content">
