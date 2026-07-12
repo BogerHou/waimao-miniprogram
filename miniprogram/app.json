@@ -16,6 +16,32 @@
     "navigationBarTextStyle": "black",
     "navigationStyle": "custom"
   },
+  "tabBar": {
+    "color": "#8B93A2",
+    "selectedColor": "#1B4B91",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "课程",
+        "iconPath": "assets/tabs/courses.png",
+        "selectedIconPath": "assets/tabs/courses-selected.png"
+      },
+      {
+        "pagePath": "pages/review/review",
+        "text": "复习",
+        "iconPath": "assets/tabs/review.png",
+        "selectedIconPath": "assets/tabs/review-selected.png"
+      },
+      {
+        "pagePath": "pages/learning/learning",
+        "text": "我的",
+        "iconPath": "assets/tabs/profile.png",
+        "selectedIconPath": "assets/tabs/profile-selected.png"
+      }
+    ]
+  },
   "style": "v2",
   "rendererOptions": {
     "skyline": {

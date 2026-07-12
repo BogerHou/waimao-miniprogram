@@ -37,6 +37,7 @@ interface IAppGlobalData {
     }
   }
   readyPromise?: Promise<void>
+  requestIndexAction?: 'login' | 'unlock' | null
 }
 
 interface IAppOption {

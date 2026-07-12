@@ -1,5 +1,5 @@
 <view class="app-page">
-  <navigation-bar title="复习" back="{{true}}" color="black" background="#F5F7FB"></navigation-bar>
+  <navigation-bar title="复习" back="{{false}}" color="black" background="#F5F7FB"></navigation-bar>
   <view class="review-page">
     <view class="review-hero">
       <text class="review-hero__eyebrow">REVIEW LIBRARY</text>

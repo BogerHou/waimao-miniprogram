@@ -10,19 +10,18 @@
 .learning-profile__eyebrow { color: fade(@surface, 62%); font-size: 19rpx; font-weight: 700; letter-spacing: 2rpx; }
 .learning-profile__name { display: block; margin-top: 6rpx; overflow: hidden; color: @surface; font-size: 36rpx; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
 .learning-profile__desc { display: block; margin-top: 7rpx; color: fade(@surface, 72%); font-size: 24rpx; }
+.account-guest { display: flex; flex-direction: column; align-items: flex-start; padding: 32rpx; border-radius: 24rpx; background: @hero-gradient; box-shadow: @shadow-primary; }
+.account-guest__mark { width: 72rpx; height: 72rpx; border: 2rpx solid fade(@surface, 30%); border-radius: 20rpx; background: fade(@surface, 14%); color: @surface; font-size: 24rpx; font-weight: 800; letter-spacing: 1rpx; line-height: 72rpx; text-align: center; }
+.account-guest__title { margin-top: 24rpx; color: @surface; font-size: 38rpx; font-weight: 800; letter-spacing: -1rpx; }
+.account-guest__desc { max-width: 560rpx; margin-top: 10rpx; color: fade(@surface, 72%); font-size: 25rpx; line-height: 1.5; }
+.account-guest__button { min-width: 210rpx; margin: 28rpx 0 0; border: 0; border-radius: 16rpx; background: @surface; color: @primary; font-size: 27rpx; font-weight: 750; }
+.account-guest__button:active { transform: scale(0.98); }
 .learning-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12rpx; margin-top: 16rpx; }
 .learning-stat { padding: 22rpx; border-radius: 18rpx; background: @surface; box-shadow: @shadow-soft; }
 .learning-stat--wide { grid-column: 1 / 3; display: flex; align-items: baseline; justify-content: space-between; }
 .learning-stat__value { display: block; color: @text; font-size: 42rpx; font-weight: 800; font-variant-numeric: tabular-nums; }
 .learning-stat__value--duration { font-size: 34rpx; }
 .learning-stat__label { display: block; margin-top: 5rpx; color: @muted; font-size: 23rpx; }
-.review-entry { display: flex; align-items: center; gap: 16rpx; margin-top: 16rpx; padding: 21rpx; border: 1rpx solid @tint-card-border; border-radius: 20rpx; background: @tint-card-bg; }
-.review-entry:active { transform: scale(0.992); }
-.review-entry__mark { width: 54rpx; height: 54rpx; flex-shrink: 0; border-radius: 15rpx; background: @primary; color: @surface; font-size: 25rpx; font-weight: 800; line-height: 54rpx; text-align: center; }
-.review-entry__copy { flex: 1; min-width: 0; }
-.review-entry__title { display: block; color: @text; font-size: 29rpx; font-weight: 750; }
-.review-entry__desc { display: block; margin-top: 5rpx; color: @muted; font-size: 23rpx; }
-.review-entry__arrow { color: @primary; font-size: 38rpx; }
 .record-section { margin-top: 24rpx; }
 .record-section__heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 16rpx; margin-bottom: 14rpx; }
 .record-section__title { display: block; color: @text; font-size: 32rpx; font-weight: 800; }
@@ -41,3 +40,16 @@
 .record-loading { color: @muted; font-size: 25rpx; text-align: center; }
 .record-error { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; color: @error; font-size: 24rpx; }
 .record-error__button { flex-shrink: 0; margin: 0; background: @primary-soft; color: @primary; font-size: 23rpx; }
+.service-section { margin-top: 26rpx; }
+.service-section__title { display: block; margin: 0 4rpx 13rpx; color: @text; font-size: 30rpx; font-weight: 800; }
+.service-card { overflow: hidden; border-radius: 20rpx; background: @surface; box-shadow: @shadow-soft; }
+.service-row { position: relative; display: flex; align-items: center; gap: 16rpx; min-height: 104rpx; padding: 14rpx 20rpx; }
+.service-row::after { position: absolute; right: 20rpx; bottom: 0; left: 90rpx; height: 1rpx; background: @line; content: ""; }
+.service-row--last::after { display: none; }
+.service-row:active { background: @page-bg; }
+.service-row__mark { width: 52rpx; height: 52rpx; flex-shrink: 0; border-radius: 15rpx; background: @primary-soft; color: @primary; font-size: 24rpx; font-weight: 800; line-height: 52rpx; text-align: center; }
+.service-row__mark--member { background: @tone-4-soft; color: @tone-4; }
+.service-row__copy { flex: 1; min-width: 0; }
+.service-row__title { display: block; color: @text; font-size: 28rpx; font-weight: 700; }
+.service-row__desc { display: block; margin-top: 4rpx; overflow: hidden; color: @muted; font-size: 22rpx; text-overflow: ellipsis; white-space: nowrap; }
+.service-row__arrow { color: @faint; font-size: 36rpx; }

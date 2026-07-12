@@ -83,6 +83,7 @@ async function resolveLoginProfilePayload(): Promise<LoginProfilePayload | undef
 App<IAppOption>({
   globalData: {
     token: null,
+    requestIndexAction: null,
   },
   storeUnsubscribe: undefined as Unsubscribe | undefined,
   async onLaunch() {

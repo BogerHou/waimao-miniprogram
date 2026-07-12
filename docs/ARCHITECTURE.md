@@ -5,10 +5,11 @@
 ## 顶层结构
 
 - `miniprogram/`：微信小程序源码和编译后的 `.js` 文件。
-- `miniprogram/pages/index/`：首页，展示 7 章外贸场景小节，默认第一章展开，并在课程树上方提供纯前端场景搜索。
+- `miniprogram/app.json`：定义“课程 / 复习 / 我的”三个原生一级 Tab；课程详情、知识点、解锁等保持二级页面，不出现在 Tab Bar。
+- `miniprogram/pages/index/`：课程 Tab，展示 7 章外贸场景小节，默认第一章展开，并在课程树上方提供纯前端场景搜索。
 - `miniprogram/pages/course/`：课程详情，保留 EnglishPod 的 Shadow/Echo/查词/AI 讲解交互。
-- `miniprogram/pages/learning/`：独立学习主页，展示累计学习、连续天数、完成数、练习次数和最近 4 周日历。
-- `miniprogram/pages/review/`：本地复习资料库，合并自动沉淀的生词与用户标记的难句，支持回到来源句。
+- `miniprogram/pages/learning/`：“我的”Tab，展示累计学习、连续天数、完成数、练习次数和最近 4 周日历，并承载会员、练习帮助与反馈入口；未登录时保留访客状态，不自动跳页。
+- `miniprogram/pages/review/`：“复习”Tab，本地资料库合并自动沉淀的生词与用户标记的难句，支持回到来源句。
 - `miniprogram/pages/knowledge/`：外贸知识点新页面，展示 Web 数据中的背景、重点表达、纠错、备注和对话。
 - `miniprogram/pages/unlock/`：小程序专用邀请码解锁页；进入前要求用户填写头像/昵称完成登录，页面内展示微信二维码、会员权益和邀请码兑换控件。
 - `miniprogram/utils/api.ts`：外贸小程序 API 客户端，统一使用 `/api/waimao-mini/*`。

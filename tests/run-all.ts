@@ -22,6 +22,7 @@ import "./unlock-format.test"
 import "./review-library.test"
 import "./scene-search.test"
 import "./learning-records.test"
+import "./tab-navigation.test"
 
 Promise.all([appConfigSyncTestDone, networkResilienceTestDone])
   .then(() => {

@@ -45,6 +45,7 @@ async function resolveLoginProfilePayload() {
 App({
     globalData: {
         token: null,
+        requestIndexAction: null,
     },
     storeUnsubscribe: undefined,
     async onLaunch() {

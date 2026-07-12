@@ -59,6 +59,16 @@ Page({
         await this.initializePage();
     },
     async onShow() {
+        const app = getApp();
+        const requestedAction = app.globalData.requestIndexAction;
+        if (requestedAction) {
+            app.globalData.requestIndexAction = null;
+            if (requestedAction === 'unlock') {
+                ;
+                this.pendingUnlockAfterLogin = true;
+            }
+            setTimeout(() => this.showLoginDialog(requestedAction === 'unlock'), 0);
+        }
         if (!this.pageInitialized || !this.data.chapters.length || this.data.loading)
             return;
         await this.loadCourses(true, true);
@@ -267,7 +277,7 @@ Page({
             this.showLoginDialog();
             return;
         }
-        wx.navigateTo({ url: '/pages/learning/learning' });
+        wx.switchTab({ url: '/pages/learning/learning' });
     },
     handleLoginTap() {
         this.showLoginDialog();
