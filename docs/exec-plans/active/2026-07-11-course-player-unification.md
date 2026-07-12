@@ -66,3 +66,4 @@
 - 2026-07-11：切片 C 收窄范围——只抽离恢复状态存储 I/O（`createBackgroundResumeStore`，storage 可注入）；BackgroundAudioManager 的事件接线深度耦合页面 setData 与跨方法状态，在无法真机验证的前提下整体搬移风险大于收益，保留在页面，"Page 只剩 UI 编排"目标顺延到里程碑 2 之后按需推进。
 - 2026-07-11：里程碑 2/3 完成。默认阶段=通听（进课程自动连续播放，首次引导时推迟）；full-audio 逐句路径句末补记 `markEchoCompletionProgress`（与切片路径对齐，练完最后一句即记完成）；完成面板取代完成 toast；录音使用 aac、60s 上限，换句/切阶段/退出即弃；录音权限被拒时 toast 提示（隐私协议合规项在 release-compliance 计划内）。全部改动待真机回归后归档。
 - 2026-07-12：真机回归首个反馈修复——通听（后台通道）不再预热 echo 前台音频（其加载遮罩会盖住首次引导）；echo 前台音频改为进入精练/留白跟读或引导关闭时懒加载；引导/完成面板按钮改 flex 居中，不再依赖 line-height 对抗 button 的 UA 样式。
+- 2026-07-12：按真机试用反馈调整交互——精练句末不再自动选中下一句（停在当前句）；进入跟读阶段/切换留白开关/完成面板"再听一遍"均回到对话开头从头播放；完成判定从"通听到 range.end 或精练完最后一句"收敛为"跟读阶段播完最后一句"（通听到末尾只 toast 提示进入下一阶段）；完成面板改为"进入下一节"短主按钮 + 下方小字展示下一节信息；分享封面改为成就海报（预留 assets/images/completion-share-bg.png 插画底图，本地 codex CLI 版本过旧暂无法 imagegen，先用渐变+金色庆祝元素兜底绘制，底图就位后自动叠加）。顺带修复 onCanplay pending 字幕在 echo 通道走 seekAndPlay 缺句末停止定时器的隐患（改走 playSubtitle）。

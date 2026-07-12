@@ -231,7 +231,7 @@ import {
 // 阶段→通道与句末策略
 assert.deepEqual(resolveStagePlan("listen", false), { channel: "shadow", cueEndPolicy: "none" })
 assert.deepEqual(resolveStagePlan("listen", true), { channel: "shadow", cueEndPolicy: "none" })
-assert.deepEqual(resolveStagePlan("practice", false), { channel: "echo", cueEndPolicy: "advance-wait" })
+assert.deepEqual(resolveStagePlan("practice", false), { channel: "echo", cueEndPolicy: "none" })
 assert.deepEqual(resolveStagePlan("follow", false), { channel: "shadow", cueEndPolicy: "none" })
 assert.deepEqual(resolveStagePlan("follow", true), { channel: "echo", cueEndPolicy: "gap-advance" })
 

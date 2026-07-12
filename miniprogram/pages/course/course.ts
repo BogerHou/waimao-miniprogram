@@ -67,6 +67,8 @@ const BACKGROUND_AUDIO_COVER_URL = `${API_BASE_URL}/static/waimao-mini/icon.png`
 const COURSE_SHARE_CANVAS_ID = 'course-share-canvas'
 const COURSE_SHARE_CANVAS_WIDTH = 600
 const COURSE_SHARE_CANVAS_HEIGHT = 840
+// 完成成就海报底图（由 imagegen 生成的插画资产；缺失时走渐变兜底绘制）
+const COMPLETION_SHARE_BG_PATH = '/assets/images/completion-share-bg.png'
 const COURSE_DEBUG_STORAGE_KEY = 'waimao_mini_debug_logs'
 const COURSE_STAGE_GUIDE_SEEN_KEY = 'waimao_course_stage_guide_seen_v1'
 
@@ -479,9 +481,18 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
       audioLoading: false,
     })
     this.lastKnownCourseTime = this.courseRange?.end ?? this.lastKnownCourseTime
-    void this.markSceneCompleted('scene-end')
-    if (showToast) {
-      void this.openCompletionPanel()
+    // 完成判定收敛到跟读阶段：跟读播完整节才算完成；通听到末尾只提示进入下一阶段
+    if (this.data.stage === 'follow') {
+      void this.markSceneCompleted('scene-end')
+      if (showToast) {
+        void this.openCompletionPanel()
+      }
+    } else if (showToast) {
+      wx.showToast({
+        title: '通听完成，试试精练和跟读',
+        icon: 'none',
+        duration: 2200,
+      })
     }
   },
 
@@ -630,10 +641,12 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     }
     const subtitleIndex = this.data.subtitles.findIndex(subtitle => subtitle.id === this.activeSubtitle?.id)
     if (this.data.subtitles.length > 0 && subtitleIndex === this.data.subtitles.length - 1) {
-      void this.markSceneCompleted('echo-last-subtitle')
-      // 精练/留白跟读练到最后一句：弹出完成面板（重复与对比过程中不打扰）
-      if (!this.data.isRepeating && !this.data.comparing) {
-        void this.openCompletionPanel()
+      // 完成判定收敛到跟读阶段（留白跟读练完最后一句）
+      if (this.data.stage === 'follow') {
+        void this.markSceneCompleted('follow-last-subtitle')
+        if (!this.data.isRepeating && !this.data.comparing) {
+          void this.openCompletionPanel()
+        }
       }
     }
     console.log('[Audio] 记录 Echo 完成进度', {
@@ -831,9 +844,12 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
   },
 
   onShareAppMessage() {
-    const title = this.data.course?.title
-      ? `${this.data.course.title} | 外贸英语影子跟读`
-      : '外贸英语影子跟读'
+    // 完成面板打开时分享成就（封面为成就海报，openCompletionPanel 已生成）
+    const title = this.data.showCompletionPanel && this.data.course?.title
+      ? `我练完了「${this.data.course.title}」，一起来练外贸英语口语`
+      : this.data.course?.title
+        ? `${this.data.course.title} | 外贸英语影子跟读`
+        : '外贸英语影子跟读'
     const path = this.courseId
       ? `/pages/course/course?id=${this.courseId}`
       : '/pages/index/index'
@@ -1211,8 +1227,17 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
 
         if (this.pendingSubtitle) {
           console.log('[Audio] 执行pending的字幕播放')
-          this.seekAndPlay(this.pendingSubtitle)
+          const pending = this.pendingSubtitle
           this.pendingSubtitle = null
+          // Echo 通道走 playSubtitle，保证句末停止定时器被正确设置
+          if (this.data.playMode === 'echo') {
+            const pendingView = this.data.subtitles.find(item => item.id === pending.id)
+            if (pendingView) {
+              this.playSubtitle(pendingView)
+              return
+            }
+          }
+          this.seekAndPlay(pending)
         }
       })
 
@@ -2688,7 +2713,8 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
 
 
   // 播放通道切换（原顶层"模式切换"，现由学习阶段驱动）
-  applyPlayModeChange(mode: playerCore.PlaybackChannel) {
+  // options.skipResume：不做断点续播解析（调用方随后自行决定起播位置，如跟读从头播）
+  applyPlayModeChange(mode: playerCore.PlaybackChannel, options: { skipResume?: boolean } = {}) {
     if (mode === 'shadow' && !this.data.showShadowMode) {
       return
     }
@@ -2769,6 +2795,9 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     this.centerSubtitle(targetSubtitleView.id)
 
     if (mode === 'shadow') {
+      if (options.skipResume) {
+        return
+      }
       const nextShadowState =
         previousMode === 'echo'
           ? resolveEchoToShadowSwitchState({
@@ -2855,7 +2884,11 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     this.discardRecording()
     this.setData({ stage })
     const plan = playerCore.resolveStagePlan(stage, this.data.gapEnabled)
-    this.applyPlayModeChange(plan.channel)
+    // 跟读阶段：不做断点续播，直接回到对话开头从头播
+    this.applyPlayModeChange(plan.channel, { skipResume: stage === 'follow' })
+    if (stage === 'follow') {
+      this.startFollowPlayback()
+    }
     this.scheduleCourseShareImage()
   },
 
@@ -2868,7 +2901,9 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     this.clearGapTimer()
     this.setData({ gapEnabled })
     const plan = playerCore.resolveStagePlan(this.data.stage, gapEnabled)
-    this.applyPlayModeChange(plan.channel)
+    // 切换留白开关等于重设跟读方式：回到开头重新开始
+    this.applyPlayModeChange(plan.channel, { skipResume: true })
+    this.startFollowPlayback()
   },
 
   dismissStageGuide() {
@@ -2915,18 +2950,13 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     }
 
     const policy = playerCore.resolveStagePlan(this.data.stage, this.data.gapEnabled).cueEndPolicy
-    if (policy === 'none') {
+    if (policy !== 'gap-advance') {
       return
     }
 
     const next = playerCore.findNextCue(this.data.subtitles, subtitle.id)
     if (!next) {
-      // 最后一句：完成进度由 markEchoCompletionProgress 记录
-      return
-    }
-
-    if (policy === 'advance-wait') {
-      this.selectCueForPractice(next.id)
+      // 最后一句：完成判定由 markEchoCompletionProgress（跟读阶段）处理
       return
     }
 
@@ -2952,21 +2982,41 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     }, gapMs) as unknown as number
   },
 
-  // 精练阶段：句末选中下一句并居中，等待用户播放
-  selectCueForPractice(nextId: string) {
-    const index = this.data.subtitles.findIndex(item => item.id === nextId)
+  // 高亮并居中指定句（不播放）
+  selectCue(cueId: string) {
+    const index = this.data.subtitles.findIndex(item => item.id === cueId)
     if (index < 0) {
       return
     }
-    const nextView = this.data.subtitles[index]
+    const view = this.data.subtitles[index]
     this.currentSubtitleIndex = index
-    this.activeSubtitle = nextView
+    this.activeSubtitle = view
     this.setData({
-      currentSubtitleId: nextView.id,
+      currentSubtitleId: view.id,
       scrollIntoView: '',
     })
     this.scheduleSceneProgressSync()
-    this.centerSubtitle(nextView.id)
+    this.centerSubtitle(view.id)
+  },
+
+  // 跟读阶段：定位到对话开头并从头播放
+  startFollowPlayback() {
+    const first = this.data.subtitles[0]
+    if (!first) {
+      return
+    }
+    if (this.data.playMode === 'shadow') {
+      this.startShadowMode()
+      return
+    }
+    // 留白跟读（前台逐句通道）
+    this.selectCue(first.id)
+    if (this.audioReady && !this.data.audioLoading) {
+      this.playSubtitle(first)
+    } else {
+      // 音频尚未就绪：挂起首句，onCanplay 后自动开始
+      this.pendingSubtitle = first
+    }
   },
 
   // ==================== 录音对比（听完即弃） ====================
@@ -3141,16 +3191,129 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
       completionStats: { totalCues, practicedCount },
       nextScene,
     })
+    // 分享封面切换为成就海报
+    void this.generateCompletionShareImage()
+  },
+
+  // 成就分享海报：底图（生成插画，缺失时渐变+金色庆祝元素兜底）+ 成就卡
+  async generateCompletionShareImage() {
+    if (!this.data.course) {
+      return
+    }
+    const ctx = wx.createCanvasContext(COURSE_SHARE_CANVAS_ID)
+    const width = COURSE_SHARE_CANVAS_WIDTH
+    const height = COURSE_SHARE_CANVAS_HEIGHT
+    const palette = SHARE_POSTER_PALETTE
+    const GOLD = '#E0A93E'
+    const GOLD_SOFT = '#F6DFAE'
+
+    // 兜底底色与庆祝装饰（若插画底图存在会被其覆盖）
+    const gradient = ctx.createLinearGradient(0, 0, 0, height)
+    gradient.addColorStop(0, palette.bgStart)
+    gradient.addColorStop(1, palette.bgEnd)
+    ctx.setFillStyle(gradient)
+    ctx.fillRect(0, 0, width, height)
+
+    ctx.setFillStyle(palette.circleLarge)
+    ctx.beginPath()
+    ctx.arc(width - 60, 110, 110, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.setFillStyle(palette.circleSmall)
+    ctx.beginPath()
+    ctx.arc(70, height - 150, 90, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.setFillStyle(GOLD_SOFT)
+    ctx.beginPath()
+    ctx.arc(90, 150, 24, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.beginPath()
+    ctx.arc(width - 130, height - 230, 16, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.setFillStyle(GOLD)
+    ctx.beginPath()
+    ctx.arc(150, 90, 9, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.beginPath()
+    ctx.arc(width - 90, 280, 11, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.beginPath()
+    ctx.arc(56, height / 2 - 40, 7, 0, Math.PI * 2)
+    ctx.fill()
+
+    try {
+      ctx.drawImage(COMPLETION_SHARE_BG_PATH, 0, 0, width, height)
+    } catch (_error) {
+      // 底图缺失：保留兜底绘制
+    }
+
+    // 中央成就卡
+    drawShareRoundedRect(ctx, 48, 210, width - 96, 388, 28, '#FFFFFF')
+    ctx.setFillStyle(GOLD_SOFT)
+    ctx.beginPath()
+    ctx.arc(width / 2, 288, 56, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.setFillStyle(GOLD)
+    ctx.beginPath()
+    ctx.arc(width / 2, 288, 42, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.setTextAlign('center')
+    ctx.setFillStyle('#FFFFFF')
+    ctx.setFontSize(42)
+    ctx.fillText('✓', width / 2, 303)
+
+    ctx.setFillStyle(palette.title)
+    ctx.setFontSize(40)
+    ctx.fillText('本小节完成', width / 2, 394)
+
+    ctx.setFillStyle(palette.snippetText)
+    ctx.setFontSize(30)
+    drawShareWrappedText(ctx, this.data.course.title, width / 2, 448, width - 200, 44, 2)
+
+    const stats = this.data.completionStats
+    const statsLabel = stats.practicedCount > 0
+      ? `共 ${stats.totalCues} 句 · 本次精练 ${stats.practicedCount} 句`
+      : `共 ${stats.totalCues} 句`
+    ctx.setFillStyle(palette.tagText)
+    ctx.setFontSize(26)
+    ctx.fillText(statsLabel, width / 2, 548)
+    ctx.setTextAlign('left')
+
+    drawShareBrandFooter(ctx, width, height, '一起来练外贸英语口语')
+
+    try {
+      await new Promise<void>(resolve => {
+        ctx.draw(false, () => resolve())
+      })
+      const tempFilePath = await new Promise<string>((resolve, reject) => {
+        wx.canvasToTempFilePath({
+          canvasId: COURSE_SHARE_CANVAS_ID,
+          width,
+          height,
+          destWidth: width * 2,
+          destHeight: height * 2,
+          fileType: 'png',
+          success: res => resolve(res.tempFilePath),
+          fail: reject,
+        }, this)
+      })
+      this.setData({ shareImageUrl: tempFilePath })
+    } catch (error) {
+      console.warn('[Share] generate completion share image failed', error)
+    }
   },
 
   handleCompletionClose() {
     this.setData({ showCompletionPanel: false })
+    // 分享封面恢复为常规课程卡片
+    this.scheduleCourseShareImage()
   },
 
   handleCompletionReplay() {
-    this.setData({ showCompletionPanel: false, stage: 'listen' })
-    this.applyPlayModeChange('shadow')
-    this.startShadowMode()
+    // 留在跟读阶段，从头再听一遍
+    this.setData({ showCompletionPanel: false, stage: 'follow' })
+    const plan = playerCore.resolveStagePlan('follow', this.data.gapEnabled)
+    this.applyPlayModeChange(plan.channel, { skipResume: true })
+    this.startFollowPlayback()
   },
 
   handleCompletionNext() {

@@ -174,9 +174,9 @@ export type LearningStage = 'listen' | 'practice' | 'follow'
 
 export type PlaybackChannel = 'shadow' | 'echo'
 
-// 句末策略：none=连续播放（后台通道自己推进）；advance-wait=句末选中下一句等用户；
+// 句末策略：none=不干预（连续通道自己推进；精练停在当前句等用户操作）；
 // gap-advance=句末静音留白（约等于句长）后自动播下一句。
-export type CueEndPolicy = 'none' | 'advance-wait' | 'gap-advance'
+export type CueEndPolicy = 'none' | 'gap-advance'
 
 export type StagePlan = {
   channel: PlaybackChannel
@@ -184,9 +184,10 @@ export type StagePlan = {
 }
 
 // 阶段只是播放行为预设：通听/跟读（无留白）走后台连续通道，精练与留白跟读走前台逐句通道。
+// 精练句末不自动推进，停在当前句由用户决定重复还是换句。
 export function resolveStagePlan(stage: LearningStage, gapEnabled: boolean): StagePlan {
   if (stage === 'practice') {
-    return { channel: 'echo', cueEndPolicy: 'advance-wait' }
+    return { channel: 'echo', cueEndPolicy: 'none' }
   }
   if (stage === 'follow' && gapEnabled) {
     return { channel: 'echo', cueEndPolicy: 'gap-advance' }

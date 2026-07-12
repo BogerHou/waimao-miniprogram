@@ -271,7 +271,8 @@
           wx:if="{{nextScene}}"
           class="completion-panel__primary"
           bindtap="handleCompletionNext"
-        >学下一节 · {{nextScene.title}}</button>
+        >进入下一节</button>
+        <text wx:if="{{nextScene}}" class="completion-panel__next-hint">下一节 · {{nextScene.chapterLabel}}「{{nextScene.title}}」</text>
 
         <view class="completion-panel__secondary-row">
           <button class="completion-panel__secondary" bindtap="handleCompletionReplay">再听一遍</button>

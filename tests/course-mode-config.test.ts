@@ -69,7 +69,7 @@ assert.deepEqual(resolveStagePresentation({
   showPracticeControls: true,
   effectiveStage: "practice",
   effectivePlayMode: "echo",
-  cueEndPolicy: "advance-wait",
+  cueEndPolicy: "none",
 })
 
 assert.deepEqual(resolveStagePresentation({
@@ -96,7 +96,7 @@ assert.deepEqual(resolveStagePresentation({
   showPracticeControls: false,
   effectiveStage: "practice",
   effectivePlayMode: "echo",
-  cueEndPolicy: "advance-wait",
+  cueEndPolicy: "none",
 })
 
 console.log("stage presentation tests passed.")

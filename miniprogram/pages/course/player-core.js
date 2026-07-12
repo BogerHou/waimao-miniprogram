@@ -129,9 +129,10 @@ function buildEchoSegmentUrl(apiBaseUrl, courseId, subtitleId) {
     return `${apiBaseUrl}/static/audio-segments/${courseId}/segment_${subtitleId}.m4a`;
 }
 // 阶段只是播放行为预设：通听/跟读（无留白）走后台连续通道，精练与留白跟读走前台逐句通道。
+// 精练句末不自动推进，停在当前句由用户决定重复还是换句。
 function resolveStagePlan(stage, gapEnabled) {
     if (stage === 'practice') {
-        return { channel: 'echo', cueEndPolicy: 'advance-wait' };
+        return { channel: 'echo', cueEndPolicy: 'none' };
     }
     if (stage === 'follow' && gapEnabled) {
         return { channel: 'echo', cueEndPolicy: 'gap-advance' };

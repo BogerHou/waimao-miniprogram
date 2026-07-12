@@ -63,7 +63,7 @@ strict_1.default.deepEqual((0, course_mode_config_2.resolveStagePresentation)({
     showPracticeControls: true,
     effectiveStage: "practice",
     effectivePlayMode: "echo",
-    cueEndPolicy: "advance-wait",
+    cueEndPolicy: "none",
 });
 strict_1.default.deepEqual((0, course_mode_config_2.resolveStagePresentation)({
     currentStage: "follow",
@@ -88,6 +88,6 @@ strict_1.default.deepEqual((0, course_mode_config_2.resolveStagePresentation)({
     showPracticeControls: false,
     effectiveStage: "practice",
     effectivePlayMode: "echo",
-    cueEndPolicy: "advance-wait",
+    cueEndPolicy: "none",
 });
 console.log("stage presentation tests passed.");

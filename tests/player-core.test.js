@@ -156,7 +156,7 @@ const player_core_2 = require("../miniprogram/pages/course/player-core");
 // 阶段→通道与句末策略
 strict_1.default.deepEqual((0, player_core_2.resolveStagePlan)("listen", false), { channel: "shadow", cueEndPolicy: "none" });
 strict_1.default.deepEqual((0, player_core_2.resolveStagePlan)("listen", true), { channel: "shadow", cueEndPolicy: "none" });
-strict_1.default.deepEqual((0, player_core_2.resolveStagePlan)("practice", false), { channel: "echo", cueEndPolicy: "advance-wait" });
+strict_1.default.deepEqual((0, player_core_2.resolveStagePlan)("practice", false), { channel: "echo", cueEndPolicy: "none" });
 strict_1.default.deepEqual((0, player_core_2.resolveStagePlan)("follow", false), { channel: "shadow", cueEndPolicy: "none" });
 strict_1.default.deepEqual((0, player_core_2.resolveStagePlan)("follow", true), { channel: "echo", cueEndPolicy: "gap-advance" });
 // 留白时长≈句长按倍速换算，短句保底
