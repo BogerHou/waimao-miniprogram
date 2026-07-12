@@ -33,7 +33,12 @@ import {
   buildTimelineShare,
   enablePageShareMenu,
 } from '../../utils/share'
-import { drawShareBrandFooter, SHARE_POSTER_PALETTE } from '../../utils/share-poster'
+import {
+  drawShareRoundedRect,
+  drawShareWrappedText,
+  renderSharePoster,
+  SHARE_POSTER_PALETTE,
+} from '../../utils/share-poster'
 import * as playerCore from './player-core'
 import {
   BackgroundAudioResumeState,
@@ -66,7 +71,6 @@ import {
 const BACKGROUND_AUDIO_COVER_URL = `${API_BASE_URL}/static/waimao-mini/icon.png`
 const COURSE_SHARE_CANVAS_ID = 'course-share-canvas'
 const COURSE_SHARE_CANVAS_WIDTH = 600
-const COURSE_SHARE_CANVAS_HEIGHT = 840
 // 完成成就海报底图（imagegen 生成的庆祝插画，5:4；缺失时走渐变兜底绘制）
 const COMPLETION_SHARE_BG_PATH = '/assets/images/completion-share-bg.jpg'
 const COURSE_DEBUG_STORAGE_KEY = 'waimao_mini_debug_logs'
@@ -145,85 +149,6 @@ function logAudioRequest(event: string, url: string, extra: Record<string, unkno
     source: getAudioRequestSource(url),
     url,
     ...extra,
-  })
-}
-
-function drawShareRoundedRect(
-  ctx: WechatMiniprogram.CanvasContext,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  radius: number,
-  fillColor: string,
-) {
-  const safeRadius = Math.max(0, Math.min(radius, width / 2, height / 2))
-  ctx.beginPath()
-  ctx.moveTo(x + safeRadius, y)
-  ctx.lineTo(x + width - safeRadius, y)
-  ctx.arcTo(x + width, y, x + width, y + safeRadius, safeRadius)
-  ctx.lineTo(x + width, y + height - safeRadius)
-  ctx.arcTo(x + width, y + height, x + width - safeRadius, y + height, safeRadius)
-  ctx.lineTo(x + safeRadius, y + height)
-  ctx.arcTo(x, y + height, x, y + height - safeRadius, safeRadius)
-  ctx.lineTo(x, y + safeRadius)
-  ctx.arcTo(x, y, x + safeRadius, y, safeRadius)
-  ctx.closePath()
-  ctx.setFillStyle(fillColor)
-  ctx.fill()
-}
-
-function drawShareWrappedText(
-  ctx: WechatMiniprogram.CanvasContext,
-  text: string,
-  x: number,
-  y: number,
-  maxWidth: number,
-  lineHeight: number,
-  maxLines: number,
-) {
-  const content = String(text || '').trim()
-  if (!content) {
-    return
-  }
-
-  const chars = content.split('')
-  const lines: string[] = []
-  let current = ''
-
-  for (let i = 0; i < chars.length; i += 1) {
-    const next = current + chars[i]
-    if (ctx.measureText(next).width <= maxWidth) {
-      current = next
-      continue
-    }
-
-    lines.push(current)
-    current = chars[i]
-    if (lines.length === maxLines - 1) {
-      break
-    }
-  }
-
-  const consumedLength = lines.join('').length
-  const remaining = content.slice(consumedLength)
-  const lastLine = current || remaining
-
-  if (lines.length < maxLines) {
-    lines.push(lastLine)
-  }
-
-  const overflow = consumedLength + lastLine.length < content.length
-  if (overflow && lines.length) {
-    let finalLine = lines[lines.length - 1]
-    while (finalLine && ctx.measureText(`${finalLine}...`).width > maxWidth) {
-      finalLine = finalLine.slice(0, -1)
-    }
-    lines[lines.length - 1] = `${finalLine}...`
-  }
-
-  lines.slice(0, maxLines).forEach((line, index) => {
-    ctx.fillText(line, x, y + index * lineHeight)
   })
 }
 
@@ -545,74 +470,24 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
       leadText: this.data.leadText,
     })
 
-    const ctx = wx.createCanvasContext(COURSE_SHARE_CANVAS_ID)
-    const width = COURSE_SHARE_CANVAS_WIDTH
-    const height = COURSE_SHARE_CANVAS_HEIGHT
-
-    const palette = SHARE_POSTER_PALETTE
-    const gradient = ctx.createLinearGradient(0, 0, width, height)
-    gradient.addColorStop(0, palette.bgStart)
-    gradient.addColorStop(1, palette.bgEnd)
-    ctx.setFillStyle(gradient)
-    ctx.fillRect(0, 0, width, height)
-
-    ctx.setFillStyle(palette.circleLarge)
-    ctx.beginPath()
-    ctx.arc(width - 70, 92, 96, 0, Math.PI * 2)
-    ctx.fill()
-
-    ctx.setFillStyle(palette.circleSmall)
-    ctx.beginPath()
-    ctx.arc(96, height - 120, 72, 0, Math.PI * 2)
-    ctx.fill()
-
-    drawShareRoundedRect(ctx, 40, 56, width - 80, height - 112, 28, '#FFFFFF')
-
-    drawShareRoundedRect(ctx, 72, 92, 140, 42, 21, palette.badgeBg)
-    ctx.setFillStyle(palette.badgeText)
-    ctx.setFontSize(22)
-    ctx.fillText(card.modeLabel, 104, 120)
-
-    drawShareRoundedRect(ctx, width - 210, 92, 138, 42, 21, palette.tagBg)
-    ctx.setFillStyle(palette.tagText)
-    ctx.setFontSize(20)
-    ctx.fillText(card.tagLabel, width - 184, 120)
-
-    ctx.setFillStyle(palette.title)
-    ctx.setFontSize(38)
-    drawShareWrappedText(ctx, card.title, 72, 190, width - 144, 54, 2)
-
-    ctx.setFillStyle(palette.brandMuted)
-    ctx.setFontSize(22)
-    ctx.fillText('当前课程内容', 72, 288)
-
-    drawShareRoundedRect(ctx, 72, 320, width - 144, 246, 24, palette.snippetBg)
-    ctx.setFillStyle(palette.snippetText)
-    ctx.setFontSize(30)
-    drawShareWrappedText(ctx, card.snippet, 104, 378, width - 208, 48, 4)
-
-    drawShareBrandFooter(ctx, width, height, '打开小程序，继续当前课程', palette.accent)
-
     try {
-      await new Promise<void>(resolve => {
-        ctx.draw(false, () => resolve())
-      })
-
-      const tempFilePath = await new Promise<string>((resolve, reject) => {
-        wx.canvasToTempFilePath({
-          canvasId: COURSE_SHARE_CANVAS_ID,
-          width,
-          height,
-          destWidth: width * 2,
-          destHeight: height * 2,
-          fileType: 'png',
-          success: res => resolve(res.tempFilePath),
-          fail: reject,
-        }, this)
-      })
-
+      const shareImageUrl = await renderSharePoster(
+        this,
+        COURSE_SHARE_CANVAS_ID,
+        {
+          title: card.title,
+          badge: card.tagLabel,
+          highlight: '当前课程内容',
+          snippet: card.snippet,
+        },
+        card.modeLabel,
+        {
+          tagline: '打开小程序，继续当前课程',
+          highlightMuted: true,
+        },
+      )
       this.setData({
-        shareImageUrl: tempFilePath,
+        shareImageUrl,
       })
     } catch (error) {
       console.warn('[Share] generate course share image failed', error)

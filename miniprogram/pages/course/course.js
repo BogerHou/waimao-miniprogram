@@ -50,7 +50,6 @@ const dialogue_format_1 = require("../../utils/dialogue-format");
 const BACKGROUND_AUDIO_COVER_URL = `${env_1.API_BASE_URL}/static/waimao-mini/icon.png`;
 const COURSE_SHARE_CANVAS_ID = 'course-share-canvas';
 const COURSE_SHARE_CANVAS_WIDTH = 600;
-const COURSE_SHARE_CANVAS_HEIGHT = 840;
 // 完成成就海报底图（imagegen 生成的庆祝插画，5:4；缺失时走渐变兜底绘制）
 const COMPLETION_SHARE_BG_PATH = '/assets/images/completion-share-bg.jpg';
 const COURSE_DEBUG_STORAGE_KEY = 'waimao_mini_debug_logs';
@@ -113,60 +112,6 @@ function logAudioRequest(event, url, extra = {}) {
         source: getAudioRequestSource(url),
         url,
         ...extra,
-    });
-}
-function drawShareRoundedRect(ctx, x, y, width, height, radius, fillColor) {
-    const safeRadius = Math.max(0, Math.min(radius, width / 2, height / 2));
-    ctx.beginPath();
-    ctx.moveTo(x + safeRadius, y);
-    ctx.lineTo(x + width - safeRadius, y);
-    ctx.arcTo(x + width, y, x + width, y + safeRadius, safeRadius);
-    ctx.lineTo(x + width, y + height - safeRadius);
-    ctx.arcTo(x + width, y + height, x + width - safeRadius, y + height, safeRadius);
-    ctx.lineTo(x + safeRadius, y + height);
-    ctx.arcTo(x, y + height, x, y + height - safeRadius, safeRadius);
-    ctx.lineTo(x, y + safeRadius);
-    ctx.arcTo(x, y, x + safeRadius, y, safeRadius);
-    ctx.closePath();
-    ctx.setFillStyle(fillColor);
-    ctx.fill();
-}
-function drawShareWrappedText(ctx, text, x, y, maxWidth, lineHeight, maxLines) {
-    const content = String(text || '').trim();
-    if (!content) {
-        return;
-    }
-    const chars = content.split('');
-    const lines = [];
-    let current = '';
-    for (let i = 0; i < chars.length; i += 1) {
-        const next = current + chars[i];
-        if (ctx.measureText(next).width <= maxWidth) {
-            current = next;
-            continue;
-        }
-        lines.push(current);
-        current = chars[i];
-        if (lines.length === maxLines - 1) {
-            break;
-        }
-    }
-    const consumedLength = lines.join('').length;
-    const remaining = content.slice(consumedLength);
-    const lastLine = current || remaining;
-    if (lines.length < maxLines) {
-        lines.push(lastLine);
-    }
-    const overflow = consumedLength + lastLine.length < content.length;
-    if (overflow && lines.length) {
-        let finalLine = lines[lines.length - 1];
-        while (finalLine && ctx.measureText(`${finalLine}...`).width > maxWidth) {
-            finalLine = finalLine.slice(0, -1);
-        }
-        lines[lines.length - 1] = `${finalLine}...`;
-    }
-    lines.slice(0, maxLines).forEach((line, index) => {
-        ctx.fillText(line, x, y + index * lineHeight);
     });
 }
 const formatSeconds = (seconds) => {
@@ -376,61 +321,18 @@ Page({
             currentText: this.getCourseShareSnippetText(),
             leadText: this.data.leadText,
         });
-        const ctx = wx.createCanvasContext(COURSE_SHARE_CANVAS_ID);
-        const width = COURSE_SHARE_CANVAS_WIDTH;
-        const height = COURSE_SHARE_CANVAS_HEIGHT;
-        const palette = share_poster_1.SHARE_POSTER_PALETTE;
-        const gradient = ctx.createLinearGradient(0, 0, width, height);
-        gradient.addColorStop(0, palette.bgStart);
-        gradient.addColorStop(1, palette.bgEnd);
-        ctx.setFillStyle(gradient);
-        ctx.fillRect(0, 0, width, height);
-        ctx.setFillStyle(palette.circleLarge);
-        ctx.beginPath();
-        ctx.arc(width - 70, 92, 96, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.setFillStyle(palette.circleSmall);
-        ctx.beginPath();
-        ctx.arc(96, height - 120, 72, 0, Math.PI * 2);
-        ctx.fill();
-        drawShareRoundedRect(ctx, 40, 56, width - 80, height - 112, 28, '#FFFFFF');
-        drawShareRoundedRect(ctx, 72, 92, 140, 42, 21, palette.badgeBg);
-        ctx.setFillStyle(palette.badgeText);
-        ctx.setFontSize(22);
-        ctx.fillText(card.modeLabel, 104, 120);
-        drawShareRoundedRect(ctx, width - 210, 92, 138, 42, 21, palette.tagBg);
-        ctx.setFillStyle(palette.tagText);
-        ctx.setFontSize(20);
-        ctx.fillText(card.tagLabel, width - 184, 120);
-        ctx.setFillStyle(palette.title);
-        ctx.setFontSize(38);
-        drawShareWrappedText(ctx, card.title, 72, 190, width - 144, 54, 2);
-        ctx.setFillStyle(palette.brandMuted);
-        ctx.setFontSize(22);
-        ctx.fillText('当前课程内容', 72, 288);
-        drawShareRoundedRect(ctx, 72, 320, width - 144, 246, 24, palette.snippetBg);
-        ctx.setFillStyle(palette.snippetText);
-        ctx.setFontSize(30);
-        drawShareWrappedText(ctx, card.snippet, 104, 378, width - 208, 48, 4);
-        (0, share_poster_1.drawShareBrandFooter)(ctx, width, height, '打开小程序，继续当前课程', palette.accent);
         try {
-            await new Promise(resolve => {
-                ctx.draw(false, () => resolve());
-            });
-            const tempFilePath = await new Promise((resolve, reject) => {
-                wx.canvasToTempFilePath({
-                    canvasId: COURSE_SHARE_CANVAS_ID,
-                    width,
-                    height,
-                    destWidth: width * 2,
-                    destHeight: height * 2,
-                    fileType: 'png',
-                    success: res => resolve(res.tempFilePath),
-                    fail: reject,
-                }, this);
+            const shareImageUrl = await (0, share_poster_1.renderSharePoster)(this, COURSE_SHARE_CANVAS_ID, {
+                title: card.title,
+                badge: card.tagLabel,
+                highlight: '当前课程内容',
+                snippet: card.snippet,
+            }, card.modeLabel, {
+                tagline: '打开小程序，继续当前课程',
+                highlightMuted: true,
             });
             this.setData({
-                shareImageUrl: tempFilePath,
+                shareImageUrl,
             });
         }
         catch (error) {
@@ -2814,8 +2716,8 @@ Page({
             // 底图缺失：保留兜底绘制
         }
         // 中央成就卡（浅金描边增强与奶油底图的层次）
-        drawShareRoundedRect(ctx, 52, 60, width - 104, height - 120, 26, GOLD_SOFT);
-        drawShareRoundedRect(ctx, 56, 64, width - 112, height - 128, 24, '#FFFFFF');
+        (0, share_poster_1.drawShareRoundedRect)(ctx, 52, 60, width - 104, height - 120, 26, GOLD_SOFT);
+        (0, share_poster_1.drawShareRoundedRect)(ctx, 56, 64, width - 112, height - 128, 24, '#FFFFFF');
         ctx.setFillStyle(GOLD_SOFT);
         ctx.beginPath();
         ctx.arc(width / 2, 130, 44, 0, Math.PI * 2);
@@ -2833,7 +2735,7 @@ Page({
         ctx.fillText('本小节完成', width / 2, 218);
         ctx.setFillStyle(palette.snippetText);
         ctx.setFontSize(25);
-        drawShareWrappedText(ctx, this.data.course.title, width / 2, 262, width - 220, 36, 2);
+        (0, share_poster_1.drawShareWrappedText)(ctx, this.data.course.title, width / 2, 262, width - 220, 36, 2);
         const stats = this.data.completionStats;
         const statsLabel = stats.practicedCount > 0
             ? `共 ${stats.totalCues} 句 · 本次精练 ${stats.practicedCount} 句`

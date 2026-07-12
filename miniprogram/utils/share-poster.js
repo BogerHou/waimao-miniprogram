@@ -1,9 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SHARE_POSTER_PALETTE = exports.ACTIVE_SHARE_POSTER_THEME = exports.SHARE_POSTER_PALETTES = exports.SHARE_POSTER_ICON_PATH = exports.SHARE_POSTER_HEIGHT = exports.SHARE_POSTER_WIDTH = void 0;
+exports.SHARE_POSTER_CARD_HEIGHT = exports.SHARE_POSTER_PALETTE = exports.ACTIVE_SHARE_POSTER_THEME = exports.SHARE_POSTER_PALETTES = exports.SHARE_POSTER_ICON_PATH = exports.SHARE_POSTER_HEIGHT = exports.SHARE_POSTER_WIDTH = void 0;
 exports.drawShareRoundedRect = drawShareRoundedRect;
 exports.drawShareWrappedText = drawShareWrappedText;
-exports.drawShareBrandFooter = drawShareBrandFooter;
 exports.renderSharePoster = renderSharePoster;
 exports.SHARE_POSTER_WIDTH = 600;
 exports.SHARE_POSTER_HEIGHT = 840;
@@ -98,29 +97,13 @@ function drawShareWrappedText(ctx, text, x, y, maxWidth, lineHeight, maxLines) {
         ctx.fillText(line, x, y + index * lineHeight);
     });
 }
-function drawShareBrandFooter(ctx, _width, height, tagline, accentColor = exports.SHARE_POSTER_PALETTE.accent) {
-    const iconSize = 58;
-    const iconX = 72;
-    const iconY = height - 160;
-    let textX = iconX;
-    try {
-        ctx.drawImage(exports.SHARE_POSTER_ICON_PATH, iconX, iconY, iconSize, iconSize);
-        textX = iconX + iconSize + 18;
-    }
-    catch (_error) {
-        textX = iconX;
-    }
-    ctx.setFillStyle(exports.SHARE_POSTER_PALETTE.brandMuted);
-    ctx.setFontSize(22);
-    ctx.fillText('外贸英语影子跟读', textX, height - 134);
-    ctx.setFillStyle(accentColor);
-    ctx.setFontSize(26);
-    ctx.fillText(tagline, textX, height - 88);
-}
-async function renderSharePoster(scope, canvasId, card, accentLabel) {
+// 微信聊天分享卡封面按 5:4 展示：canvas 元素保持 600x840，绘制与导出只用顶部 600x480 区域。
+exports.SHARE_POSTER_CARD_HEIGHT = 480;
+async function renderSharePoster(scope, canvasId, card, accentLabel, options = {}) {
     const ctx = wx.createCanvasContext(canvasId, scope);
     const width = exports.SHARE_POSTER_WIDTH;
-    const height = exports.SHARE_POSTER_HEIGHT;
+    const height = exports.SHARE_POSTER_CARD_HEIGHT;
+    const tagline = options.tagline ?? '打开小程序，继续学习英语听力';
     const palette = exports.SHARE_POSTER_PALETTE;
     const gradient = ctx.createLinearGradient(0, 0, width, height);
     gradient.addColorStop(0, palette.bgStart);
@@ -129,38 +112,56 @@ async function renderSharePoster(scope, canvasId, card, accentLabel) {
     ctx.fillRect(0, 0, width, height);
     ctx.setFillStyle(palette.circleLarge);
     ctx.beginPath();
-    ctx.arc(width - 70, 92, 96, 0, Math.PI * 2);
+    ctx.arc(width - 52, 70, 84, 0, Math.PI * 2);
     ctx.fill();
     ctx.setFillStyle(palette.circleSmall);
     ctx.beginPath();
-    ctx.arc(96, height - 120, 72, 0, Math.PI * 2);
+    ctx.arc(54, height - 56, 64, 0, Math.PI * 2);
     ctx.fill();
-    drawShareRoundedRect(ctx, 40, 56, width - 80, height - 112, 28, '#FFFFFF');
-    drawShareRoundedRect(ctx, 72, 92, 152, 42, 21, palette.badgeBg);
+    drawShareRoundedRect(ctx, 36, 44, width - 72, height - 88, 24, '#FFFFFF');
+    drawShareRoundedRect(ctx, 64, 74, 150, 40, 20, palette.badgeBg);
     ctx.setFillStyle(palette.badgeText);
-    ctx.setFontSize(22);
-    ctx.fillText(accentLabel, 102, 120);
-    drawShareRoundedRect(ctx, width - 220, 92, 148, 42, 21, palette.tagBg);
-    ctx.setFillStyle(palette.tagText);
     ctx.setFontSize(20);
-    ctx.fillText(card.badge, width - 194, 120);
+    ctx.fillText(accentLabel, 90, 101);
+    drawShareRoundedRect(ctx, width - 210, 74, 146, 40, 20, palette.tagBg);
+    ctx.setFillStyle(palette.tagText);
+    ctx.setFontSize(19);
+    ctx.fillText(card.badge, width - 188, 101);
     ctx.setFillStyle(palette.title);
-    ctx.setFontSize(38);
-    drawShareWrappedText(ctx, card.title, 72, 190, width - 144, 54, 2);
-    ctx.setFillStyle(palette.accent);
-    ctx.setFontSize(24);
-    ctx.fillText(card.highlight, 72, 288);
-    drawShareRoundedRect(ctx, 72, 320, width - 144, 246, 24, palette.snippetBg);
+    ctx.setFontSize(32);
+    drawShareWrappedText(ctx, card.title, 64, 168, width - 128, 44, 2);
+    ctx.setFillStyle(options.highlightMuted ? palette.brandMuted : palette.accent);
+    ctx.setFontSize(20);
+    ctx.fillText(card.highlight, 64, 240);
+    drawShareRoundedRect(ctx, 64, 258, width - 128, 104, 16, palette.snippetBg);
     ctx.setFillStyle(palette.snippetText);
-    ctx.setFontSize(30);
-    drawShareWrappedText(ctx, card.snippet, 104, 378, width - 208, 48, 4);
-    drawShareBrandFooter(ctx, width, height, '打开小程序，继续学习英语听力');
+    ctx.setFontSize(22);
+    drawShareWrappedText(ctx, card.snippet, 88, 298, width - 176, 34, 2);
+    // 品牌页脚（紧凑版）
+    const iconSize = 40;
+    const iconY = height - 96;
+    let textX = 64;
+    try {
+        ctx.drawImage(exports.SHARE_POSTER_ICON_PATH, 64, iconY, iconSize, iconSize);
+        textX = 64 + iconSize + 14;
+    }
+    catch (_error) {
+        textX = 64;
+    }
+    ctx.setFillStyle(palette.brandMuted);
+    ctx.setFontSize(17);
+    ctx.fillText('外贸英语影子跟读', textX, iconY + 15);
+    ctx.setFillStyle(palette.accent);
+    ctx.setFontSize(19);
+    ctx.fillText(tagline, textX, iconY + 40);
     await new Promise(resolve => {
         ctx.draw(false, () => resolve());
     });
     return await new Promise((resolve, reject) => {
         wx.canvasToTempFilePath({
             canvasId,
+            x: 0,
+            y: 0,
             width,
             height,
             destWidth: width * 2,
