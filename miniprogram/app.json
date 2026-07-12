@@ -1,6 +1,8 @@
 {
   "pages": [
     "pages/index/index",
+    "pages/learning/learning",
+    "pages/review/review",
     "pages/website-intro/website-intro",
     "pages/practice-help/practice-help",
     "pages/course/course",

@@ -1,0 +1,66 @@
+<view class="app-page">
+  <navigation-bar title="复习" back="{{true}}" color="black" background="#F5F7FB"></navigation-bar>
+  <view class="review-page">
+    <view class="review-hero">
+      <text class="review-hero__eyebrow">REVIEW LIBRARY</text>
+      <text class="review-hero__title">把查过的词和难句留下来</text>
+      <text class="review-hero__desc">复习时可以直接回到原句，不用重新翻课程</text>
+      <view class="review-hero__stats">
+        <text>{{wordCount}} 个生词</text>
+        <view class="review-hero__dot"></view>
+        <text>{{cueCount}} 个难句</text>
+      </view>
+    </view>
+
+    <view class="review-tabs">
+      <view class="review-tab {{tab === 'words' ? 'review-tab--active' : ''}}" data-tab="words" bindtap="handleTabChange">生词</view>
+      <view class="review-tab {{tab === 'cues' ? 'review-tab--active' : ''}}" data-tab="cues" bindtap="handleTabChange">难句</view>
+    </view>
+
+    <scroll-view class="review-scroll" scroll-y>
+      <view wx:if="{{tab === 'words'}}" class="review-list">
+        <view wx:for="{{words}}" wx:key="normalized" class="word-card">
+          <view class="word-card__top">
+            <view class="word-card__identity" data-id="{{item.normalized}}" bindtap="handleOpenWordSource">
+              <text class="word-card__word">{{item.word}}</text>
+              <text wx:if="{{item.phoneticUs || item.phoneticUk}}" class="word-card__phonetic">{{item.phoneticUs || item.phoneticUk}}</text>
+            </view>
+            <view class="word-card__actions">
+              <view wx:if="{{item.audioUs || item.audioUk}}" class="word-card__audio" data-url="{{item.audioUs || item.audioUk}}" catchtap="handlePlayWordAudio">▶</view>
+              <view class="review-delete" data-id="{{item.normalized}}" catchtap="handleDeleteWord">移除</view>
+            </view>
+          </view>
+          <text class="word-card__definition">{{item.definition || '释义获取中'}}</text>
+          <view wx:if="{{item.cueText}}" class="source-quote" data-id="{{item.normalized}}" bindtap="handleOpenWordSource">
+            <text class="source-quote__text">{{item.cueText}}</text>
+            <text wx:if="{{item.cueTranslation}}" class="source-quote__translation">{{item.cueTranslation}}</text>
+            <text class="source-quote__course">{{item.courseTitle || '来源课程'}} · 回到原句 ›</text>
+          </view>
+        </view>
+        <view wx:if="{{!words.length}}" class="review-empty">
+          <text class="review-empty__mark">Aa</text>
+          <text class="review-empty__title">还没有生词</text>
+          <text class="review-empty__desc">在课程中长按英文单词，查词后会自动收进这里</text>
+        </view>
+      </view>
+
+      <view wx:else class="review-list">
+        <view wx:for="{{cues}}" wx:key="cueId" class="cue-card" data-course-id="{{item.courseId}}" data-cue-id="{{item.cueId}}" bindtap="handleOpenCueSource">
+          <view class="cue-card__star">★</view>
+          <view class="cue-card__body">
+            <text class="cue-card__text">{{item.cueText || '难句内容加载中'}}</text>
+            <text wx:if="{{item.cueTranslation}}" class="cue-card__translation">{{item.cueTranslation}}</text>
+            <text class="cue-card__course">{{item.courseTitle || item.courseId}} · 进入难句练习 ›</text>
+          </view>
+          <view class="review-delete" data-course-id="{{item.courseId}}" data-cue-id="{{item.cueId}}" catchtap="handleDeleteCue">移除</view>
+        </view>
+        <view wx:if="{{!cues.length && !loading}}" class="review-empty">
+          <text class="review-empty__mark review-empty__mark--star">★</text>
+          <text class="review-empty__title">还没有难句</text>
+          <text class="review-empty__desc">进入课程的精练阶段，把想反复练习的句子标记下来</text>
+        </view>
+        <view wx:if="{{loading}}" class="review-loading">正在整理已有难句…</view>
+      </view>
+    </scroll-view>
+  </view>
+</view>

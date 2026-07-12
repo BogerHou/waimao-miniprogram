@@ -218,6 +218,46 @@
   position: relative;
 }
 
+.review-filter {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 9rpx;
+  margin: 0 24rpx 12rpx;
+  padding: 13rpx 17rpx;
+  border: 1rpx solid fade(@tone-4, 34%);
+  border-radius: 14rpx;
+  background: @tone-4-soft;
+  color: @tone-4-deep;
+}
+
+.review-filter:active {
+  transform: scale(0.992);
+}
+
+.review-filter--active {
+  border-color: @tone-4;
+  background: fade(@tone-4, 15%);
+}
+
+.review-filter__star {
+  color: @tone-4;
+  font-size: 26rpx;
+  line-height: 1;
+}
+
+.review-filter__label {
+  flex: 1;
+  font-size: 25rpx;
+  font-weight: 700;
+}
+
+.review-filter__count {
+  color: @tone-4-deep;
+  font-size: 23rpx;
+  font-variant-numeric: tabular-nums;
+}
+
 .subtitle-scroll {
   height: 100%;
   box-sizing: border-box;

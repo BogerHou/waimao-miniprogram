@@ -216,6 +216,25 @@ export type UserProgress = {
   scenes?: SceneProgress[]
 }
 
+export type LearningRecordDay = {
+  date: string
+  studySeconds: number
+  practiceCount: number
+  sessionCount: number
+}
+
+export type LearningRecordsResponse = {
+  summary: {
+    streakCount: number
+    totalCompleted: number
+    studySeconds: number
+    totalPracticeCount: number
+    activeDays: number
+    lastStudyDate: string | null
+  }
+  days: LearningRecordDay[]
+}
+
 type LoginResponse = {
   token: string
   user: UserProfile
@@ -716,11 +735,18 @@ export function resetUserProgress() {
   })
 }
 
-export function reportStudyTime(seconds: number) {
+export function reportStudyTime(seconds: number, practiceCount = 0) {
   return request<UserResponse>({
     url: `${WAIMAO_MINI_API_PREFIX}/users/me/study-time`,
     method: 'POST',
-    data: { seconds },
+    data: { seconds, practiceCount },
+  })
+}
+
+export function fetchLearningRecords(days = 28) {
+  const safeDays = Math.min(365, Math.max(7, Math.floor(days)))
+  return request<LearningRecordsResponse>({
+    url: `${WAIMAO_MINI_API_PREFIX}/users/me/study-records?days=${safeDays}`,
   })
 }
 

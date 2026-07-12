@@ -23,6 +23,10 @@ import {
 } from '../../utils/share'
 import { buildIndexShareCardModel } from '../../utils/share-card'
 import { renderSharePoster } from '../../utils/share-poster'
+import {
+  countChapterScenes,
+  filterChaptersBySceneQuery,
+} from '../../utils/scene-search'
 
 const DEFAULT_NICKNAME = 'Learner'
 const DEFAULT_AVATAR_INITIAL = 'L'
@@ -41,6 +45,9 @@ type IndexPageData = {
   completedCount: number
   courseCount: number
   chapters: ChapterListItem[]
+  displayChapters: ChapterListItem[]
+  searchQuery: string
+  searchResultCount: number
   continueScene: ContinueScene | null
   loading: boolean
   error: string | null
@@ -79,6 +86,9 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
     completedCount: 0,
     courseCount: 0,
     chapters: [],
+    displayChapters: [],
+    searchQuery: '',
+    searchResultCount: 0,
     continueScene: null,
     loading: false,
     error: null,
@@ -223,6 +233,7 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
     const avatarInitial = (initialSource.charAt(0) || DEFAULT_AVATAR_INITIAL).toUpperCase()
     const avatarUrl = isAuthenticated ? (state.user?.avatarUrl?.trim() ?? '') : ''
     const chapters = applyProgressToChapters(chaptersOverride ?? this.data.chapters, state.progress, state.fullAccess)
+    const displayChapters = filterChaptersBySceneQuery(chapters, this.data.searchQuery)
     const sceneCount = courseCountOverride ?? countScenes(chapters)
     const continueScene = isAuthenticated
       ? findContinueScene(chapters, state.progress?.currentSceneId ?? null)
@@ -239,6 +250,8 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
       completedCount,
       courseCount: sceneCount,
       chapters,
+      displayChapters,
+      searchResultCount: countChapterScenes(displayChapters),
       continueScene,
       isAuthenticated,
       fullAccess: state.fullAccess,
@@ -253,6 +266,22 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
   },
   handleRetry() {
     void this.loadCourses(true)
+  },
+  handleSearchInput(event: WechatMiniprogram.Input) {
+    const searchQuery = event.detail.value
+    const displayChapters = filterChaptersBySceneQuery(this.data.chapters, searchQuery)
+    this.setData({
+      searchQuery,
+      displayChapters,
+      searchResultCount: countChapterScenes(displayChapters),
+    })
+  },
+  handleClearSearch() {
+    this.setData({
+      searchQuery: '',
+      displayChapters: this.data.chapters,
+      searchResultCount: countChapterScenes(this.data.chapters),
+    })
   },
   handleCourseScroll(event: WechatMiniprogram.ScrollViewScroll) {
     this.courseScrollLastTop = event.detail.scrollTop ?? 0
@@ -301,6 +330,13 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
     wx.navigateTo({
       url: '/pages/practice-help/practice-help',
     })
+  },
+  goToLearning() {
+    if (!this.data.isAuthenticated) {
+      this.showLoginDialog()
+      return
+    }
+    wx.navigateTo({ url: '/pages/learning/learning' })
   },
   handleLoginTap() {
     this.showLoginDialog()

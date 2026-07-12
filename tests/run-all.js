@@ -21,6 +21,9 @@ require("./record-auth.test");
 require("./shadow-background-handoff.test");
 require("./share-card.test");
 require("./unlock-format.test");
+require("./review-library.test");
+require("./scene-search.test");
+require("./learning-records.test");
 Promise.all([app_config_sync_test_1.appConfigSyncTestDone, network_resilience_test_1.networkResilienceTestDone])
     .then(() => {
     console.log("all miniprogram tests passed.");

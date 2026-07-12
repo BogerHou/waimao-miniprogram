@@ -19,6 +19,9 @@ import "./record-auth.test"
 import "./shadow-background-handoff.test"
 import "./share-card.test"
 import "./unlock-format.test"
+import "./review-library.test"
+import "./scene-search.test"
+import "./learning-records.test"
 
 Promise.all([appConfigSyncTestDone, networkResilienceTestDone])
   .then(() => {

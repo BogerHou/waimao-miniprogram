@@ -19,6 +19,7 @@ exports.updateUserProgress = updateUserProgress;
 exports.recordUserProgress = recordUserProgress;
 exports.resetUserProgress = resetUserProgress;
 exports.reportStudyTime = reportStudyTime;
+exports.fetchLearningRecords = fetchLearningRecords;
 exports.redeemInviteCode = redeemInviteCode;
 const env_1 = require("../config/env");
 const request_1 = require("./request");
@@ -411,11 +412,17 @@ function resetUserProgress() {
         method: 'POST',
     });
 }
-function reportStudyTime(seconds) {
+function reportStudyTime(seconds, practiceCount = 0) {
     return (0, request_1.request)({
         url: `${WAIMAO_MINI_API_PREFIX}/users/me/study-time`,
         method: 'POST',
-        data: { seconds },
+        data: { seconds, practiceCount },
+    });
+}
+function fetchLearningRecords(days = 28) {
+    const safeDays = Math.min(365, Math.max(7, Math.floor(days)));
+    return (0, request_1.request)({
+        url: `${WAIMAO_MINI_API_PREFIX}/users/me/study-records?days=${safeDays}`,
     });
 }
 function redeemInviteCode(code) {

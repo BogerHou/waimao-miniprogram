@@ -20,6 +20,15 @@ import {
   normalizeStarredCueMap,
   toggleStarredCue,
 } from '../../utils/practice-marks'
+import {
+  REVIEW_LIBRARY_STORAGE_KEY,
+  ReviewLibrary,
+  ReviewWord,
+  normalizeReviewLibrary,
+  removeReviewCue,
+  upsertReviewCue,
+  upsertReviewWord,
+} from '../../utils/review-library'
 import { NextSceneCandidate, resolveNextScene } from '../../utils/next-scene'
 import { decideRecordAuthAction } from './record-auth'
 import { debounce, throttle } from '../../utils/storage'
@@ -236,6 +245,8 @@ type CoursePageData = {
   showCompletionPanel: boolean
   completionStats: { totalCues: number; practicedCount: number }
   nextScene: NextSceneCandidate | null
+  reviewOnlyMode: boolean
+  starredCueCount: number
 }
 
 type SubtitleLike = Pick<SubtitleEntry, 'id' | 'start' | 'end'>
@@ -313,6 +324,8 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     showCompletionPanel: false,
     completionStats: { totalCues: 0, practicedCount: 0 },
     nextScene: null,
+    reviewOnlyMode: false,
+    starredCueCount: 0,
   },
   courseId: '' as string,
   // InnerAudioContext (用于 Shadow 模式)
@@ -340,6 +353,10 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
   // 其他
   storeUnsubscribe: undefined as (() => void) | undefined,
   studySessionStart: null as number | null,
+  studySessionPracticeStart: 0,
+  pendingFocusCueId: '',
+  focusPracticeRequested: false,
+  reviewOnlyRequested: false,
   currentSubtitleIndex: 0,
   trackingTimer: null as number | null,
   backgroundAudioManager: null as any,
@@ -654,6 +671,9 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
       return
     }
     this.courseId = id
+    this.pendingFocusCueId = String(query?.cueId ?? '').trim()
+    this.focusPracticeRequested = query?.stage === 'practice' || Boolean(this.pendingFocusCueId)
+    this.reviewOnlyRequested = query?.review === '1'
     this.pendingBackgroundAudioRestore = query?.fromBackgroundAudio === '1'
     this.audioLoadTimeoutController = playerCore.createAudioLoadTimeoutController({
       getSourceOptions: () => this.audioSourceOptions,
@@ -795,7 +815,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
       const detail = await fetchCourseDetail(id)
       const appConfig = getStoreState().appConfig
       const modePresentation = resolveStagePresentation({
-        currentStage: this.data.stage,
+        currentStage: this.focusPracticeRequested ? 'practice' : this.data.stage,
         gapEnabled: this.data.gapEnabled,
         shadowModeEnabled: appConfig.courseDetail.shadowModeEnabled,
       })
@@ -837,6 +857,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
         ...subtitle,
         starred: starredIds.has(subtitle.id),
       }))
+      const starredCueCount = markedSubtitles.filter(subtitle => subtitle.starred).length
       const courseRange = normalizeCourseRange(detail, subtitles)
       const leadText = subtitles[0]?.text ?? ''
       this.courseRange = courseRange
@@ -858,6 +879,8 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
         shareImageUrl: '',
         showCompletionPanel: false,
         nextScene: null,
+        reviewOnlyMode: this.reviewOnlyRequested && starredCueCount > 0,
+        starredCueCount,
         showModeSelector: modePresentation.showModeSelector,
         showShadowMode: modePresentation.showShadowMode,
         showPracticeControls: modePresentation.showPracticeControls,
@@ -881,6 +904,11 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
       this.handleStoreUpdate(getStoreState())
       void this.syncCurrentSceneProgress('load')
       this.scheduleCourseShareImage()
+      if (this.pendingFocusCueId) {
+        const cueId = this.pendingFocusCueId
+        this.pendingFocusCueId = ''
+        setTimeout(() => this.selectCue(cueId), 80)
+      }
       const restoredFromBackgroundAudio = modePresentation.showPracticeControls && this.pendingBackgroundAudioRestore
         ? this.restoreBackgroundAudioFromStorage()
         : false
@@ -891,6 +919,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
       // 通听阶段自动开始连续播放；首次引导展示时先不自动播，等引导关闭后再启动
       if (
         !restoredFromBackgroundAudio &&
+        !this.focusPracticeRequested &&
         modePresentation.effectivePlayMode === 'shadow' &&
         subtitles.length > 0 &&
         !this.data.showStageGuide
@@ -2029,30 +2058,31 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
 
   beginStudySession() {
     this.studySessionStart = Date.now()
+    this.studySessionPracticeStart = sumPracticeCounts(this.practiceCounts)
   },
 
   // 使用防抖的学习时长上报函数（5秒防抖）- 用于页面在显示时
-  debouncedReportStudyTime: debounce(async function (this: any, seconds: number) {
+  debouncedReportStudyTime: debounce(async function (this: any, seconds: number, practiceCount: number) {
     const state = getStoreState()
     if (!state.token || !state.user) {
       return
     }
     try {
-      const response = await reportStudyTime(seconds)
+      const response = await reportStudyTime(seconds, practiceCount)
       updateUserInStore(response.user)
     } catch (error) {
       console.warn('Failed to report study time', error)
     }
-  }, 5000) as (seconds: number) => void,
+  }, 5000) as (seconds: number, practiceCount: number) => void,
 
   // 立即上报学习时长（不防抖）- 用于页面卸载时
-  async immediateReportStudyTime(seconds: number) {
+  async immediateReportStudyTime(seconds: number, practiceCount: number) {
     const state = getStoreState()
     if (!state.token || !state.user) {
       return
     }
     try {
-      const response = await reportStudyTime(seconds)
+      const response = await reportStudyTime(seconds, practiceCount)
       updateUserInStore(response.user)
     } catch (error) {
       console.warn('Failed to immediately report study time', error)
@@ -2074,13 +2104,14 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
       return
     }
     const cappedSeconds = Math.min(seconds, 3600)
+    const practiceCount = Math.max(0, sumPracticeCounts(this.practiceCounts) - this.studySessionPracticeStart)
 
     if (immediate) {
       // 页面卸载时立即上报，不使用防抖
-      await this.immediateReportStudyTime(cappedSeconds)
+      await this.immediateReportStudyTime(cappedSeconds, practiceCount)
     } else {
       // 页面隐藏时使用防抖函数
-      ; (this as any).debouncedReportStudyTime(cappedSeconds)
+      ; (this as any).debouncedReportStudyTime(cappedSeconds, practiceCount)
     }
   },
 
@@ -2116,7 +2147,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
   },
 
   handleWordLongPress(event: WechatMiniprogram.BaseEvent) {
-    const dataset = event.currentTarget.dataset as { word?: string; raw?: string; wordId?: string }
+    const dataset = event.currentTarget.dataset as { word?: string; raw?: string; wordId?: string; cueId?: string }
     const word = dataset.word?.trim() ?? ''
     console.log('[Word] longpress', {
       word,
@@ -2151,6 +2182,11 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
 
     const lookupKey = word
     this.pendingWordLookup = lookupKey
+    this.saveWordToReview({
+      word: dataset.raw?.trim() || word,
+      normalized: lookupKey,
+      cueId: dataset.cueId ?? '',
+    })
 
     let fallbackTranslation: string | null = null
 
@@ -2167,6 +2203,16 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
           wordPopupAudioUk: basics.audioUk ?? '',
           wordPopupAudioUs: basics.audioUs ?? '',
         })
+        this.saveWordToReview({
+          word: basics.word || dataset.raw || word,
+          normalized: lookupKey,
+          phoneticUk: basics.phoneticUk ?? '',
+          phoneticUs: basics.phoneticUs ?? '',
+          audioUk: basics.audioUk ?? '',
+          audioUs: basics.audioUs ?? '',
+          definition: basics.translation ?? '',
+          cueId: dataset.cueId ?? '',
+        })
       })
       .catch(error => {
         console.warn('[WordLookup] Basic fetch failed:', error)
@@ -2182,6 +2228,12 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
           wordPopupDefinition: definition || '暂无释义',
           wordPopupLoading: false,
           wordPopupError: '',
+        })
+        this.saveWordToReview({
+          word: this.data.wordPopupWord || dataset.raw || word,
+          normalized: lookupKey,
+          definition: definition || fallbackTranslation || '',
+          cueId: dataset.cueId ?? '',
         })
         this.updateWordPopupPosition(dataset.wordId)
       })
@@ -2212,6 +2264,16 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
               wordPopupAudioUs: result.audioUs ?? '',
               wordPopupLoading: false,
               wordPopupError: '',
+            })
+            this.saveWordToReview({
+              word: result.word || dataset.raw || word,
+              normalized: lookupKey,
+              definition: result.translation ?? '',
+              phoneticUk: result.phoneticUk ?? '',
+              phoneticUs: result.phoneticUs ?? '',
+              audioUk: result.audioUk ?? '',
+              audioUs: result.audioUs ?? '',
+              cueId: dataset.cueId ?? '',
             })
             this.updateWordPopupPosition(dataset.wordId)
           })
@@ -2882,7 +2944,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
 
     this.clearGapTimer()
     this.discardRecording()
-    this.setData({ stage })
+    this.setData({ stage, reviewOnlyMode: stage === 'practice' ? this.data.reviewOnlyMode : false })
     const plan = playerCore.resolveStagePlan(stage, this.data.gapEnabled)
     // 任一阶段切换都不做断点续播，统一定位到对话第一句
     this.applyPlayModeChange(plan.channel, { skipResume: true })
@@ -3185,6 +3247,49 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     }
   },
 
+  readReviewLibrary(): ReviewLibrary {
+    try {
+      return normalizeReviewLibrary(wx.getStorageSync(REVIEW_LIBRARY_STORAGE_KEY))
+    } catch (_error) {
+      return { words: [], cues: [] }
+    }
+  },
+
+  writeReviewLibrary(library: ReviewLibrary) {
+    try {
+      wx.setStorageSync(REVIEW_LIBRARY_STORAGE_KEY, library)
+    } catch (_error) {
+      // 复习资料写入失败不阻断课程练习
+    }
+  },
+
+  saveWordToReview(input: Partial<ReviewWord> & Pick<ReviewWord, 'word' | 'normalized'>) {
+    const sourceCueId = input.cueId || this.data.currentSubtitleId
+    const cue = this.data.subtitles.find(item => item.id === sourceCueId)
+    const library = upsertReviewWord(this.readReviewLibrary(), {
+      ...input,
+      courseId: this.courseId,
+      courseTitle: this.data.course?.title ?? '',
+      cueId: cue?.id ?? sourceCueId ?? '',
+      cueText: cue?.text ?? '',
+      cueTranslation: cue?.translation ?? '',
+    })
+    this.writeReviewLibrary(library)
+  },
+
+  handleReviewOnlyToggle() {
+    if (!this.data.starredCueCount) {
+      wx.showToast({ title: '先标记几句难句', icon: 'none' })
+      return
+    }
+    const reviewOnlyMode = !this.data.reviewOnlyMode
+    this.setData({ reviewOnlyMode })
+    if (reviewOnlyMode) {
+      const first = this.data.subtitles.find(item => item.starred)
+      if (first) this.selectCue(first.id)
+    }
+  },
+
   handleToggleStar(event: WechatMiniprogram.BaseEvent) {
     const cueId = (event.currentTarget.dataset as { id?: string }).id
     if (!cueId || !this.courseId) {
@@ -3198,8 +3303,23 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     }
     const index = this.data.subtitles.findIndex(item => item.id === cueId)
     if (index >= 0) {
+      const starred = isCueStarred(nextMap, this.courseId, cueId)
+      const cue = this.data.subtitles[index]
+      const library = starred
+        ? upsertReviewCue(this.readReviewLibrary(), {
+          courseId: this.courseId,
+          courseTitle: this.data.course?.title ?? '',
+          cueId,
+          cueText: cue.text,
+          cueTranslation: cue.translation ?? '',
+        })
+        : removeReviewCue(this.readReviewLibrary(), this.courseId, cueId)
+      this.writeReviewLibrary(library)
+      const starredCueCount = nextMap[this.courseId]?.length ?? 0
       this.setData({
-        [`subtitles[${index}].starred`]: isCueStarred(nextMap, this.courseId, cueId),
+        [`subtitles[${index}].starred`]: starred,
+        starredCueCount,
+        reviewOnlyMode: starredCueCount > 0 ? this.data.reviewOnlyMode : false,
       } as unknown as Partial<CoursePageData>)
     }
   },
@@ -4011,6 +4131,10 @@ function mapSubtitles(entries: SubtitleEntry[]): ViewSubtitle[] {
   })
 
   return subtitles
+}
+
+function sumPracticeCounts(counts: Record<string, number>) {
+  return Object.values(counts).reduce((sum, count) => sum + Math.max(0, Number(count) || 0), 0)
 }
 
 function tokenizeSubtitle(text: string): SubtitleToken[] {

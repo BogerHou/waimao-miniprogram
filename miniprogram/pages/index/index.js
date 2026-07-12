@@ -7,6 +7,7 @@ const env_1 = require("../../config/env");
 const share_1 = require("../../utils/share");
 const share_card_1 = require("../../utils/share-card");
 const share_poster_1 = require("../../utils/share-poster");
+const scene_search_1 = require("../../utils/scene-search");
 const DEFAULT_NICKNAME = 'Learner';
 const DEFAULT_AVATAR_INITIAL = 'L';
 Page({
@@ -22,6 +23,9 @@ Page({
         completedCount: 0,
         courseCount: 0,
         chapters: [],
+        displayChapters: [],
+        searchQuery: '',
+        searchResultCount: 0,
         continueScene: null,
         loading: false,
         error: null,
@@ -161,6 +165,7 @@ Page({
         const avatarInitial = (initialSource.charAt(0) || DEFAULT_AVATAR_INITIAL).toUpperCase();
         const avatarUrl = isAuthenticated ? (state.user?.avatarUrl?.trim() ?? '') : '';
         const chapters = applyProgressToChapters(chaptersOverride ?? this.data.chapters, state.progress, state.fullAccess);
+        const displayChapters = (0, scene_search_1.filterChaptersBySceneQuery)(chapters, this.data.searchQuery);
         const sceneCount = courseCountOverride ?? countScenes(chapters);
         const continueScene = isAuthenticated
             ? findContinueScene(chapters, state.progress?.currentSceneId ?? null)
@@ -176,6 +181,8 @@ Page({
             completedCount,
             courseCount: sceneCount,
             chapters,
+            displayChapters,
+            searchResultCount: (0, scene_search_1.countChapterScenes)(displayChapters),
             continueScene,
             isAuthenticated,
             fullAccess: state.fullAccess,
@@ -190,6 +197,22 @@ Page({
     },
     handleRetry() {
         void this.loadCourses(true);
+    },
+    handleSearchInput(event) {
+        const searchQuery = event.detail.value;
+        const displayChapters = (0, scene_search_1.filterChaptersBySceneQuery)(this.data.chapters, searchQuery);
+        this.setData({
+            searchQuery,
+            displayChapters,
+            searchResultCount: (0, scene_search_1.countChapterScenes)(displayChapters),
+        });
+    },
+    handleClearSearch() {
+        this.setData({
+            searchQuery: '',
+            displayChapters: this.data.chapters,
+            searchResultCount: (0, scene_search_1.countChapterScenes)(this.data.chapters),
+        });
     },
     handleCourseScroll(event) {
         this.courseScrollLastTop = event.detail.scrollTop ?? 0;
@@ -238,6 +261,13 @@ Page({
         wx.navigateTo({
             url: '/pages/practice-help/practice-help',
         });
+    },
+    goToLearning() {
+        if (!this.data.isAuthenticated) {
+            this.showLoginDialog();
+            return;
+        }
+        wx.navigateTo({ url: '/pages/learning/learning' });
     },
     handleLoginTap() {
         this.showLoginDialog();

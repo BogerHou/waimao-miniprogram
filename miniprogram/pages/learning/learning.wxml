@@ -1,0 +1,54 @@
+<view class="app-page">
+  <navigation-bar title="学习主页" back="{{true}}" color="black" background="#F5F7FB"></navigation-bar>
+  <scroll-view class="learning-scroll" scroll-y>
+    <view class="learning-page">
+      <view class="learning-profile">
+        <view class="learning-profile__avatar {{avatarUrl ? 'learning-profile__avatar--image' : ''}}">
+          <image wx:if="{{avatarUrl}}" class="learning-profile__avatar-image" src="{{avatarUrl}}" mode="aspectFill"></image>
+          <text wx:else>{{avatarInitial}}</text>
+        </view>
+        <view class="learning-profile__copy">
+          <text class="learning-profile__eyebrow">MY LEARNING</text>
+          <text class="learning-profile__name">{{nickname}}</text>
+          <text class="learning-profile__desc">每一次开口，都算进你的学习记录</text>
+        </view>
+      </view>
+
+      <view class="learning-stats">
+        <view class="learning-stat"><text class="learning-stat__value">{{streakCount}}</text><text class="learning-stat__label">连续学习 / 天</text></view>
+        <view class="learning-stat"><text class="learning-stat__value">{{totalCompleted}}</text><text class="learning-stat__label">完成小节</text></view>
+        <view class="learning-stat learning-stat--wide"><text class="learning-stat__value learning-stat__value--duration">{{studyDurationLabel}}</text><text class="learning-stat__label">累计学习</text></view>
+      </view>
+
+      <view class="review-entry" bindtap="goToReview" aria-role="button">
+        <view class="review-entry__mark">R</view>
+        <view class="review-entry__copy">
+          <text class="review-entry__title">复习生词与难句</text>
+          <text class="review-entry__desc">{{wordCount}} 个生词 · {{cueCount}} 个难句</text>
+        </view>
+        <text class="review-entry__arrow">›</text>
+      </view>
+
+      <view class="record-section">
+        <view class="record-section__heading">
+          <view><text class="record-section__title">最近 4 周</text><text class="record-section__desc">有练习的日子会被点亮</text></view>
+          <view class="record-section__meta"><text>{{activeDays}} 天活跃</text><text>{{totalPracticeCount}} 次精练</text></view>
+        </view>
+
+        <view wx:if="{{loading}}" class="record-loading">正在加载学习记录…</view>
+        <view wx:elif="{{error}}" class="record-error">
+          <text>{{error}}</text><button class="record-error__button" bindtap="handleRetry">重新加载</button>
+        </view>
+        <view wx:else class="calendar-card">
+          <view class="calendar-weekdays"><text>一</text><text>二</text><text>三</text><text>四</text><text>五</text><text>六</text><text>日</text></view>
+          <view class="calendar-grid">
+            <view wx:for="{{calendar}}" wx:key="date" class="calendar-day calendar-day--{{item.intensity}} {{item.isToday ? 'calendar-day--today' : ''}}">
+              <text>{{item.dayLabel}}</text>
+            </view>
+          </view>
+          <view class="calendar-legend"><text>少</text><view class="legend-dot calendar-day--1"></view><view class="legend-dot calendar-day--2"></view><view class="legend-dot calendar-day--3"></view><text>多</text></view>
+        </view>
+      </view>
+    </view>
+  </scroll-view>
+</view>

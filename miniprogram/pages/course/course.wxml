@@ -84,6 +84,17 @@
     </view>
 
     <view
+      wx:if="{{stage === 'practice' && starredCueCount > 0}}"
+      class="review-filter {{reviewOnlyMode ? 'review-filter--active' : ''}}"
+      bindtap="handleReviewOnlyToggle"
+      aria-role="button"
+    >
+      <text class="review-filter__star">★</text>
+      <text class="review-filter__label">{{reviewOnlyMode ? '正在只练难句' : '只练难句'}}</text>
+      <text class="review-filter__count">{{starredCueCount}} 句</text>
+    </view>
+
+    <view
       class="course-content"
       bindtouchstart="handleTouchStart"
       bindtouchmove="handleTouchMove"
@@ -99,15 +110,15 @@
       >
         <view class="subtitle-list transcript-mode-{{transcriptMode}}">
           <block wx:if="{{subtitles.length}}">
-            <view
-              wx:for="{{subtitles}}"
-              wx:key="id"
-              id="subtitle-{{item.id}}"
-              class="subtitle-item {{currentSubtitleId === item.id ? 'active' : ''}} {{item.toneClass}}"
-              data-index="{{index}}"
-              bindtap="handleSubtitleTap"
-              aria-role="button"
-            >
+            <block wx:for="{{subtitles}}" wx:key="id">
+              <view
+                wx:if="{{!reviewOnlyMode || item.starred}}"
+                id="subtitle-{{item.id}}"
+                class="subtitle-item {{currentSubtitleId === item.id ? 'active' : ''}} {{item.toneClass}}"
+                data-index="{{index}}"
+                bindtap="handleSubtitleTap"
+                aria-role="button"
+              >
               <view class="subtitle-text">
                 <block wx:if="{{item.tokens && item.tokens.length}}">
                   <block wx:for="{{item.tokens}}" wx:for-item="token" wx:for-index="tokenIndex" wx:key="tokenIndex">
@@ -117,6 +128,7 @@
                       class="subtitle-word"
                       data-word="{{token.word}}"
                       data-raw="{{token.text}}"
+                      data-cue-id="{{item.id}}"
                       data-word-id="word-{{item.id}}-{{tokenIndex}}"
                       catchlongpress="handleWordLongPress"
                       catchtap=""
@@ -152,6 +164,11 @@
                   aria-role="button"
                 >{{comparing ? '对比中…' : '▶ 对比听'}}</view>
               </view>
+              </view>
+            </block>
+            <view wx:if="{{reviewOnlyMode && !starredCueCount}}" class="empty-state">
+              <text class="empty-title">暂无标记难句</text>
+              <text class="empty-text">退出筛选后，在精练阶段标记想复习的句子</text>
             </view>
           </block>
 

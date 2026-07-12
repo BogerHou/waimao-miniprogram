@@ -14,7 +14,7 @@
         <text class="hero__help-text">帮助</text>
       </view>
 
-      <view wx:if="{{isAuthenticated}}" class="hero__profile">
+      <view wx:if="{{isAuthenticated}}" class="hero__profile" bindtap="goToLearning" aria-role="button" aria-label="打开学习主页">
         <view class="hero__avatar {{avatarUrl ? 'hero__avatar--image' : ''}}">
           <image wx:if="{{avatarUrl}}" class="hero__avatar-image" src="{{avatarUrl}}" mode="aspectFill" />
           <text wx:else class="hero__avatar-text">{{avatarInitial}}</text>
@@ -26,6 +26,7 @@
             <text>{{fullAccess ? '全部课程已解锁' : '第一章免费试学'}}</text>
           </view>
         </view>
+        <text class="hero__profile-arrow">›</text>
       </view>
 
       <view wx:else class="hero__login">
@@ -71,7 +72,20 @@
   <view class="courses-section">
     <view class="section-header">
       <text class="section-title">课程章节</text>
-      <text class="section-subtitle">7 章外贸场景训练</text>
+      <text class="section-subtitle">{{searchQuery ? searchResultCount + ' 个匹配场景' : '7 章外贸场景训练'}}</text>
+    </view>
+
+    <view class="scene-search {{searchQuery ? 'scene-search--active' : ''}}">
+      <view class="scene-search__icon"></view>
+      <input
+        class="scene-search__input"
+        value="{{searchQuery}}"
+        placeholder="搜索报价、展会、物流等场景"
+        bindinput="handleSearchInput"
+        confirm-type="search"
+        aria-label="搜索课程场景"
+      />
+      <view wx:if="{{searchQuery}}" class="scene-search__clear" bindtap="handleClearSearch" aria-role="button">×</view>
     </view>
 
     <scroll-view
@@ -82,10 +96,10 @@
       scroll-with-animation="{{scrollWithAnimation}}"
     >
       <view class="course-container">
-        <block wx:if="{{chapters.length}}">
+        <block wx:if="{{displayChapters.length}}">
           <view class="chapter-list">
             <view
-              wx:for="{{chapters}}"
+              wx:for="{{displayChapters}}"
               wx:key="id"
               class="chapter-card {{item.locked ? 'chapter-card--locked' : ''}}"
               id="chapter-{{item.id}}"
@@ -106,7 +120,7 @@
                 </view>
               </view>
 
-              <view wx:if="{{expandedChapterId === item.id}}" class="scene-list">
+              <view wx:if="{{searchQuery || expandedChapterId === item.id}}" class="scene-list">
                 <view
                   wx:for="{{item.scenes}}"
                   wx:for-item="scene"
@@ -148,8 +162,9 @@
         </view>
 
         <view wx:else class="page-state">
-          <text class="page-state__title">暂无课程</text>
-          <text class="page-state__desc">课程准备好后会显示在这里</text>
+          <text class="page-state__title">{{searchQuery ? '没有找到相关场景' : '暂无课程'}}</text>
+          <text class="page-state__desc">{{searchQuery ? '换一个业务关键词试试' : '课程准备好后会显示在这里'}}</text>
+          <button wx:if="{{searchQuery}}" class="page-state__button" bindtap="handleClearSearch">清除搜索</button>
         </view>
       </view>
     </scroll-view>
