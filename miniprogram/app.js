@@ -5,6 +5,7 @@ const storage_1 = require("./utils/storage");
 const index_1 = require("./store/index");
 const app_config_sync_1 = require("./utils/app-config-sync");
 const auth_session_1 = require("./utils/auth-session");
+const metrics_1 = require("./utils/metrics");
 const shadow_background_handoff_1 = require("./pages/course/shadow-background-handoff");
 function isDevtoolsUnsupportedAudioOptionError(error) {
     return String(error.errMsg ?? '').includes('开发者工具暂时不支持');
@@ -93,6 +94,9 @@ App({
     onShow() {
         void this.refreshAppConfig();
         this.restoreBackgroundAudioRoute?.();
+    },
+    onHide() {
+        (0, metrics_1.flushMetrics)();
     },
     async ensureAuth(profileOverride) {
         const state = (0, index_1.getState)();

@@ -101,7 +101,7 @@ class LocalCache {
         this.ttl = ttl;
     }
     /**
-     * 获取缓存数据
+     * 获取缓存数据（过期视为未命中，但保留数据供 getStale 降级读取）
      */
     get() {
         try {
@@ -111,9 +111,8 @@ class LocalCache {
                 return null;
             }
             const item = JSON.parse(value);
-            // 检查是否过期
+            // 过期：算未命中但不删除，弱网/断网时 getStale 还能兜底
             if (Date.now() > item.expireAt) {
-                this.clear();
                 this.misses++;
                 return null;
             }
@@ -123,6 +122,23 @@ class LocalCache {
         catch (error) {
             console.warn(`[LocalCache] Failed to get ${this.key}:`, error);
             this.misses++;
+            return null;
+        }
+    }
+    /**
+     * 忽略过期时间读取（网络失败时的降级数据源）
+     */
+    getStale() {
+        try {
+            const value = wx.getStorageSync(this.key);
+            if (!value) {
+                return null;
+            }
+            const item = JSON.parse(value);
+            return item.data;
+        }
+        catch (error) {
+            console.warn(`[LocalCache] Failed to get stale ${this.key}:`, error);
             return null;
         }
     }

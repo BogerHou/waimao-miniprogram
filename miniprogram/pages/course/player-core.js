@@ -9,6 +9,7 @@ exports.clampCourseTimeToScene = clampCourseTimeToScene;
 exports.hasReachedSceneEnd = hasReachedSceneEnd;
 exports.resolveProgressCueIndex = resolveProgressCueIndex;
 exports.buildCompletionCuePayload = buildCompletionCuePayload;
+exports.resolveAudioFallbackPlaybackState = resolveAudioFallbackPlaybackState;
 exports.createAudioLoadTimeoutController = createAudioLoadTimeoutController;
 exports.computeRepeatStopWindow = computeRepeatStopWindow;
 exports.resolveAudioErrorTip = resolveAudioErrorTip;
@@ -56,6 +57,24 @@ function buildCompletionCuePayload(totalCues, progressCueIndex) {
 }
 // ==================== 音频加载超时控制器（切片 B） ====================
 exports.AUDIO_LOAD_TIMEOUT_MS = 10000;
+function resolveAudioFallbackPlaybackState(options) {
+    const pendingTargetTime = Number.isFinite(options.pendingTargetTime)
+        ? Number(options.pendingTargetTime)
+        : null;
+    const currentTime = Number.isFinite(options.currentTime) && Number(options.currentTime) >= 0
+        ? Number(options.currentTime)
+        : null;
+    const lastKnownCourseTime = Number.isFinite(options.lastKnownCourseTime)
+        ? Math.max(0, options.lastKnownCourseTime)
+        : 0;
+    const pendingShouldAutoplay = typeof options.pendingShouldAutoplay === 'boolean'
+        ? options.pendingShouldAutoplay
+        : null;
+    return {
+        courseTime: Math.max(0, pendingTargetTime ?? currentTime ?? lastKnownCourseTime),
+        shouldAutoplay: pendingShouldAutoplay ?? (options.playing || options.backgroundPlaybackActive || options.managerPaused === false),
+    };
+}
 // CDN 音源加载超时守卫：仅对非 server 源计时，超时且存在下一个可用源时触发回退。
 // 定时器可注入，便于在 Node 测试里驱动超时路径。
 function createAudioLoadTimeoutController(options) {
@@ -83,6 +102,7 @@ function createAudioLoadTimeoutController(options) {
             });
             timerId = setTimer(() => {
                 const currentSource = options.getCurrentSource();
+                const audioReady = options.getAudioReady();
                 const nextAudioSource = (0, audio_source_fallback_1.getNextAudioSourceOption)({
                     timedOutSource: src,
                     currentSource,
@@ -93,9 +113,13 @@ function createAudioLoadTimeoutController(options) {
                     currentSource,
                     nextProvider: nextAudioSource?.provider ?? null,
                     nextSource: nextAudioSource?.url ?? null,
-                    audioReady: options.getAudioReady(),
+                    audioReady,
                 });
                 timerId = null;
+                if (currentSource !== src || audioReady) {
+                    return;
+                }
+                options.onTimeout?.(src);
                 if (nextAudioSource) {
                     options.onTimeoutFallback(src);
                 }

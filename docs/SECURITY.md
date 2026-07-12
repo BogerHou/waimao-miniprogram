@@ -24,3 +24,9 @@
 - EnglishPod 使用 `WECHAT_APPID` / `WECHAT_SECRET`；外贸小程序必须使用独立的 `WAIMAO_MINI_WECHAT_APPID` / `WAIMAO_MINI_WECHAT_SECRET`，避免不同小程序 appid 互相串用。
 - AI provider key、邀请码种子必须走后端环境变量。
 - 不要把真实 appid、secret、邀请码明文批量写入仓库。
+
+## 客户端观测
+
+- `/api/waimao-mini/metrics` 为匿名端点，只允许 `audio_fallback`、`audio_load_timeout`、`api_error` 三类事件；服务端必须限制单批数量、body 大小和每 IP 频率。
+- 客户端只上报课程 ID、音源 provider、原因、超时阈值、归一化 API path、method 和 status。不得上报完整音频 URL、query、token、openid、头像昵称、录音或任意扩展字段。
+- metrics 发送失败静默丢弃，不重试、不持久化队列，也不进入通用请求封装，避免递归上报和弱网流量放大。

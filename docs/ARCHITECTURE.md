@@ -22,6 +22,7 @@
 - 数据表：`waimao_mini_users`、`waimao_mini_sessions`、`waimao_mini_invite_codes`、`waimao_mini_invite_labels`、`waimao_mini_entitlements`、`waimao_mini_progress`、`waimao_mini_study_sessions`
 - 数据目录：`server/data/waimao-mini`
 - 静态音频：`server/static/waimao-mini/audio`
+- 客户端观测入口：`POST /api/waimao-mini/metrics`；只接收音源回退、音频加载超时和 API 错误三类低基数事件，结构化写入服务端日志。
 - 数据生成脚本：`npm run waimao-mini:generate`
 - 邀请码脚本：`npm run waimao-mini:invite -- <code>`
 
@@ -35,9 +36,11 @@
 4. 完成小节后调用 `/api/waimao-mini/users/me/progress`，前端上报 `sceneId`、`cueIndex` 和 `totalCues`，后端按小节保存 cue 进度并汇总章节进度。
 5. 点击首页解锁提示或锁定小节时先强制微信登录，再进入解锁页。
 6. 邀请码解锁调用 `/api/waimao-mini/invite/redeem`，写入小程序专用 entitlement；会员权益为全部章节 1 年访问权。
+7. API 5xx/网络失败、CDN 音频加载超时和实际切源先在客户端采样聚合，再直连 `/api/waimao-mini/metrics` 批量上报；该请求不经过通用请求封装，失败静默丢弃，避免递归和弱网流量放大。
 
 ## 约束
 
 - 不随意重做 EnglishPod 布局；只有用户确认的差异点可以改。
 - 七牛密钥和私有 URL 签名只存在于后端；小程序仅接收短期地址，并始终保留服务器源作为回退。
+- 观测 payload 不包含完整音频 URL、query、token、用户资料或录音；匿名 metrics 端点必须保持事件白名单、批量上限、body 上限和 IP 限流。
 - Web 账号打通和双音频源持续监控属于后续阶段；小程序不接微信支付，购买会员邀请码走添加微信人工交付。

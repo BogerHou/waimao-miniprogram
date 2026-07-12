@@ -1,6 +1,6 @@
 import { PAGE_SIZE_DEFAULT } from '../config/env'
 import { request } from './request'
-import { LocalCache, DictCache } from './storage'
+import { LocalCache, DictCache, getToken } from './storage'
 
 export type CourseStatus = 'completed' | 'pending'
 export type ProgressStatus = 'completed'
@@ -273,6 +273,41 @@ export function getCacheStats() {
   }
 }
 
+export function getCachedCourseList(options: { allowStale?: boolean } = {}): CourseListResponse | null {
+  const cached = courseListCache.get()
+  if (cached || !options.allowStale) {
+    return cached ? toPublicCourseListCache(cached) : null
+  }
+  const stale = courseListCache.getStale()
+  return stale ? toPublicCourseListCache(stale) : null
+}
+
+// 课程缓存必须是匿名投影。旧版本可能在带 token 的请求后写入用户进度与解锁态，
+// 因此读取和写入两侧都清理顶层及 scene 内的账号字段，避免换账号或退出后串数据。
+function toPublicCourseListCache(response: CourseListResponse): CourseListResponse {
+  return {
+    ...response,
+    data: response.data.map(chapter => {
+      const locked = !chapter.free
+      return {
+        ...chapter,
+        audio: '',
+        locked,
+        progressPercent: 0,
+        scenes: chapter.scenes.map(scene => ({
+          ...scene,
+          locked,
+          status: 'pending' as const,
+          isCurrent: false,
+          progress: null,
+        })),
+      }
+    }),
+    progress: undefined,
+    entitlement: undefined,
+  }
+}
+
 // ==================== API 函数 ====================
 
 
@@ -281,16 +316,15 @@ export function fetchCourseList(
   pageSize = PAGE_SIZE_DEFAULT,
   options?: { withProgress?: boolean; forceRefresh?: boolean }
 ): Promise<CourseListResponse> {
-  // 强制刷新时跳过缓存
-  if (options?.forceRefresh) {
-    courseListCache.clear()
-  }
+  // 只有第一页且不需要进度数据时才直接命中新鲜缓存；登录态数据仍以服务端为准。
+  const hasAuthenticatedSession = Boolean(getToken())
+  const canUseFreshCache = page === 1 && !options?.withProgress && !hasAuthenticatedSession
+  // 强制刷新只跳过读取，不删除旧数据。网络失败时仍可用旧课程树兜底。
+  const rawStaleFallback = page === 1 ? courseListCache.getStale() : null
+  const staleFallback = rawStaleFallback ? toPublicCourseListCache(rawStaleFallback) : null
 
-  // 只有第一页且不需要进度数据时才使用缓存
-  const useCache = page === 1 && !options?.withProgress
-
-  if (useCache && !options?.forceRefresh) {
-    const cached = courseListCache.get()
+  if (canUseFreshCache && !options?.forceRefresh) {
+    const cached = getCachedCourseList()
     if (cached) {
       console.log('[API] Course list cache hit')
       return Promise.resolve(cached)
@@ -313,10 +347,18 @@ export function fetchCourseList(
     data,
   }).then(response => {
     // 缓存第一页数据
-    if (useCache) {
-      courseListCache.set(response)
+    if (canUseFreshCache) {
+      courseListCache.set(toPublicCourseListCache(response))
     }
     return response
+  }).catch(error => {
+    if (!staleFallback) {
+      throw error
+    }
+
+    console.warn('[API] Course list request failed, using stale cache', error)
+    // 只复用匿名课程投影；登录态进度与权益继续由 store 提供。
+    return staleFallback
   })
 }
 

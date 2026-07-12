@@ -11,6 +11,7 @@ import {
   fetchWordDefinitionViaBackend,
 } from '../../utils/api'
 import { API_BASE_URL } from '../../config/env'
+import { reportMetric } from '../../utils/metrics'
 import {
   STARRED_CUES_STORAGE_KEY,
   StarredCueMap,
@@ -351,9 +352,12 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
   lastEchoCompletion: null as { subtitleId: string; courseTime: number } | null,
   lastKnownCourseTime: 0,
   audioLoadTimeoutController: null as playerCore.AudioLoadTimeoutController | null,
+  backgroundAudioLoadTimeoutController: null as playerCore.AudioLoadTimeoutController | null,
   backgroundResumeStore: null as BackgroundResumeStore | null,
   audioRequestStartedAt: 0,
   backgroundAudioRequestStartedAt: 0,
+  backgroundAudioReady: false,
+  backgroundAudioFallbackPending: false,
   audioLoadingMaskVisible: false,
   suppressMainAudioContextEvents: false,
   swipeStartX: null as number | null,
@@ -655,11 +659,37 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
       getSourceOptions: () => this.audioSourceOptions,
       getCurrentSource: () => this.audioSource || this.audioContext?.src || '',
       getAudioReady: () => this.audioReady,
+      onTimeout: timedOutSource => {
+        const provider = this.audioSourceOptions.find((option: AudioSourceOption) => option.url === timedOutSource)?.provider ?? 'unknown'
+        reportMetric('audio_load_timeout', {
+          courseId: this.courseId,
+          provider,
+          timeoutMs: playerCore.AUDIO_LOAD_TIMEOUT_MS,
+        })
+      },
       onTimeoutFallback: timedOutSource => {
         this.fallbackToNextAudioSource('timeout', timedOutSource)
       },
       log: (message, payload) => console.log(message, payload),
       warn: (message, payload) => console.warn(message, payload),
+    })
+    this.backgroundAudioLoadTimeoutController = playerCore.createAudioLoadTimeoutController({
+      getSourceOptions: () => this.audioSourceOptions,
+      getCurrentSource: () => String(this.backgroundAudioManager?.src || ''),
+      getAudioReady: () => this.backgroundAudioReady,
+      onTimeout: timedOutSource => {
+        const provider = this.audioSourceOptions.find((option: AudioSourceOption) => option.url === timedOutSource)?.provider ?? 'unknown'
+        reportMetric('audio_load_timeout', {
+          courseId: this.courseId,
+          provider,
+          timeoutMs: playerCore.AUDIO_LOAD_TIMEOUT_MS,
+        })
+      },
+      onTimeoutFallback: timedOutSource => {
+        this.fallbackBackgroundAudioSource('timeout', timedOutSource)
+      },
+      log: (message, payload) => console.log(message, { ...payload, channel: 'background' }),
+      warn: (message, payload) => console.warn(message, { ...payload, channel: 'background' }),
     })
     this.backgroundResumeStore = createBackgroundResumeStore({
       storage: {
@@ -1262,8 +1292,17 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     this.audioLoadTimeoutController?.schedule(src)
   },
 
+  clearBackgroundAudioLoadTimeout() {
+    this.backgroundAudioLoadTimeoutController?.clear()
+  },
+
+  scheduleBackgroundAudioLoadTimeout(src: string) {
+    this.backgroundAudioLoadTimeoutController?.schedule(src)
+  },
+
   fallbackToNextAudioSource(reason: 'error' | 'timeout', source: string) {
     const currentSource = this.audioSource || this.audioContext?.src || ''
+    const fromProvider = this.audioSourceOptions.find((option: AudioSourceOption) => option.url === source)?.provider ?? 'unknown'
     const nextAudioSource = getNextAudioSourceOption({
       timedOutSource: source,
       currentSource,
@@ -1281,6 +1320,13 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     if (!nextAudioSource) {
       return false
     }
+
+    reportMetric('audio_fallback', {
+      courseId: this.courseId,
+      reason,
+      fromProvider,
+      toProvider: nextAudioSource.provider,
+    })
 
     const activeSubtitle = this.activeSubtitle ? { ...this.activeSubtitle } : null
     const pendingSubtitle = this.pendingSubtitle ? { ...this.pendingSubtitle } : null
@@ -1323,6 +1369,64 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     return true
   },
 
+  fallbackBackgroundAudioSource(reason: 'error' | 'timeout', source: string) {
+    if (this.backgroundAudioFallbackPending) {
+      return true
+    }
+    const manager = this.backgroundAudioManager as any
+    const course = this.data.course
+    if (!manager || !course) {
+      return false
+    }
+
+    const currentSource = String(manager.src || '')
+    const fromProvider = this.audioSourceOptions.find((option: AudioSourceOption) => option.url === source)?.provider ?? 'unknown'
+    const nextAudioSource = getNextAudioSourceOption({
+      timedOutSource: source,
+      currentSource,
+      audioSources: this.audioSourceOptions,
+    })
+    if (!nextAudioSource) {
+      return false
+    }
+
+    const resume = playerCore.resolveAudioFallbackPlaybackState({
+      pendingTargetTime: this.pendingShadowSeek?.targetTime,
+      currentTime: typeof manager.currentTime === 'number' ? manager.currentTime : null,
+      lastKnownCourseTime: this.lastKnownCourseTime,
+      pendingShouldAutoplay: this.pendingShadowSeek?.shouldAutoplay,
+      playing: this.data.playing,
+      backgroundPlaybackActive: this.backgroundPlaybackActive,
+      managerPaused: typeof manager.paused === 'boolean' ? manager.paused : undefined,
+    })
+
+    reportMetric('audio_fallback', {
+      courseId: this.courseId,
+      reason,
+      fromProvider,
+      toProvider: nextAudioSource.provider,
+    })
+    this.activeAudioSourceProvider = nextAudioSource.provider
+    this.usingFallbackAudio = nextAudioSource.provider === 'server'
+    this.clearBackgroundAudioLoadTimeout()
+    this.backgroundAudioFallbackPending = true
+    this.setAudioLoading(true)
+
+    this.setData({
+      course: {
+        ...course,
+        audio: nextAudioSource.url,
+      },
+    }, () => {
+      if (!this.backgroundAudioFallbackPending) {
+        return
+      }
+      this.backgroundAudioFallbackPending = false
+      this.playShadowCourseAt(resume.courseTime, resume.shouldAutoplay, { showLoading: true })
+    })
+    return true
+  },
+
   ensureBackgroundAudioManager() {
     if (this.backgroundAudioManager) {
       this.debugShadowBackground('reuse background manager')
@@ -1332,6 +1436,8 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     const manager = wx.getBackgroundAudioManager() as any
     this.debugShadowBackground('create background manager')
     manager.onPlay(() => {
+      this.backgroundAudioReady = true
+      this.clearBackgroundAudioLoadTimeout()
       this.debugShadowBackground('background onPlay')
       this.updateShadowCourseTimeFromManager(typeof manager.currentTime === 'number' ? manager.currentTime : undefined)
       this.syncPendingShadowSeek('onPlay')
@@ -1385,6 +1491,8 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     }
     if (typeof manager.onCanplay === 'function') {
       manager.onCanplay(() => {
+        this.backgroundAudioReady = true
+        this.clearBackgroundAudioLoadTimeout()
         const elapsedMs = this.backgroundAudioRequestStartedAt
           ? Date.now() - this.backgroundAudioRequestStartedAt
           : null
@@ -1419,12 +1527,18 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     }
     if (typeof manager.onError === 'function') {
       manager.onError((error: unknown) => {
-        logAudioRequest('background:onError', String(manager.src || ''), {
+        const failedSource = String(manager.src || '')
+        logAudioRequest('background:onError', failedSource, {
           courseId: this.courseId,
           playMode: this.data.playMode,
           error,
         })
         this.debugShadowBackground('background onError', { error })
+        this.backgroundAudioReady = false
+        this.clearBackgroundAudioLoadTimeout()
+        if (!this.fallbackBackgroundAudioSource('error', failedSource)) {
+          this.setAudioLoading(false)
+        }
       })
     }
 
@@ -1504,8 +1618,11 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
         courseTime: meta.startTime,
         shouldAutoplay,
       })
+      this.backgroundAudioReady = false
+      this.clearBackgroundAudioLoadTimeout()
       manager.src = meta.src
       this.backgroundAudioRequestStartedAt = Date.now()
+      this.scheduleBackgroundAudioLoadTimeout(meta.src)
       setTimeout(() => {
         this.syncPendingShadowSeek('post-src-assign')
         try {
@@ -1823,6 +1940,9 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
 
   stopBackgroundPlayback(stopPlayback: boolean) {
     this.debugShadowBackground('stop background playback', { stopPlayback })
+    this.clearBackgroundAudioLoadTimeout()
+    this.backgroundAudioReady = false
+    this.backgroundAudioFallbackPending = false
     this.pendingShadowResume = null
     this.pendingShadowSeek = null
     this.backgroundPlaybackActive = false

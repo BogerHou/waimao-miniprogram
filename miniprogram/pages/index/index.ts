@@ -1,5 +1,6 @@
 import {
   fetchCourseList,
+  getCachedCourseList,
   ChapterListItem,
   ChapterSceneItem,
   CourseListResponse,
@@ -69,6 +70,7 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
   storeUnsubscribe: undefined as (() => void) | undefined,
   courseScrollLastTop: null as number | null,
   pendingUnlockAfterLogin: false,
+  pageInitialized: false,
   data: {
     userNickname: DEFAULT_NICKNAME,
     avatarInitial: DEFAULT_AVATAR_INITIAL,
@@ -110,8 +112,8 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
     await this.initializePage()
   },
   async onShow() {
-    if (!this.data.chapters.length || this.data.loading) return
-    await this.loadCourses(true)
+    if (!(this as any).pageInitialized || !this.data.chapters.length || this.data.loading) return
+    await this.loadCourses(true, true)
   },
   onShareAppMessage() {
     return buildAppMessageShare({
@@ -137,6 +139,7 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
     ;(this as any).storeUnsubscribe?.()
   },
   async initializePage() {
+    const hasCachedCourses = this.hydrateCachedCourses()
     const app = getApp<IAppOption>()
 
     if (app.globalData.readyPromise) {
@@ -148,10 +151,30 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
     }
 
     this.handleStoreUpdate(getStoreState())
-    await this.loadCourses(true)
+    await this.loadCourses(true, hasCachedCourses)
+    this.scheduleShareImage()
+    ;(this as any).pageInitialized = true
+  },
+  hydrateCachedCourses() {
+    const cached = getCachedCourseList({ allowStale: true })
+    if (!cached) {
+      return false
+    }
+    this.renderCourseList(cached)
+    return true
+  },
+  renderCourseList(response: CourseListResponse) {
+    const chapters = normalizeChapters(response.data)
+    const sceneCount = countScenes(chapters)
+
+    this.setData({
+      chapters,
+      courseCount: sceneCount,
+    })
+    this.handleStoreUpdate(getStoreState(), sceneCount, chapters)
     this.scheduleShareImage()
   },
-  async loadCourses(forceRefresh = false) {
+  async loadCourses(forceRefresh = false, silent = false) {
     if (this.data.loading) return
 
     this.setData({
@@ -177,19 +200,15 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
         updateEntitlementInStore(response.entitlement)
       }
 
-      const chapters = normalizeChapters(response.data)
-      const sceneCount = countScenes(chapters)
-
-      this.setData({
-        chapters,
-        courseCount: sceneCount,
-        loading: false,
-      })
-
-      this.handleStoreUpdate(getStoreState(), sceneCount, chapters)
-      this.scheduleShareImage()
+      this.renderCourseList(response)
+      this.setData({ loading: false })
     } catch (error) {
       const message = error instanceof Error ? error.message : '课程加载失败，请重试'
+      if (silent && this.data.chapters.length) {
+        console.warn('[Index] Silent course refresh failed', error)
+        this.setData({ loading: false })
+        return
+      }
       this.setData({
         error: message,
         loading: false,

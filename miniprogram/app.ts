@@ -26,6 +26,7 @@ import {
 } from './store/index'
 import { refreshAppConfig as syncAppConfig } from './utils/app-config-sync'
 import { shouldPreserveCachedSessionAfterRefreshFailure } from './utils/auth-session'
+import { flushMetrics } from './utils/metrics'
 import {
   BACKGROUND_AUDIO_RESUME_KEY,
   buildCourseNavigationUrl,
@@ -133,6 +134,9 @@ App<IAppOption>({
   onShow() {
     void this.refreshAppConfig()
     this.restoreBackgroundAudioRoute?.()
+  },
+  onHide() {
+    flushMetrics()
   },
   async ensureAuth(profileOverride?: LoginProfilePayload) {
     const state = getStoreState()

@@ -118,6 +118,7 @@ function createControllerHarness(overrides: {
 } = {}) {
   const timers = createFakeTimers()
   const fallbackCalls: string[] = []
+  const timeoutCalls: string[] = []
   const logs: string[] = []
   const warns: string[] = []
   const sources = overrides.sources ?? [
@@ -125,11 +126,15 @@ function createControllerHarness(overrides: {
     { provider: "server" as const, url: "https://server/audio.mp3" },
   ]
   let currentSource = overrides.currentSource ?? "https://cdn/audio.mp3"
+  let audioReady = false
 
   const controller = createAudioLoadTimeoutController({
     getSourceOptions: () => sources,
     getCurrentSource: () => currentSource,
-    getAudioReady: () => false,
+    getAudioReady: () => audioReady,
+    onTimeout: source => {
+      timeoutCalls.push(source)
+    },
     onTimeoutFallback: source => {
       fallbackCalls.push(source)
     },
@@ -144,10 +149,14 @@ function createControllerHarness(overrides: {
     controller,
     timers,
     fallbackCalls,
+    timeoutCalls,
     logs,
     warns,
     setCurrentSource(value: string) {
       currentSource = value
+    },
+    setAudioReady(value: boolean) {
+      audioReady = value
     },
   }
 }
@@ -169,6 +178,7 @@ function createControllerHarness(overrides: {
   assert.equal(harness.timers.pendingCount(), 1)
   assert.equal(harness.timers.lastDelayMs(), 10000)
   harness.timers.fire(1)
+  assert.deepEqual(harness.timeoutCalls, ["https://cdn/audio.mp3"])
   assert.deepEqual(harness.fallbackCalls, ["https://cdn/audio.mp3"])
   assert.equal(harness.warns.length, 1)
 }
@@ -179,6 +189,17 @@ function createControllerHarness(overrides: {
   harness.controller.schedule("https://cdn/audio.mp3")
   harness.setCurrentSource("https://server/audio.mp3")
   harness.timers.fire(1)
+  assert.deepEqual(harness.timeoutCalls, [])
+  assert.deepEqual(harness.fallbackCalls, [])
+}
+
+// 超时回调触发前音频已就绪时，不记录超时也不切源
+{
+  const harness = createControllerHarness()
+  harness.controller.schedule("https://cdn/audio.mp3")
+  harness.setAudioReady(true)
+  harness.timers.fire(1)
+  assert.deepEqual(harness.timeoutCalls, [])
   assert.deepEqual(harness.fallbackCalls, [])
 }
 
@@ -225,8 +246,33 @@ import {
   MIN_GAP_MS,
   computeGapMs,
   findNextCue,
+  resolveAudioFallbackPlaybackState,
   resolveStagePlan,
 } from "../miniprogram/pages/course/player-core"
+
+// 后台音频切源：优先保留待 seek 位置与明确的 autoplay 意图；否则回退当前时间和播放状态。
+assert.deepEqual(
+  resolveAudioFallbackPlaybackState({
+    pendingTargetTime: 12.5,
+    currentTime: 10,
+    lastKnownCourseTime: 8,
+    pendingShouldAutoplay: false,
+    playing: true,
+    backgroundPlaybackActive: true,
+    managerPaused: false,
+  }),
+  { courseTime: 12.5, shouldAutoplay: false },
+)
+assert.deepEqual(
+  resolveAudioFallbackPlaybackState({
+    currentTime: 10,
+    lastKnownCourseTime: 8,
+    playing: false,
+    backgroundPlaybackActive: true,
+    managerPaused: true,
+  }),
+  { courseTime: 10, shouldAutoplay: true },
+)
 
 // 阶段→通道与句末策略
 assert.deepEqual(resolveStagePlan("listen", false), { channel: "shadow", cueEndPolicy: "none" })

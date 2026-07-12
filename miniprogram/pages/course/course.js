@@ -35,6 +35,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 const api_1 = require("../../utils/api");
 const env_1 = require("../../config/env");
+const metrics_1 = require("../../utils/metrics");
 const practice_marks_1 = require("../../utils/practice-marks");
 const next_scene_1 = require("../../utils/next-scene");
 const record_auth_1 = require("./record-auth");
@@ -218,9 +219,12 @@ Page({
     lastEchoCompletion: null,
     lastKnownCourseTime: 0,
     audioLoadTimeoutController: null,
+    backgroundAudioLoadTimeoutController: null,
     backgroundResumeStore: null,
     audioRequestStartedAt: 0,
     backgroundAudioRequestStartedAt: 0,
+    backgroundAudioReady: false,
+    backgroundAudioFallbackPending: false,
     audioLoadingMaskVisible: false,
     suppressMainAudioContextEvents: false,
     swipeStartX: null,
@@ -491,11 +495,37 @@ Page({
             getSourceOptions: () => this.audioSourceOptions,
             getCurrentSource: () => this.audioSource || this.audioContext?.src || '',
             getAudioReady: () => this.audioReady,
+            onTimeout: timedOutSource => {
+                const provider = this.audioSourceOptions.find((option) => option.url === timedOutSource)?.provider ?? 'unknown';
+                (0, metrics_1.reportMetric)('audio_load_timeout', {
+                    courseId: this.courseId,
+                    provider,
+                    timeoutMs: playerCore.AUDIO_LOAD_TIMEOUT_MS,
+                });
+            },
             onTimeoutFallback: timedOutSource => {
                 this.fallbackToNextAudioSource('timeout', timedOutSource);
             },
             log: (message, payload) => console.log(message, payload),
             warn: (message, payload) => console.warn(message, payload),
+        });
+        this.backgroundAudioLoadTimeoutController = playerCore.createAudioLoadTimeoutController({
+            getSourceOptions: () => this.audioSourceOptions,
+            getCurrentSource: () => String(this.backgroundAudioManager?.src || ''),
+            getAudioReady: () => this.backgroundAudioReady,
+            onTimeout: timedOutSource => {
+                const provider = this.audioSourceOptions.find((option) => option.url === timedOutSource)?.provider ?? 'unknown';
+                (0, metrics_1.reportMetric)('audio_load_timeout', {
+                    courseId: this.courseId,
+                    provider,
+                    timeoutMs: playerCore.AUDIO_LOAD_TIMEOUT_MS,
+                });
+            },
+            onTimeoutFallback: timedOutSource => {
+                this.fallbackBackgroundAudioSource('timeout', timedOutSource);
+            },
+            log: (message, payload) => console.log(message, { ...payload, channel: 'background' }),
+            warn: (message, payload) => console.warn(message, { ...payload, channel: 'background' }),
         });
         this.backgroundResumeStore = (0, shadow_background_handoff_1.createBackgroundResumeStore)({
             storage: {
@@ -1034,8 +1064,15 @@ Page({
     scheduleAudioLoadTimeout(src) {
         this.audioLoadTimeoutController?.schedule(src);
     },
+    clearBackgroundAudioLoadTimeout() {
+        this.backgroundAudioLoadTimeoutController?.clear();
+    },
+    scheduleBackgroundAudioLoadTimeout(src) {
+        this.backgroundAudioLoadTimeoutController?.schedule(src);
+    },
     fallbackToNextAudioSource(reason, source) {
         const currentSource = this.audioSource || this.audioContext?.src || '';
+        const fromProvider = this.audioSourceOptions.find((option) => option.url === source)?.provider ?? 'unknown';
         const nextAudioSource = (0, audio_source_fallback_1.getNextAudioSourceOption)({
             timedOutSource: source,
             currentSource,
@@ -1051,6 +1088,12 @@ Page({
         if (!nextAudioSource) {
             return false;
         }
+        (0, metrics_1.reportMetric)('audio_fallback', {
+            courseId: this.courseId,
+            reason,
+            fromProvider,
+            toProvider: nextAudioSource.provider,
+        });
         const activeSubtitle = this.activeSubtitle ? { ...this.activeSubtitle } : null;
         const pendingSubtitle = this.pendingSubtitle ? { ...this.pendingSubtitle } : null;
         const wasPlaying = this.data.playing;
@@ -1086,6 +1129,59 @@ Page({
         }
         return true;
     },
+    fallbackBackgroundAudioSource(reason, source) {
+        if (this.backgroundAudioFallbackPending) {
+            return true;
+        }
+        const manager = this.backgroundAudioManager;
+        const course = this.data.course;
+        if (!manager || !course) {
+            return false;
+        }
+        const currentSource = String(manager.src || '');
+        const fromProvider = this.audioSourceOptions.find((option) => option.url === source)?.provider ?? 'unknown';
+        const nextAudioSource = (0, audio_source_fallback_1.getNextAudioSourceOption)({
+            timedOutSource: source,
+            currentSource,
+            audioSources: this.audioSourceOptions,
+        });
+        if (!nextAudioSource) {
+            return false;
+        }
+        const resume = playerCore.resolveAudioFallbackPlaybackState({
+            pendingTargetTime: this.pendingShadowSeek?.targetTime,
+            currentTime: typeof manager.currentTime === 'number' ? manager.currentTime : null,
+            lastKnownCourseTime: this.lastKnownCourseTime,
+            pendingShouldAutoplay: this.pendingShadowSeek?.shouldAutoplay,
+            playing: this.data.playing,
+            backgroundPlaybackActive: this.backgroundPlaybackActive,
+            managerPaused: typeof manager.paused === 'boolean' ? manager.paused : undefined,
+        });
+        (0, metrics_1.reportMetric)('audio_fallback', {
+            courseId: this.courseId,
+            reason,
+            fromProvider,
+            toProvider: nextAudioSource.provider,
+        });
+        this.activeAudioSourceProvider = nextAudioSource.provider;
+        this.usingFallbackAudio = nextAudioSource.provider === 'server';
+        this.clearBackgroundAudioLoadTimeout();
+        this.backgroundAudioFallbackPending = true;
+        this.setAudioLoading(true);
+        this.setData({
+            course: {
+                ...course,
+                audio: nextAudioSource.url,
+            },
+        }, () => {
+            if (!this.backgroundAudioFallbackPending) {
+                return;
+            }
+            this.backgroundAudioFallbackPending = false;
+            this.playShadowCourseAt(resume.courseTime, resume.shouldAutoplay, { showLoading: true });
+        });
+        return true;
+    },
     ensureBackgroundAudioManager() {
         if (this.backgroundAudioManager) {
             this.debugShadowBackground('reuse background manager');
@@ -1094,6 +1190,8 @@ Page({
         const manager = wx.getBackgroundAudioManager();
         this.debugShadowBackground('create background manager');
         manager.onPlay(() => {
+            this.backgroundAudioReady = true;
+            this.clearBackgroundAudioLoadTimeout();
             this.debugShadowBackground('background onPlay');
             this.updateShadowCourseTimeFromManager(typeof manager.currentTime === 'number' ? manager.currentTime : undefined);
             this.syncPendingShadowSeek('onPlay');
@@ -1147,6 +1245,8 @@ Page({
         }
         if (typeof manager.onCanplay === 'function') {
             manager.onCanplay(() => {
+                this.backgroundAudioReady = true;
+                this.clearBackgroundAudioLoadTimeout();
                 const elapsedMs = this.backgroundAudioRequestStartedAt
                     ? Date.now() - this.backgroundAudioRequestStartedAt
                     : null;
@@ -1181,12 +1281,18 @@ Page({
         }
         if (typeof manager.onError === 'function') {
             manager.onError((error) => {
-                logAudioRequest('background:onError', String(manager.src || ''), {
+                const failedSource = String(manager.src || '');
+                logAudioRequest('background:onError', failedSource, {
                     courseId: this.courseId,
                     playMode: this.data.playMode,
                     error,
                 });
                 this.debugShadowBackground('background onError', { error });
+                this.backgroundAudioReady = false;
+                this.clearBackgroundAudioLoadTimeout();
+                if (!this.fallbackBackgroundAudioSource('error', failedSource)) {
+                    this.setAudioLoading(false);
+                }
             });
         }
         this.backgroundAudioManager = manager;
@@ -1256,8 +1362,11 @@ Page({
                 courseTime: meta.startTime,
                 shouldAutoplay,
             });
+            this.backgroundAudioReady = false;
+            this.clearBackgroundAudioLoadTimeout();
             manager.src = meta.src;
             this.backgroundAudioRequestStartedAt = Date.now();
+            this.scheduleBackgroundAudioLoadTimeout(meta.src);
             setTimeout(() => {
                 this.syncPendingShadowSeek('post-src-assign');
                 try {
@@ -1543,6 +1652,9 @@ Page({
     },
     stopBackgroundPlayback(stopPlayback) {
         this.debugShadowBackground('stop background playback', { stopPlayback });
+        this.clearBackgroundAudioLoadTimeout();
+        this.backgroundAudioReady = false;
+        this.backgroundAudioFallbackPending = false;
         this.pendingShadowResume = null;
         this.pendingShadowSeek = null;
         this.backgroundPlaybackActive = false;

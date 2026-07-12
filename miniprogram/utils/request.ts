@@ -1,5 +1,6 @@
 import { API_BASE_URL } from '../config/env'
 import { getToken, clearToken } from './storage'
+import { normalizeMetricPath, reportMetric } from './metrics'
 
 type HttpMethod = WechatMiniprogram.RequestOption['method']
 
@@ -11,9 +12,19 @@ interface RequestOptions {
 }
 
 const MAX_RETRY = 1
+// 统一请求超时：弱网下不让用户干等微信默认的 60s
+export const REQUEST_TIMEOUT_MS = 15_000
 
 export function request<T>(options: RequestOptions): Promise<T> {
   return executeRequest<T>(options, 0)
+}
+
+function reportApiError(url: string, method: HttpMethod, status: number | 'network' | 'timeout') {
+  reportMetric('api_error', {
+    path: normalizeMetricPath(url, API_BASE_URL),
+    method: String(method ?? 'GET'),
+    status,
+  })
 }
 
 function executeRequest<T>(options: RequestOptions, attempt: number): Promise<T> {
@@ -37,6 +48,7 @@ function executeRequest<T>(options: RequestOptions, attempt: number): Promise<T>
       method,
       data,
       header: headers,
+      timeout: REQUEST_TIMEOUT_MS,
       success(res) {
         if (res.statusCode >= 200 && res.statusCode < 300) {
           const payload = (res.data ?? (undefined as unknown)) as T
@@ -49,6 +61,10 @@ function executeRequest<T>(options: RequestOptions, attempt: number): Promise<T>
             .catch(reject)
           return
         }
+        // 观测：服务端错误（4xx 属业务边界不上报，401 重登已单独处理）
+        if (res.statusCode >= 500) {
+          reportApiError(url, method, res.statusCode)
+        }
         const errorPayload = res.data as { message?: string; error?: string } | undefined
         const message =
           errorPayload?.message ||
@@ -57,6 +73,8 @@ function executeRequest<T>(options: RequestOptions, attempt: number): Promise<T>
         reject(new Error(message))
       },
       fail(error) {
+        const errMsg = String(error?.errMsg ?? '')
+        reportApiError(url, method, errMsg.includes('timeout') ? 'timeout' : 'network')
         reject(error)
       },
     })

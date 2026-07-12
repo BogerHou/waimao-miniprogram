@@ -66,6 +66,7 @@ function createFakeTimers() {
 function createControllerHarness(overrides = {}) {
     const timers = createFakeTimers();
     const fallbackCalls = [];
+    const timeoutCalls = [];
     const logs = [];
     const warns = [];
     const sources = overrides.sources ?? [
@@ -73,10 +74,14 @@ function createControllerHarness(overrides = {}) {
         { provider: "server", url: "https://server/audio.mp3" },
     ];
     let currentSource = overrides.currentSource ?? "https://cdn/audio.mp3";
+    let audioReady = false;
     const controller = (0, player_core_1.createAudioLoadTimeoutController)({
         getSourceOptions: () => sources,
         getCurrentSource: () => currentSource,
-        getAudioReady: () => false,
+        getAudioReady: () => audioReady,
+        onTimeout: source => {
+            timeoutCalls.push(source);
+        },
         onTimeoutFallback: source => {
             fallbackCalls.push(source);
         },
@@ -90,10 +95,14 @@ function createControllerHarness(overrides = {}) {
         controller,
         timers,
         fallbackCalls,
+        timeoutCalls,
         logs,
         warns,
         setCurrentSource(value) {
             currentSource = value;
+        },
+        setAudioReady(value) {
+            audioReady = value;
         },
     };
 }
@@ -113,6 +122,7 @@ function createControllerHarness(overrides = {}) {
     strict_1.default.equal(harness.timers.pendingCount(), 1);
     strict_1.default.equal(harness.timers.lastDelayMs(), 10000);
     harness.timers.fire(1);
+    strict_1.default.deepEqual(harness.timeoutCalls, ["https://cdn/audio.mp3"]);
     strict_1.default.deepEqual(harness.fallbackCalls, ["https://cdn/audio.mp3"]);
     strict_1.default.equal(harness.warns.length, 1);
 }
@@ -122,6 +132,16 @@ function createControllerHarness(overrides = {}) {
     harness.controller.schedule("https://cdn/audio.mp3");
     harness.setCurrentSource("https://server/audio.mp3");
     harness.timers.fire(1);
+    strict_1.default.deepEqual(harness.timeoutCalls, []);
+    strict_1.default.deepEqual(harness.fallbackCalls, []);
+}
+// 超时回调触发前音频已就绪时，不记录超时也不切源
+{
+    const harness = createControllerHarness();
+    harness.controller.schedule("https://cdn/audio.mp3");
+    harness.setAudioReady(true);
+    harness.timers.fire(1);
+    strict_1.default.deepEqual(harness.timeoutCalls, []);
     strict_1.default.deepEqual(harness.fallbackCalls, []);
 }
 // clear 取消计时器；重复 schedule 会先清掉上一个
@@ -153,6 +173,23 @@ strict_1.default.equal((0, player_core_1.buildEchoSegmentUrl)("https://api.examp
 console.log("player core tests passed.");
 // ==================== 学习阶段模型 ====================
 const player_core_2 = require("../miniprogram/pages/course/player-core");
+// 后台音频切源：优先保留待 seek 位置与明确的 autoplay 意图；否则回退当前时间和播放状态。
+strict_1.default.deepEqual((0, player_core_2.resolveAudioFallbackPlaybackState)({
+    pendingTargetTime: 12.5,
+    currentTime: 10,
+    lastKnownCourseTime: 8,
+    pendingShouldAutoplay: false,
+    playing: true,
+    backgroundPlaybackActive: true,
+    managerPaused: false,
+}), { courseTime: 12.5, shouldAutoplay: false });
+strict_1.default.deepEqual((0, player_core_2.resolveAudioFallbackPlaybackState)({
+    currentTime: 10,
+    lastKnownCourseTime: 8,
+    playing: false,
+    backgroundPlaybackActive: true,
+    managerPaused: true,
+}), { courseTime: 10, shouldAutoplay: true });
 // 阶段→通道与句末策略
 strict_1.default.deepEqual((0, player_core_2.resolveStagePlan)("listen", false), { channel: "shadow", cueEndPolicy: "none" });
 strict_1.default.deepEqual((0, player_core_2.resolveStagePlan)("listen", true), { channel: "shadow", cueEndPolicy: "none" });

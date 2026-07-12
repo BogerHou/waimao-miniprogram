@@ -11,6 +11,7 @@ require("./course-share-card.test");
 require("./env-config.test");
 require("./knowledge-dialogue-format.test");
 require("./knowledge-format.test");
+const network_resilience_test_1 = require("./network-resilience.test");
 require("./page-json-schema.test");
 require("./pdf-image-scan.test");
 require("./player-core.test");
@@ -20,7 +21,7 @@ require("./record-auth.test");
 require("./shadow-background-handoff.test");
 require("./share-card.test");
 require("./unlock-format.test");
-app_config_sync_test_1.appConfigSyncTestDone
+Promise.all([app_config_sync_test_1.appConfigSyncTestDone, network_resilience_test_1.networkResilienceTestDone])
     .then(() => {
     console.log("all miniprogram tests passed.");
 })

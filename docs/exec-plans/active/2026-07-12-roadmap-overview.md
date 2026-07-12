@@ -48,7 +48,7 @@
 - [x] 2026-07-12：真机回归通过，course-player-unification 归档至 completed。
 - [x] 2026-07-12：主题定稿 business；建立总排期。
 - [x] 阶段 A：release-compliance 代码侧完成（主题收尾 + 隐私权限流程 + 头像压缩）；仅剩微信后台隐私指引配置（人工）。
-- [ ] 阶段 B：observability + 网络健壮性。
+- [x] 阶段 B：observability + 网络健壮性代码完成（2026-07-12）；待体验版弱网/音源回退 smoke 与部署后日志采集确认。
 - [ ] 阶段 C：转化漏斗。
 - [ ] 阶段 D：留存闭环。
 - [ ] 阶段 E：工程收尾。

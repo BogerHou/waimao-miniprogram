@@ -13,6 +13,7 @@ Page({
     storeUnsubscribe: undefined,
     courseScrollLastTop: null,
     pendingUnlockAfterLogin: false,
+    pageInitialized: false,
     data: {
         userNickname: DEFAULT_NICKNAME,
         avatarInitial: DEFAULT_AVATAR_INITIAL,
@@ -54,9 +55,9 @@ Page({
         await this.initializePage();
     },
     async onShow() {
-        if (!this.data.chapters.length || this.data.loading)
+        if (!this.pageInitialized || !this.data.chapters.length || this.data.loading)
             return;
-        await this.loadCourses(true);
+        await this.loadCourses(true, true);
     },
     onShareAppMessage() {
         return (0, share_1.buildAppMessageShare)({
@@ -84,6 +85,7 @@ Page({
         this.storeUnsubscribe?.();
     },
     async initializePage() {
+        const hasCachedCourses = this.hydrateCachedCourses();
         const app = getApp();
         if (app.globalData.readyPromise) {
             try {
@@ -94,10 +96,29 @@ Page({
             }
         }
         this.handleStoreUpdate((0, index_1.getState)());
-        await this.loadCourses(true);
+        await this.loadCourses(true, hasCachedCourses);
+        this.scheduleShareImage();
+        this.pageInitialized = true;
+    },
+    hydrateCachedCourses() {
+        const cached = (0, api_1.getCachedCourseList)({ allowStale: true });
+        if (!cached) {
+            return false;
+        }
+        this.renderCourseList(cached);
+        return true;
+    },
+    renderCourseList(response) {
+        const chapters = normalizeChapters(response.data);
+        const sceneCount = countScenes(chapters);
+        this.setData({
+            chapters,
+            courseCount: sceneCount,
+        });
+        this.handleStoreUpdate((0, index_1.getState)(), sceneCount, chapters);
         this.scheduleShareImage();
     },
-    async loadCourses(forceRefresh = false) {
+    async loadCourses(forceRefresh = false, silent = false) {
         if (this.data.loading)
             return;
         this.setData({
@@ -116,18 +137,16 @@ Page({
             if (response.entitlement) {
                 (0, index_1.setEntitlement)(response.entitlement);
             }
-            const chapters = normalizeChapters(response.data);
-            const sceneCount = countScenes(chapters);
-            this.setData({
-                chapters,
-                courseCount: sceneCount,
-                loading: false,
-            });
-            this.handleStoreUpdate((0, index_1.getState)(), sceneCount, chapters);
-            this.scheduleShareImage();
+            this.renderCourseList(response);
+            this.setData({ loading: false });
         }
         catch (error) {
             const message = error instanceof Error ? error.message : '课程加载失败，请重试';
+            if (silent && this.data.chapters.length) {
+                console.warn('[Index] Silent course refresh failed', error);
+                this.setData({ loading: false });
+                return;
+            }
             this.setData({
                 error: message,
                 loading: false,
