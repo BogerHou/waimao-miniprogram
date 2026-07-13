@@ -2601,9 +2601,13 @@ Page({
         }
         if (this.data.playMode === 'shadow') {
             this.startShadowMode();
+            // 阶段切换是用户主动定位，不能被播放过程的 300ms 滚动节流吞掉。
+            this._centerSubtitleImpl(first.id);
             return;
         }
         this.selectCue(first.id);
+        // 精练/留白跟读同样强制定位；selectCue 内的节流滚动只负责日常播放跟随。
+        this._centerSubtitleImpl(first.id);
         if (stage === 'practice') {
             return;
         }

@@ -17,14 +17,29 @@
       <view wx:else class="account-guest">
         <view class="account-guest__mark">MY</view>
         <text class="account-guest__title">登录后查看学习记录</text>
-        <text class="account-guest__desc">保存连续学习天数、完成小节和累计练习时长</text>
+        <text class="account-guest__desc">记录连续学习、完成小节和累计练习时长</text>
         <button class="account-guest__button" bindtap="goToLogin">微信登录</button>
       </view>
 
-      <view wx:if="{{isAuthenticated}}" class="learning-stats">
-        <view class="learning-stat"><text class="learning-stat__value">{{streakCount}}</text><text class="learning-stat__label">连续学习 / 天</text></view>
-        <view class="learning-stat"><text class="learning-stat__value">{{totalCompleted}}</text><text class="learning-stat__label">完成小节</text></view>
-        <view class="learning-stat learning-stat--wide"><text class="learning-stat__value learning-stat__value--duration">{{studyDurationLabel}}</text><text class="learning-stat__label">累计学习</text></view>
+      <view wx:if="{{isAuthenticated}}" class="learning-overview">
+        <view class="learning-overview__heading">
+          <text class="learning-overview__title">学习概览</text>
+          <text class="learning-overview__hint">每次练习后自动更新</text>
+        </view>
+        <view class="learning-overview__duration">
+          <text class="learning-overview__duration-label">累计练习时长</text>
+          <text class="learning-overview__duration-value">{{studyDurationLabel}}</text>
+        </view>
+        <view class="learning-overview__metrics">
+          <view class="learning-metric">
+            <view class="learning-metric__value-row"><text class="learning-metric__value">{{streakCount}}</text><text class="learning-metric__unit">天</text></view>
+            <text class="learning-metric__label">连续学习</text>
+          </view>
+          <view class="learning-metric learning-metric--completed">
+            <view class="learning-metric__value-row"><text class="learning-metric__value">{{totalCompleted}}</text><text class="learning-metric__unit">节</text></view>
+            <text class="learning-metric__label">已完成小节</text>
+          </view>
+        </view>
       </view>
 
       <view wx:if="{{isAuthenticated}}" class="record-section">

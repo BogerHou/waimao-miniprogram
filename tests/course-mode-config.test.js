@@ -91,3 +91,40 @@ strict_1.default.deepEqual((0, course_mode_config_2.resolveStagePresentation)({
     cueEndPolicy: "none",
 });
 console.log("stage presentation tests passed.");
+const testGlobals = globalThis;
+const previousPage = testGlobals.Page;
+const previousWx = testGlobals.wx;
+let coursePageDefinition = null;
+try {
+    testGlobals.Page = definition => {
+        coursePageDefinition = definition;
+    };
+    testGlobals.wx = {};
+    require("../miniprogram/pages/course/course");
+}
+finally {
+    testGlobals.Page = previousPage;
+    testGlobals.wx = previousWx;
+}
+strict_1.default.ok(coursePageDefinition);
+const pageDefinition = coursePageDefinition;
+for (const playMode of ["echo", "shadow"]) {
+    const selected = [];
+    const started = [];
+    const centeredImmediately = [];
+    pageDefinition.startStageFromBeginning.call({
+        data: {
+            subtitles: [{ id: "first-cue", start: 0, end: 1 }],
+            playMode,
+            audioLoading: false,
+        },
+        audioReady: false,
+        selectCue: (cueId) => selected.push(cueId),
+        startShadowMode: () => started.push("shadow"),
+        _centerSubtitleImpl: (cueId) => centeredImmediately.push(cueId),
+    }, playMode === "echo" ? "practice" : "follow");
+    strict_1.default.deepEqual(centeredImmediately, ["first-cue"]);
+    strict_1.default.deepEqual(selected, playMode === "echo" ? ["first-cue"] : []);
+    strict_1.default.deepEqual(started, playMode === "shadow" ? ["shadow"] : []);
+}
+console.log("stage reset scroll tests passed.");

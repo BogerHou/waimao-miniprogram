@@ -100,3 +100,53 @@ assert.deepEqual(resolveStagePresentation({
 })
 
 console.log("stage presentation tests passed.")
+
+// 阶段切换属于用户主动导航，必须绕过播放过程的滚动节流并立即回到第一句。
+type CoursePageDefinition = {
+  startStageFromBeginning(stage: "listen" | "practice" | "follow"): void
+}
+
+const testGlobals = globalThis as typeof globalThis & {
+  Page?: (definition: CoursePageDefinition) => void
+  wx?: Record<string, unknown>
+}
+const previousPage = testGlobals.Page
+const previousWx = testGlobals.wx
+let coursePageDefinition: CoursePageDefinition | null = null
+
+try {
+  testGlobals.Page = definition => {
+    coursePageDefinition = definition
+  }
+  testGlobals.wx = {}
+  require("../miniprogram/pages/course/course")
+} finally {
+  testGlobals.Page = previousPage
+  testGlobals.wx = previousWx
+}
+
+assert.ok(coursePageDefinition)
+const pageDefinition = coursePageDefinition as CoursePageDefinition
+
+for (const playMode of ["echo", "shadow"] as const) {
+  const selected: string[] = []
+  const started: string[] = []
+  const centeredImmediately: string[] = []
+  pageDefinition.startStageFromBeginning.call({
+    data: {
+      subtitles: [{ id: "first-cue", start: 0, end: 1 }],
+      playMode,
+      audioLoading: false,
+    },
+    audioReady: false,
+    selectCue: (cueId: string) => selected.push(cueId),
+    startShadowMode: () => started.push("shadow"),
+    _centerSubtitleImpl: (cueId: string) => centeredImmediately.push(cueId),
+  }, playMode === "echo" ? "practice" : "follow")
+
+  assert.deepEqual(centeredImmediately, ["first-cue"])
+  assert.deepEqual(selected, playMode === "echo" ? ["first-cue"] : [])
+  assert.deepEqual(started, playMode === "shadow" ? ["shadow"] : [])
+}
+
+console.log("stage reset scroll tests passed.")
