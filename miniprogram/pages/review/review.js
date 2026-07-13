@@ -1,15 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.buildReviewCueViews = buildReviewCueViews;
-exports.resolveReviewAudioTapAction = resolveReviewAudioTapAction;
+exports.resolveWordAudioTapAction = resolveWordAudioTapAction;
 const api_1 = require("../../utils/api");
 const review_library_1 = require("../../utils/review-library");
 const practice_marks_1 = require("../../utils/practice-marks");
-function buildReviewCueViews(cues) {
-    return cues.map(cue => ({ ...cue, audioId: `${cue.courseId}:${cue.cueId}` }));
-}
-function resolveReviewAudioTapAction(current, target) {
-    if (current.type !== target.type || current.id !== target.id)
+function resolveWordAudioTapAction(current, targetId) {
+    if (current.id !== targetId)
         return 'start';
     if (current.status === 'playing')
         return 'pause';
@@ -20,9 +16,7 @@ function resolveReviewAudioTapAction(current, target) {
     return 'start';
 }
 Page({
-    reviewAudioContext: null,
-    activeAudioTarget: null,
-    audioStopTimer: null,
+    wordAudioContext: null,
     data: {
         tab: 'words',
         words: [],
@@ -30,28 +24,25 @@ Page({
         wordCount: 0,
         cueCount: 0,
         loading: false,
-        activeAudioType: '',
-        activeAudioId: '',
-        audioStatus: 'idle',
+        activeWordAudioId: '',
+        wordAudioStatus: 'idle',
     },
     onShow() {
         this.loadLibrary();
         void this.hydrateLegacyCueDetails();
     },
     onHide() {
-        this.resetReviewAudio();
+        this.resetWordAudio();
     },
     onUnload() {
-        this.clearReviewAudioTimer();
-        this.activeAudioTarget = null;
-        this.reviewAudioContext?.destroy();
-        this.reviewAudioContext = null;
+        this.wordAudioContext?.destroy();
+        this.wordAudioContext = null;
     },
     loadLibrary() {
         const library = this.readLibrary();
         this.setData({
             words: library.words,
-            cues: buildReviewCueViews(library.cues),
+            cues: library.cues,
             wordCount: library.words.length,
             cueCount: library.cues.length,
         });
@@ -59,15 +50,37 @@ Page({
     handleTabChange(event) {
         const tab = event.currentTarget.dataset.tab;
         if (tab && tab !== this.data.tab) {
-            this.resetReviewAudio();
+            this.resetWordAudio();
             this.setData({ tab });
         }
     },
+    handleOpenWordSource(event) {
+        const normalized = String(event.currentTarget.dataset.id ?? '');
+        const item = this.data.words.find(word => word.normalized === normalized);
+        this.openSource(item);
+    },
+    handleOpenCueSource(event) {
+        const { courseId, cueId } = event.currentTarget.dataset;
+        const item = this.data.cues.find(cue => cue.courseId === courseId && cue.cueId === cueId);
+        this.openSource(item, true);
+    },
+    openSource(item, reviewOnly = false) {
+        if (!item?.courseId || !item.cueId) {
+            wx.showToast({ title: '这条记录暂无来源句', icon: 'none' });
+            return;
+        }
+        const query = [
+            `id=${encodeURIComponent(item.courseId)}`,
+            `cueId=${encodeURIComponent(item.cueId)}`,
+            'stage=practice',
+            reviewOnly ? 'review=1' : '',
+        ].filter(Boolean).join('&');
+        wx.navigateTo({ url: `/pages/course/course?${query}` });
+    },
     handleDeleteWord(event) {
         const normalized = String(event.currentTarget.dataset.id ?? '');
-        if (this.data.activeAudioType === 'word' && this.data.activeAudioId === normalized) {
-            this.resetReviewAudio();
-        }
+        if (this.data.activeWordAudioId === normalized)
+            this.resetWordAudio();
         this.writeLibrary((0, review_library_1.removeReviewWord)(this.readLibrary(), normalized));
         this.loadLibrary();
     },
@@ -75,11 +88,6 @@ Page({
         const { courseId, cueId } = event.currentTarget.dataset;
         if (!courseId || !cueId)
             return;
-        if (this.data.activeAudioType === 'cue' &&
-            this.data.activeAudioId === `${courseId}:${cueId}` &&
-            this.activeAudioTarget?.courseId === courseId) {
-            this.resetReviewAudio();
-        }
         const map = (0, practice_marks_1.normalizeStarredCueMap)(wx.getStorageSync(practice_marks_1.STARRED_CUES_STORAGE_KEY));
         const nextMap = (0, practice_marks_1.isCueStarred)(map, courseId, cueId)
             ? (0, practice_marks_1.toggleStarredCue)(map, courseId, cueId)
@@ -94,159 +102,72 @@ Page({
         const audioUrl = String(url ?? '');
         if (!audioId || !audioUrl)
             return;
-        const action = resolveReviewAudioTapAction({
-            type: this.data.activeAudioType,
-            id: this.data.activeAudioId,
-            status: this.data.audioStatus,
-        }, { type: 'word', id: audioId });
-        if (this.applyExistingAudioAction(action))
+        const action = resolveWordAudioTapAction({
+            id: this.data.activeWordAudioId,
+            status: this.data.wordAudioStatus,
+        }, audioId);
+        if (action === 'pause') {
+            this.setData({ wordAudioStatus: 'paused' });
+            this.wordAudioContext?.pause();
             return;
-        this.startReviewAudio({ type: 'word', id: audioId, url: audioUrl });
-    },
-    async handlePlayCueAudio(event) {
-        const { audioId, courseId, cueId } = event.currentTarget.dataset;
-        if (!audioId || !courseId || !cueId)
-            return;
-        const action = resolveReviewAudioTapAction({
-            type: this.data.activeAudioType,
-            id: this.data.activeAudioId,
-            status: this.data.audioStatus,
-        }, { type: 'cue', id: audioId });
-        if (this.applyExistingAudioAction(action))
-            return;
-        this.clearReviewAudioTimer();
-        this.reviewAudioContext?.stop();
-        this.activeAudioTarget = { type: 'cue', id: audioId, courseId, cueId, url: '' };
-        this.setData({ activeAudioType: 'cue', activeAudioId: audioId, audioStatus: 'loading' });
-        try {
-            const detail = await (0, api_1.fetchCourseDetail)(courseId);
-            if (this.data.activeAudioType !== 'cue' ||
-                this.data.activeAudioId !== audioId ||
-                this.data.audioStatus !== 'loading') {
+        }
+        if (action === 'resume') {
+            if (!this.wordAudioContext) {
+                this.resetWordAudio();
                 return;
             }
-            const cue = detail.subtitles.find(item => item.id === cueId);
-            if (!cue || !detail.audio)
-                throw new Error('cue audio unavailable');
-            this.startReviewAudio({
-                type: 'cue',
-                id: audioId,
-                courseId,
-                cueId,
-                url: detail.audio,
-                start: cue.start,
-                end: cue.end,
-            });
+            this.setData({ wordAudioStatus: 'loading' });
+            this.wordAudioContext.play();
+            return;
         }
-        catch (_error) {
-            if (this.data.activeAudioType === 'cue' && this.data.activeAudioId === audioId) {
-                this.resetReviewAudio();
-                wx.showToast({ title: '原声暂时无法播放', icon: 'none' });
-            }
+        if (action === 'cancel') {
+            this.resetWordAudio();
+            return;
         }
+        const context = this.ensureWordAudioContext();
+        context.stop();
+        this.setData({ activeWordAudioId: audioId, wordAudioStatus: 'loading' });
+        context.src = audioUrl;
+        context.play();
     },
-    applyExistingAudioAction(action) {
-        if (action === 'start')
-            return false;
-        if (action === 'pause') {
-            this.clearReviewAudioTimer();
-            this.setData({ audioStatus: 'paused' });
-            this.reviewAudioContext?.pause();
-        }
-        else if (action === 'resume') {
-            if (!this.reviewAudioContext || !this.activeAudioTarget?.url) {
-                this.resetReviewAudio();
-                return true;
-            }
-            this.setData({ audioStatus: 'loading' });
-            this.reviewAudioContext.play();
-        }
-        else {
-            this.resetReviewAudio();
-        }
-        return true;
-    },
-    ensureReviewAudioContext() {
-        if (this.reviewAudioContext)
-            return this.reviewAudioContext;
+    ensureWordAudioContext() {
+        if (this.wordAudioContext)
+            return this.wordAudioContext;
         const context = wx.createInnerAudioContext();
         context.autoplay = false;
         context.obeyMuteSwitch = true;
         context.onPlay(() => {
-            if (!this.activeAudioTarget)
-                return;
-            this.setData({ audioStatus: 'playing' });
-            this.scheduleReviewAudioStop();
+            if (this.data.activeWordAudioId)
+                this.setData({ wordAudioStatus: 'playing' });
         });
         context.onPause(() => {
-            this.clearReviewAudioTimer();
-            if (this.activeAudioTarget && this.data.audioStatus === 'playing') {
-                this.setData({ audioStatus: 'paused' });
+            if (this.data.activeWordAudioId && this.data.wordAudioStatus === 'playing') {
+                this.setData({ wordAudioStatus: 'paused' });
             }
         });
         context.onWaiting(() => {
-            if (!this.activeAudioTarget || this.data.audioStatus === 'paused')
-                return;
-            this.clearReviewAudioTimer();
-            this.setData({ audioStatus: 'loading' });
-        });
-        context.onCanplay(() => {
-            if (!this.activeAudioTarget || this.data.audioStatus !== 'loading' || context.paused)
-                return;
-            this.setData({ audioStatus: 'playing' });
-            this.scheduleReviewAudioStop();
-        });
-        context.onTimeUpdate(() => {
-            const end = this.activeAudioTarget?.end;
-            if (typeof end === 'number' && context.currentTime >= end - 0.05) {
-                this.resetReviewAudio();
+            if (this.data.activeWordAudioId && this.data.wordAudioStatus !== 'paused') {
+                this.setData({ wordAudioStatus: 'loading' });
             }
         });
-        context.onEnded(() => this.resetReviewAudio());
-        context.onError(() => {
-            if (!this.activeAudioTarget)
-                return;
-            this.resetReviewAudio();
-            wx.showToast({ title: '音频播放失败', icon: 'none' });
+        context.onCanplay(() => {
+            if (this.data.activeWordAudioId && this.data.wordAudioStatus === 'loading' && !context.paused) {
+                this.setData({ wordAudioStatus: 'playing' });
+            }
         });
-        this.reviewAudioContext = context;
+        context.onEnded(() => this.resetWordAudio());
+        context.onError(() => {
+            if (!this.data.activeWordAudioId)
+                return;
+            this.resetWordAudio();
+            wx.showToast({ title: '发音播放失败', icon: 'none' });
+        });
+        this.wordAudioContext = context;
         return context;
     },
-    startReviewAudio(target) {
-        const context = this.ensureReviewAudioContext();
-        this.clearReviewAudioTimer();
-        context.stop();
-        this.activeAudioTarget = target;
-        this.setData({
-            activeAudioType: target.type,
-            activeAudioId: target.id,
-            audioStatus: 'loading',
-        });
-        context.src = target.url;
-        context.startTime = Math.max(0, target.start ?? 0);
-        context.play();
-    },
-    scheduleReviewAudioStop() {
-        this.clearReviewAudioTimer();
-        const target = this.activeAudioTarget;
-        const context = this.reviewAudioContext;
-        if (!target || !context || typeof target.end !== 'number')
-            return;
-        const currentTime = Math.max(context.currentTime || 0, target.start ?? 0);
-        const remainingMs = Math.max(0, target.end - currentTime) * 1000 + 250;
-        this.audioStopTimer = setTimeout(() => this.resetReviewAudio(), remainingMs);
-    },
-    clearReviewAudioTimer() {
-        if (this.audioStopTimer !== null) {
-            clearTimeout(this.audioStopTimer);
-            this.audioStopTimer = null;
-        }
-    },
-    resetReviewAudio() {
-        this.clearReviewAudioTimer();
-        this.activeAudioTarget = null;
-        this.setData({ activeAudioType: '', activeAudioId: '', audioStatus: 'idle' });
-        this.reviewAudioContext?.stop();
+    resetWordAudio() {
+        this.setData({ activeWordAudioId: '', wordAudioStatus: 'idle' });
+        this.wordAudioContext?.stop();
     },
     async hydrateLegacyCueDetails() {
         const map = (0, practice_marks_1.normalizeStarredCueMap)(wx.getStorageSync(practice_marks_1.STARRED_CUES_STORAGE_KEY));

@@ -17,31 +17,14 @@ import {
 } from '../../utils/practice-marks'
 
 type ReviewTab = 'words' | 'cues'
-export type ReviewAudioType = '' | 'word' | 'cue'
-export type ReviewAudioStatus = 'idle' | 'loading' | 'playing' | 'paused'
-type ReviewAudioTapAction = 'start' | 'pause' | 'resume' | 'cancel'
+export type WordAudioStatus = 'idle' | 'loading' | 'playing' | 'paused'
+type WordAudioTapAction = 'start' | 'pause' | 'resume' | 'cancel'
 
-type ReviewAudioTarget = {
-  type: Exclude<ReviewAudioType, ''>
-  id: string
-  url: string
-  courseId?: string
-  cueId?: string
-  start?: number
-  end?: number
-}
-
-export type ReviewCueView = ReviewCue & { audioId: string }
-
-export function buildReviewCueViews(cues: ReviewCue[]): ReviewCueView[] {
-  return cues.map(cue => ({ ...cue, audioId: `${cue.courseId}:${cue.cueId}` }))
-}
-
-export function resolveReviewAudioTapAction(
-  current: { type: ReviewAudioType; id: string; status: ReviewAudioStatus },
-  target: { type: Exclude<ReviewAudioType, ''>; id: string },
-): ReviewAudioTapAction {
-  if (current.type !== target.type || current.id !== target.id) return 'start'
+export function resolveWordAudioTapAction(
+  current: { id: string; status: WordAudioStatus },
+  targetId: string,
+): WordAudioTapAction {
+  if (current.id !== targetId) return 'start'
   if (current.status === 'playing') return 'pause'
   if (current.status === 'paused') return 'resume'
   if (current.status === 'loading') return 'cancel'
@@ -51,19 +34,16 @@ export function resolveReviewAudioTapAction(
 type ReviewPageData = {
   tab: ReviewTab
   words: ReviewWord[]
-  cues: ReviewCueView[]
+  cues: ReviewCue[]
   wordCount: number
   cueCount: number
   loading: boolean
-  activeAudioType: ReviewAudioType
-  activeAudioId: string
-  audioStatus: ReviewAudioStatus
+  activeWordAudioId: string
+  wordAudioStatus: WordAudioStatus
 }
 
 Page<ReviewPageData, WechatMiniprogram.IAnyObject>({
-  reviewAudioContext: null as WechatMiniprogram.InnerAudioContext | null,
-  activeAudioTarget: null as ReviewAudioTarget | null,
-  audioStopTimer: null as number | null,
+  wordAudioContext: null as WechatMiniprogram.InnerAudioContext | null,
   data: {
     tab: 'words',
     words: [],
@@ -71,28 +51,25 @@ Page<ReviewPageData, WechatMiniprogram.IAnyObject>({
     wordCount: 0,
     cueCount: 0,
     loading: false,
-    activeAudioType: '',
-    activeAudioId: '',
-    audioStatus: 'idle',
+    activeWordAudioId: '',
+    wordAudioStatus: 'idle',
   },
   onShow() {
     this.loadLibrary()
     void this.hydrateLegacyCueDetails()
   },
   onHide() {
-    this.resetReviewAudio()
+    this.resetWordAudio()
   },
   onUnload() {
-    this.clearReviewAudioTimer()
-    this.activeAudioTarget = null
-    this.reviewAudioContext?.destroy()
-    this.reviewAudioContext = null
+    this.wordAudioContext?.destroy()
+    this.wordAudioContext = null
   },
   loadLibrary() {
     const library = this.readLibrary()
     this.setData({
       words: library.words,
-      cues: buildReviewCueViews(library.cues),
+      cues: library.cues,
       wordCount: library.words.length,
       cueCount: library.cues.length,
     })
@@ -100,28 +77,42 @@ Page<ReviewPageData, WechatMiniprogram.IAnyObject>({
   handleTabChange(event: WechatMiniprogram.BaseEvent) {
     const tab = (event.currentTarget.dataset as { tab?: ReviewTab }).tab
     if (tab && tab !== this.data.tab) {
-      this.resetReviewAudio()
+      this.resetWordAudio()
       this.setData({ tab })
     }
   },
+  handleOpenWordSource(event: WechatMiniprogram.BaseEvent) {
+    const normalized = String((event.currentTarget.dataset as { id?: string }).id ?? '')
+    const item = this.data.words.find(word => word.normalized === normalized)
+    this.openSource(item)
+  },
+  handleOpenCueSource(event: WechatMiniprogram.BaseEvent) {
+    const { courseId, cueId } = event.currentTarget.dataset as { courseId?: string; cueId?: string }
+    const item = this.data.cues.find(cue => cue.courseId === courseId && cue.cueId === cueId)
+    this.openSource(item, true)
+  },
+  openSource(item: ReviewWord | ReviewCue | undefined, reviewOnly = false) {
+    if (!item?.courseId || !item.cueId) {
+      wx.showToast({ title: '这条记录暂无来源句', icon: 'none' })
+      return
+    }
+    const query = [
+      `id=${encodeURIComponent(item.courseId)}`,
+      `cueId=${encodeURIComponent(item.cueId)}`,
+      'stage=practice',
+      reviewOnly ? 'review=1' : '',
+    ].filter(Boolean).join('&')
+    wx.navigateTo({ url: `/pages/course/course?${query}` })
+  },
   handleDeleteWord(event: WechatMiniprogram.BaseEvent) {
     const normalized = String((event.currentTarget.dataset as { id?: string }).id ?? '')
-    if (this.data.activeAudioType === 'word' && this.data.activeAudioId === normalized) {
-      this.resetReviewAudio()
-    }
+    if (this.data.activeWordAudioId === normalized) this.resetWordAudio()
     this.writeLibrary(removeReviewWord(this.readLibrary(), normalized))
     this.loadLibrary()
   },
   handleDeleteCue(event: WechatMiniprogram.BaseEvent) {
     const { courseId, cueId } = event.currentTarget.dataset as { courseId?: string; cueId?: string }
     if (!courseId || !cueId) return
-    if (
-      this.data.activeAudioType === 'cue' &&
-      this.data.activeAudioId === `${courseId}:${cueId}` &&
-      this.activeAudioTarget?.courseId === courseId
-    ) {
-      this.resetReviewAudio()
-    }
     const map = normalizeStarredCueMap(wx.getStorageSync(STARRED_CUES_STORAGE_KEY))
     const nextMap = isCueStarred(map, courseId, cueId)
       ? toggleStarredCue(map, courseId, cueId)
@@ -135,153 +126,71 @@ Page<ReviewPageData, WechatMiniprogram.IAnyObject>({
     const audioId = String(id ?? '')
     const audioUrl = String(url ?? '')
     if (!audioId || !audioUrl) return
-    const action = resolveReviewAudioTapAction({
-      type: this.data.activeAudioType,
-      id: this.data.activeAudioId,
-      status: this.data.audioStatus,
-    }, { type: 'word', id: audioId })
-    if (this.applyExistingAudioAction(action)) return
-    this.startReviewAudio({ type: 'word', id: audioId, url: audioUrl })
-  },
-  async handlePlayCueAudio(event: WechatMiniprogram.BaseEvent) {
-    const { audioId, courseId, cueId } = event.currentTarget.dataset as {
-      audioId?: string
-      courseId?: string
-      cueId?: string
+
+    const action = resolveWordAudioTapAction({
+      id: this.data.activeWordAudioId,
+      status: this.data.wordAudioStatus,
+    }, audioId)
+    if (action === 'pause') {
+      this.setData({ wordAudioStatus: 'paused' })
+      this.wordAudioContext?.pause()
+      return
     }
-    if (!audioId || !courseId || !cueId) return
-    const action = resolveReviewAudioTapAction({
-      type: this.data.activeAudioType,
-      id: this.data.activeAudioId,
-      status: this.data.audioStatus,
-    }, { type: 'cue', id: audioId })
-    if (this.applyExistingAudioAction(action)) return
-
-    this.clearReviewAudioTimer()
-    this.reviewAudioContext?.stop()
-    this.activeAudioTarget = { type: 'cue', id: audioId, courseId, cueId, url: '' }
-    this.setData({ activeAudioType: 'cue', activeAudioId: audioId, audioStatus: 'loading' })
-
-    try {
-      const detail = await fetchCourseDetail(courseId)
-      if (
-        this.data.activeAudioType !== 'cue' ||
-        this.data.activeAudioId !== audioId ||
-        this.data.audioStatus !== 'loading'
-      ) {
+    if (action === 'resume') {
+      if (!this.wordAudioContext) {
+        this.resetWordAudio()
         return
       }
-      const cue = detail.subtitles.find(item => item.id === cueId)
-      if (!cue || !detail.audio) throw new Error('cue audio unavailable')
-      this.startReviewAudio({
-        type: 'cue',
-        id: audioId,
-        courseId,
-        cueId,
-        url: detail.audio,
-        start: cue.start,
-        end: cue.end,
-      })
-    } catch (_error) {
-      if (this.data.activeAudioType === 'cue' && this.data.activeAudioId === audioId) {
-        this.resetReviewAudio()
-        wx.showToast({ title: '原声暂时无法播放', icon: 'none' })
-      }
+      this.setData({ wordAudioStatus: 'loading' })
+      this.wordAudioContext.play()
+      return
     }
-  },
-  applyExistingAudioAction(action: ReviewAudioTapAction) {
-    if (action === 'start') return false
-    if (action === 'pause') {
-      this.clearReviewAudioTimer()
-      this.setData({ audioStatus: 'paused' })
-      this.reviewAudioContext?.pause()
-    } else if (action === 'resume') {
-      if (!this.reviewAudioContext || !this.activeAudioTarget?.url) {
-        this.resetReviewAudio()
-        return true
-      }
-      this.setData({ audioStatus: 'loading' })
-      this.reviewAudioContext.play()
-    } else {
-      this.resetReviewAudio()
+    if (action === 'cancel') {
+      this.resetWordAudio()
+      return
     }
-    return true
+
+    const context = this.ensureWordAudioContext()
+    context.stop()
+    this.setData({ activeWordAudioId: audioId, wordAudioStatus: 'loading' })
+    context.src = audioUrl
+    context.play()
   },
-  ensureReviewAudioContext() {
-    if (this.reviewAudioContext) return this.reviewAudioContext
+  ensureWordAudioContext() {
+    if (this.wordAudioContext) return this.wordAudioContext
     const context = wx.createInnerAudioContext()
     context.autoplay = false
     context.obeyMuteSwitch = true
     context.onPlay(() => {
-      if (!this.activeAudioTarget) return
-      this.setData({ audioStatus: 'playing' })
-      this.scheduleReviewAudioStop()
+      if (this.data.activeWordAudioId) this.setData({ wordAudioStatus: 'playing' })
     })
     context.onPause(() => {
-      this.clearReviewAudioTimer()
-      if (this.activeAudioTarget && this.data.audioStatus === 'playing') {
-        this.setData({ audioStatus: 'paused' })
+      if (this.data.activeWordAudioId && this.data.wordAudioStatus === 'playing') {
+        this.setData({ wordAudioStatus: 'paused' })
       }
     })
     context.onWaiting(() => {
-      if (!this.activeAudioTarget || this.data.audioStatus === 'paused') return
-      this.clearReviewAudioTimer()
-      this.setData({ audioStatus: 'loading' })
-    })
-    context.onCanplay(() => {
-      if (!this.activeAudioTarget || this.data.audioStatus !== 'loading' || context.paused) return
-      this.setData({ audioStatus: 'playing' })
-      this.scheduleReviewAudioStop()
-    })
-    context.onTimeUpdate(() => {
-      const end = this.activeAudioTarget?.end
-      if (typeof end === 'number' && context.currentTime >= end - 0.05) {
-        this.resetReviewAudio()
+      if (this.data.activeWordAudioId && this.data.wordAudioStatus !== 'paused') {
+        this.setData({ wordAudioStatus: 'loading' })
       }
     })
-    context.onEnded(() => this.resetReviewAudio())
-    context.onError(() => {
-      if (!this.activeAudioTarget) return
-      this.resetReviewAudio()
-      wx.showToast({ title: '音频播放失败', icon: 'none' })
+    context.onCanplay(() => {
+      if (this.data.activeWordAudioId && this.data.wordAudioStatus === 'loading' && !context.paused) {
+        this.setData({ wordAudioStatus: 'playing' })
+      }
     })
-    this.reviewAudioContext = context
+    context.onEnded(() => this.resetWordAudio())
+    context.onError(() => {
+      if (!this.data.activeWordAudioId) return
+      this.resetWordAudio()
+      wx.showToast({ title: '发音播放失败', icon: 'none' })
+    })
+    this.wordAudioContext = context
     return context
   },
-  startReviewAudio(target: ReviewAudioTarget) {
-    const context = this.ensureReviewAudioContext()
-    this.clearReviewAudioTimer()
-    context.stop()
-    this.activeAudioTarget = target
-    this.setData({
-      activeAudioType: target.type,
-      activeAudioId: target.id,
-      audioStatus: 'loading',
-    })
-    context.src = target.url
-    context.startTime = Math.max(0, target.start ?? 0)
-    context.play()
-  },
-  scheduleReviewAudioStop() {
-    this.clearReviewAudioTimer()
-    const target = this.activeAudioTarget
-    const context = this.reviewAudioContext
-    if (!target || !context || typeof target.end !== 'number') return
-    const currentTime = Math.max(context.currentTime || 0, target.start ?? 0)
-    const remainingMs = Math.max(0, target.end - currentTime) * 1000 + 250
-    this.audioStopTimer = setTimeout(() => this.resetReviewAudio(), remainingMs) as unknown as number
-  },
-  clearReviewAudioTimer() {
-    if (this.audioStopTimer !== null) {
-      clearTimeout(this.audioStopTimer)
-      this.audioStopTimer = null
-    }
-  },
-  resetReviewAudio() {
-    this.clearReviewAudioTimer()
-    this.activeAudioTarget = null
-    this.setData({ activeAudioType: '', activeAudioId: '', audioStatus: 'idle' })
-    this.reviewAudioContext?.stop()
+  resetWordAudio() {
+    this.setData({ activeWordAudioId: '', wordAudioStatus: 'idle' })
+    this.wordAudioContext?.stop()
   },
   async hydrateLegacyCueDetails() {
     const map = normalizeStarredCueMap(wx.getStorageSync(STARRED_CUES_STORAGE_KEY))

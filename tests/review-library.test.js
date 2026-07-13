@@ -39,33 +39,24 @@ strict_1.default.equal((0, review_library_1.removeReviewCue)(withCue, 'scene-2',
 const testGlobals = globalThis;
 const previousPage = testGlobals.Page;
 const previousWx = testGlobals.wx;
-let resolveReviewAudioTapAction;
-let buildReviewCueViews;
+let resolveWordAudioTapAction;
 let reviewPageDefinition = null;
 try {
     testGlobals.Page = definition => {
         reviewPageDefinition = definition;
     };
     testGlobals.wx = {};
-    ({ resolveReviewAudioTapAction, buildReviewCueViews } = require('../miniprogram/pages/review/review'));
+    ({ resolveWordAudioTapAction } = require('../miniprogram/pages/review/review'));
 }
 finally {
     testGlobals.Page = previousPage;
     testGlobals.wx = previousWx;
 }
-strict_1.default.ok(resolveReviewAudioTapAction);
-strict_1.default.equal(resolveReviewAudioTapAction({ type: 'word', id: 'quote', status: 'playing' }, { type: 'word', id: 'quote' }), 'pause');
-strict_1.default.equal(resolveReviewAudioTapAction({ type: 'cue', id: 'cue-1', status: 'paused' }, { type: 'cue', id: 'cue-1' }), 'resume');
-strict_1.default.equal(resolveReviewAudioTapAction({ type: 'cue', id: 'cue-1', status: 'loading' }, { type: 'cue', id: 'cue-1' }), 'cancel');
-strict_1.default.equal(resolveReviewAudioTapAction({ type: 'word', id: 'quote', status: 'playing' }, { type: 'cue', id: 'cue-1' }), 'start');
-strict_1.default.ok(buildReviewCueViews);
-strict_1.default.deepEqual(buildReviewCueViews([
-    { courseId: 'scene-1', cueId: 'book-cue-0001-s1' },
-    { courseId: 'scene-2', cueId: 'book-cue-0001-s1' },
-]).map(item => item.audioId), [
-    'scene-1:book-cue-0001-s1',
-    'scene-2:book-cue-0001-s1',
-]);
+strict_1.default.ok(resolveWordAudioTapAction);
+strict_1.default.equal(resolveWordAudioTapAction({ id: 'quote', status: 'playing' }, 'quote'), 'pause');
+strict_1.default.equal(resolveWordAudioTapAction({ id: 'quote', status: 'paused' }, 'quote'), 'resume');
+strict_1.default.equal(resolveWordAudioTapAction({ id: 'quote', status: 'loading' }, 'quote'), 'cancel');
+strict_1.default.equal(resolveWordAudioTapAction({ id: 'quote', status: 'playing' }, 'sample'), 'start');
 strict_1.default.ok(reviewPageDefinition);
 const reviewPage = reviewPageDefinition;
 const audioHandlers = {};
@@ -73,9 +64,7 @@ const fakeAudioContext = {
     autoplay: false,
     obeyMuteSwitch: false,
     paused: false,
-    currentTime: 0,
     src: '',
-    startTime: 0,
     play() { },
     pause() { },
     stop() { },
@@ -84,46 +73,32 @@ const fakeAudioContext = {
     onPause(handler) { audioHandlers.pause = handler; },
     onWaiting(handler) { audioHandlers.waiting = handler; },
     onCanplay(handler) { audioHandlers.canplay = handler; },
-    onTimeUpdate(handler) { audioHandlers.timeupdate = handler; },
     onEnded(handler) { audioHandlers.ended = handler; },
     onError(handler) { audioHandlers.error = handler; },
 };
 const pageHarness = {
-    data: { activeAudioType: 'word', activeAudioId: 'quote', audioStatus: 'loading' },
-    activeAudioTarget: { type: 'word', id: 'quote', url: 'https://audio.test/quote.mp3' },
-    reviewAudioContext: null,
-    audioStopTimer: null,
+    data: { activeWordAudioId: 'quote', wordAudioStatus: 'loading' },
+    wordAudioContext: null,
     setData(update) { Object.assign(this.data, update); },
-    clearReviewAudioTimer: reviewPage.clearReviewAudioTimer,
-    scheduleReviewAudioStop: reviewPage.scheduleReviewAudioStop,
-    resetReviewAudio: reviewPage.resetReviewAudio,
+    resetWordAudio: reviewPage.resetWordAudio,
 };
 try {
     testGlobals.wx = {
         createInnerAudioContext: () => fakeAudioContext,
         showToast: () => undefined,
     };
-    reviewPage.ensureReviewAudioContext.call(pageHarness);
+    reviewPage.ensureWordAudioContext.call(pageHarness);
     audioHandlers.play?.();
-    strict_1.default.equal(pageHarness.data.audioStatus, 'playing');
+    strict_1.default.equal(pageHarness.data.wordAudioStatus, 'playing');
     audioHandlers.waiting?.();
-    strict_1.default.equal(pageHarness.data.audioStatus, 'loading');
+    strict_1.default.equal(pageHarness.data.wordAudioStatus, 'loading');
     audioHandlers.canplay?.();
-    strict_1.default.equal(pageHarness.data.audioStatus, 'playing');
+    strict_1.default.equal(pageHarness.data.wordAudioStatus, 'playing');
     audioHandlers.pause?.();
-    strict_1.default.equal(pageHarness.data.audioStatus, 'paused');
-    pageHarness.activeAudioTarget = {
-        type: 'cue', id: 'cue-1', courseId: 'scene-1', url: 'https://audio.test/scene.mp3', start: 2, end: 3,
-    };
-    pageHarness.data = { activeAudioType: 'cue', activeAudioId: 'cue-1', audioStatus: 'playing' };
-    fakeAudioContext.currentTime = 3;
-    audioHandlers.timeupdate?.();
-    strict_1.default.equal(pageHarness.data.audioStatus, 'idle');
-    pageHarness.activeAudioTarget = { type: 'word', id: 'quote', url: 'https://audio.test/quote.mp3' };
-    pageHarness.data = { activeAudioType: 'word', activeAudioId: 'quote', audioStatus: 'playing' };
+    strict_1.default.equal(pageHarness.data.wordAudioStatus, 'paused');
     audioHandlers.ended?.();
-    strict_1.default.equal(pageHarness.data.audioStatus, 'idle');
-    strict_1.default.equal(pageHarness.activeAudioTarget, null);
+    strict_1.default.equal(pageHarness.data.wordAudioStatus, 'idle');
+    strict_1.default.equal(pageHarness.data.activeWordAudioId, '');
 }
 finally {
     testGlobals.wx = previousWx;

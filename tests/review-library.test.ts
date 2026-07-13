@@ -47,11 +47,10 @@ const testGlobals = globalThis as typeof globalThis & {
 }
 const previousPage = testGlobals.Page
 const previousWx = testGlobals.wx
-let resolveReviewAudioTapAction: ((
-  current: { type: '' | 'word' | 'cue'; id: string; status: 'idle' | 'loading' | 'playing' | 'paused' },
-  target: { type: 'word' | 'cue'; id: string },
+let resolveWordAudioTapAction: ((
+  current: { id: string; status: 'idle' | 'loading' | 'playing' | 'paused' },
+  targetId: string,
 ) => 'start' | 'pause' | 'resume' | 'cancel') | undefined
-let buildReviewCueViews: ((cues: Array<{ courseId: string; cueId: string }>) => Array<{ audioId: string }>) | undefined
 let reviewPageDefinition: Record<string, (...args: any[]) => any> | null = null
 
 try {
@@ -59,37 +58,17 @@ try {
     reviewPageDefinition = definition as Record<string, (...args: any[]) => any>
   }
   testGlobals.wx = {}
-  ;({ resolveReviewAudioTapAction, buildReviewCueViews } = require('../miniprogram/pages/review/review'))
+  ;({ resolveWordAudioTapAction } = require('../miniprogram/pages/review/review'))
 } finally {
   testGlobals.Page = previousPage
   testGlobals.wx = previousWx
 }
 
-assert.ok(resolveReviewAudioTapAction)
-assert.equal(resolveReviewAudioTapAction(
-  { type: 'word', id: 'quote', status: 'playing' },
-  { type: 'word', id: 'quote' },
-), 'pause')
-assert.equal(resolveReviewAudioTapAction(
-  { type: 'cue', id: 'cue-1', status: 'paused' },
-  { type: 'cue', id: 'cue-1' },
-), 'resume')
-assert.equal(resolveReviewAudioTapAction(
-  { type: 'cue', id: 'cue-1', status: 'loading' },
-  { type: 'cue', id: 'cue-1' },
-), 'cancel')
-assert.equal(resolveReviewAudioTapAction(
-  { type: 'word', id: 'quote', status: 'playing' },
-  { type: 'cue', id: 'cue-1' },
-), 'start')
-assert.ok(buildReviewCueViews)
-assert.deepEqual(buildReviewCueViews([
-  { courseId: 'scene-1', cueId: 'book-cue-0001-s1' },
-  { courseId: 'scene-2', cueId: 'book-cue-0001-s1' },
-]).map(item => item.audioId), [
-  'scene-1:book-cue-0001-s1',
-  'scene-2:book-cue-0001-s1',
-])
+assert.ok(resolveWordAudioTapAction)
+assert.equal(resolveWordAudioTapAction({ id: 'quote', status: 'playing' }, 'quote'), 'pause')
+assert.equal(resolveWordAudioTapAction({ id: 'quote', status: 'paused' }, 'quote'), 'resume')
+assert.equal(resolveWordAudioTapAction({ id: 'quote', status: 'loading' }, 'quote'), 'cancel')
+assert.equal(resolveWordAudioTapAction({ id: 'quote', status: 'playing' }, 'sample'), 'start')
 
 assert.ok(reviewPageDefinition)
 const reviewPage = reviewPageDefinition as Record<string, (...args: any[]) => any>
@@ -98,9 +77,7 @@ const fakeAudioContext = {
   autoplay: false,
   obeyMuteSwitch: false,
   paused: false,
-  currentTime: 0,
   src: '',
-  startTime: 0,
   play() {},
   pause() {},
   stop() {},
@@ -109,19 +86,14 @@ const fakeAudioContext = {
   onPause(handler: () => void) { audioHandlers.pause = handler },
   onWaiting(handler: () => void) { audioHandlers.waiting = handler },
   onCanplay(handler: () => void) { audioHandlers.canplay = handler },
-  onTimeUpdate(handler: () => void) { audioHandlers.timeupdate = handler },
   onEnded(handler: () => void) { audioHandlers.ended = handler },
   onError(handler: () => void) { audioHandlers.error = handler },
 }
 const pageHarness: any = {
-  data: { activeAudioType: 'word', activeAudioId: 'quote', audioStatus: 'loading' },
-  activeAudioTarget: { type: 'word', id: 'quote', url: 'https://audio.test/quote.mp3' },
-  reviewAudioContext: null,
-  audioStopTimer: null,
+  data: { activeWordAudioId: 'quote', wordAudioStatus: 'loading' },
+  wordAudioContext: null,
   setData(update: Record<string, unknown>) { Object.assign(this.data, update) },
-  clearReviewAudioTimer: reviewPage.clearReviewAudioTimer,
-  scheduleReviewAudioStop: reviewPage.scheduleReviewAudioStop,
-  resetReviewAudio: reviewPage.resetReviewAudio,
+  resetWordAudio: reviewPage.resetWordAudio,
 }
 
 try {
@@ -129,27 +101,18 @@ try {
     createInnerAudioContext: () => fakeAudioContext,
     showToast: () => undefined,
   }
-  reviewPage.ensureReviewAudioContext.call(pageHarness)
+  reviewPage.ensureWordAudioContext.call(pageHarness)
   audioHandlers.play?.()
-  assert.equal(pageHarness.data.audioStatus, 'playing')
+  assert.equal(pageHarness.data.wordAudioStatus, 'playing')
   audioHandlers.waiting?.()
-  assert.equal(pageHarness.data.audioStatus, 'loading')
+  assert.equal(pageHarness.data.wordAudioStatus, 'loading')
   audioHandlers.canplay?.()
-  assert.equal(pageHarness.data.audioStatus, 'playing')
+  assert.equal(pageHarness.data.wordAudioStatus, 'playing')
   audioHandlers.pause?.()
-  assert.equal(pageHarness.data.audioStatus, 'paused')
-  pageHarness.activeAudioTarget = {
-    type: 'cue', id: 'cue-1', courseId: 'scene-1', url: 'https://audio.test/scene.mp3', start: 2, end: 3,
-  }
-  pageHarness.data = { activeAudioType: 'cue', activeAudioId: 'cue-1', audioStatus: 'playing' }
-  fakeAudioContext.currentTime = 3
-  audioHandlers.timeupdate?.()
-  assert.equal(pageHarness.data.audioStatus, 'idle')
-  pageHarness.activeAudioTarget = { type: 'word', id: 'quote', url: 'https://audio.test/quote.mp3' }
-  pageHarness.data = { activeAudioType: 'word', activeAudioId: 'quote', audioStatus: 'playing' }
+  assert.equal(pageHarness.data.wordAudioStatus, 'paused')
   audioHandlers.ended?.()
-  assert.equal(pageHarness.data.audioStatus, 'idle')
-  assert.equal(pageHarness.activeAudioTarget, null)
+  assert.equal(pageHarness.data.wordAudioStatus, 'idle')
+  assert.equal(pageHarness.data.activeWordAudioId, '')
 } finally {
   testGlobals.wx = previousWx
 }
