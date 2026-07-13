@@ -7,8 +7,7 @@ Page({
     data: {
         isAuthenticated: false, nickname: '', avatarUrl: '', avatarInitial: 'L',
         fullAccess: false, membershipLabel: '登录后查看会员权益', streakCount: 0, totalCompleted: 0,
-        studyDurationLabel: '0 分钟', totalPracticeCount: 0, activeDays: 0,
-        calendar: [], loading: false, error: '',
+        studyDurationLabel: '0 分钟', loading: false, error: '',
     },
     onShow() {
         const state = (0, index_1.getState)();
@@ -23,9 +22,6 @@ Page({
                 streakCount: 0,
                 totalCompleted: 0,
                 studyDurationLabel: '0 分钟',
-                totalPracticeCount: 0,
-                activeDays: 0,
-                calendar: [],
                 loading: false,
                 error: '',
             });
@@ -53,9 +49,6 @@ Page({
                 streakCount: response.summary.streakCount,
                 totalCompleted: response.summary.totalCompleted,
                 studyDurationLabel: (0, learning_records_1.formatStudyDuration)(response.summary.studySeconds),
-                totalPracticeCount: response.summary.totalPracticeCount,
-                activeDays: response.summary.activeDays,
-                calendar: (0, learning_records_1.buildRecentCalendar)(response.days, { totalDays: 28 }),
                 loading: false,
             });
         }
@@ -63,7 +56,6 @@ Page({
             this.setData({
                 loading: false,
                 error: '学习记录暂时不可用，请稍后重试',
-                calendar: (0, learning_records_1.buildRecentCalendar)([], { totalDays: 28 }),
             });
         }
     },

@@ -1,5 +1,5 @@
 import { fetchLearningRecords } from '../../utils/api'
-import { buildRecentCalendar, formatStudyDuration, CalendarDay } from '../../utils/learning-records'
+import { formatStudyDuration } from '../../utils/learning-records'
 import { getState as getStoreState } from '../../store/index'
 
 type LearningPageData = {
@@ -12,9 +12,6 @@ type LearningPageData = {
   streakCount: number
   totalCompleted: number
   studyDurationLabel: string
-  totalPracticeCount: number
-  activeDays: number
-  calendar: CalendarDay[]
   loading: boolean
   error: string
 }
@@ -23,8 +20,7 @@ Page<LearningPageData, WechatMiniprogram.IAnyObject>({
   data: {
     isAuthenticated: false, nickname: '', avatarUrl: '', avatarInitial: 'L',
     fullAccess: false, membershipLabel: '登录后查看会员权益', streakCount: 0, totalCompleted: 0,
-    studyDurationLabel: '0 分钟', totalPracticeCount: 0, activeDays: 0,
-    calendar: [], loading: false, error: '',
+    studyDurationLabel: '0 分钟', loading: false, error: '',
   },
   onShow() {
     const state = getStoreState()
@@ -39,9 +35,6 @@ Page<LearningPageData, WechatMiniprogram.IAnyObject>({
         streakCount: 0,
         totalCompleted: 0,
         studyDurationLabel: '0 分钟',
-        totalPracticeCount: 0,
-        activeDays: 0,
-        calendar: [],
         loading: false,
         error: '',
       })
@@ -69,16 +62,12 @@ Page<LearningPageData, WechatMiniprogram.IAnyObject>({
         streakCount: response.summary.streakCount,
         totalCompleted: response.summary.totalCompleted,
         studyDurationLabel: formatStudyDuration(response.summary.studySeconds),
-        totalPracticeCount: response.summary.totalPracticeCount,
-        activeDays: response.summary.activeDays,
-        calendar: buildRecentCalendar(response.days, { totalDays: 28 }),
         loading: false,
       })
     } catch (_error) {
       this.setData({
         loading: false,
         error: '学习记录暂时不可用，请稍后重试',
-        calendar: buildRecentCalendar([], { totalDays: 28 }),
       })
     }
   },

@@ -19,15 +19,19 @@
 - **阶段定位修复**：阶段切换直接调用非节流字幕定位；播放过程仍使用 300ms 节流，避免高频滚动。
 - **回归测试**：覆盖前台逐句和后台连续两种播放通道，证明切换阶段都会强制定位第一句。
 - **学习概览重设计**：把三张割裂的统计卡收成一个有主次层级的概览；改为“累计练习时长”“连续学习 N 天”“已完成 N 节”。
+- **移除四周日历**：确认其占屏大、数据重复且没有后续动作，删除日历视图、活跃度色阶和客户端日历派生状态；加载与失败重试收进学习概览标题。
 
 ### 🧠 Design Intent (Why)
 
-用户主动切换阶段是明确导航动作，优先级高于播放过程的自动滚动，不能被节流丢弃。学习统计需要把数值、单位和含义放在同一阅读路径里，避免“连续学习 / 天”这类需要猜测的表达。
+用户主动切换阶段是明确导航动作，优先级高于播放过程的自动滚动，不能被节流丢弃。学习统计需要把数值、单位和含义放在同一阅读路径里，避免“连续学习 / 天”这类需要猜测的表达；没有目标、明细或可操作性的日历不值得占据半屏。
 
 ### 📁 Files Modified
 
 - `miniprogram/pages/course/course.ts`
 - `miniprogram/pages/learning/learning.wxml`
 - `miniprogram/pages/learning/learning.less`
+- `miniprogram/pages/learning/learning.ts`
+- `miniprogram/utils/learning-records.ts`
 - `tests/course-mode-config.test.ts`
+- `tests/learning-records.test.ts`
 - `docs/FRONTEND.md`

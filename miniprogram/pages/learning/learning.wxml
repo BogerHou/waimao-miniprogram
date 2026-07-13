@@ -24,7 +24,9 @@
       <view wx:if="{{isAuthenticated}}" class="learning-overview">
         <view class="learning-overview__heading">
           <text class="learning-overview__title">学习概览</text>
-          <text class="learning-overview__hint">每次练习后自动更新</text>
+          <text wx:if="{{loading}}" class="learning-overview__hint">正在更新…</text>
+          <view wx:elif="{{error}}" class="learning-overview__retry" bindtap="handleRetry" aria-role="button">记录暂未更新 · 重试</view>
+          <text wx:else class="learning-overview__hint">每次练习后自动更新</text>
         </view>
         <view class="learning-overview__duration">
           <text class="learning-overview__duration-label">累计练习时长</text>
@@ -39,27 +41,6 @@
             <view class="learning-metric__value-row"><text class="learning-metric__value">{{totalCompleted}}</text><text class="learning-metric__unit">节</text></view>
             <text class="learning-metric__label">已完成小节</text>
           </view>
-        </view>
-      </view>
-
-      <view wx:if="{{isAuthenticated}}" class="record-section">
-        <view class="record-section__heading">
-          <view><text class="record-section__title">最近 4 周</text><text class="record-section__desc">有练习的日子会被点亮</text></view>
-          <view class="record-section__meta"><text>{{activeDays}} 天活跃</text><text>{{totalPracticeCount}} 次精练</text></view>
-        </view>
-
-        <view wx:if="{{loading}}" class="record-loading">正在加载学习记录…</view>
-        <view wx:elif="{{error}}" class="record-error">
-          <text>{{error}}</text><button class="record-error__button" bindtap="handleRetry">重新加载</button>
-        </view>
-        <view wx:else class="calendar-card">
-          <view class="calendar-weekdays"><text>一</text><text>二</text><text>三</text><text>四</text><text>五</text><text>六</text><text>日</text></view>
-          <view class="calendar-grid">
-            <view wx:for="{{calendar}}" wx:key="date" class="calendar-day calendar-day--{{item.intensity}} {{item.isToday ? 'calendar-day--today' : ''}}">
-              <text>{{item.dayLabel}}</text>
-            </view>
-          </view>
-          <view class="calendar-legend"><text>少</text><view class="legend-dot calendar-day--1"></view><view class="legend-dot calendar-day--2"></view><view class="legend-dot calendar-day--3"></view><text>多</text></view>
         </view>
       </view>
 

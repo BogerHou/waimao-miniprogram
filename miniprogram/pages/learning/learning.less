@@ -20,6 +20,8 @@
 .learning-overview__heading { display: flex; align-items: baseline; justify-content: space-between; gap: 18rpx; }
 .learning-overview__title { color: @text; font-size: 27rpx; font-weight: 800; }
 .learning-overview__hint { color: @faint; font-size: 20rpx; }
+.learning-overview__retry { flex-shrink: 0; color: @error; font-size: 20rpx; font-weight: 650; }
+.learning-overview__retry:active { opacity: 0.7; }
 .learning-overview__duration { position: relative; margin-top: 18rpx; padding: 20rpx 22rpx 22rpx 26rpx; overflow: hidden; border: 1rpx solid @tint-card-border; border-radius: 16rpx; background: @tint-card-bg; }
 .learning-overview__duration::before { position: absolute; top: 20rpx; bottom: 20rpx; left: 0; width: 6rpx; border-radius: 0 6rpx 6rpx 0; background: @primary; content: ""; }
 .learning-overview__duration-label { display: block; color: @muted; font-size: 22rpx; }
@@ -31,24 +33,6 @@
 .learning-metric__value { color: @text; font-size: 42rpx; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
 .learning-metric__unit { color: @text-soft; font-size: 22rpx; font-weight: 650; }
 .learning-metric__label { display: block; margin-top: 9rpx; color: @muted; font-size: 22rpx; }
-.record-section { margin-top: 24rpx; }
-.record-section__heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 16rpx; margin-bottom: 14rpx; }
-.record-section__title { display: block; color: @text; font-size: 32rpx; font-weight: 800; }
-.record-section__desc { display: block; margin-top: 4rpx; color: @muted; font-size: 23rpx; }
-.record-section__meta { display: flex; flex-direction: column; align-items: flex-end; gap: 3rpx; color: @primary; font-size: 21rpx; font-weight: 650; }
-.calendar-card, .record-loading, .record-error { padding: 22rpx; border-radius: 20rpx; background: @surface; box-shadow: @shadow-soft; }
-.calendar-weekdays, .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10rpx; }
-.calendar-weekdays { margin-bottom: 10rpx; color: @faint; font-size: 20rpx; text-align: center; }
-.calendar-day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border-radius: 10rpx; background: @page-bg-deep; color: @faint; font-size: 21rpx; font-variant-numeric: tabular-nums; }
-.calendar-day--1 { background: fade(@primary, 14%); color: @primary; }
-.calendar-day--2 { background: fade(@primary, 40%); color: @primary-dark; }
-.calendar-day--3 { background: @primary; color: @surface; }
-.calendar-day--today { box-shadow: 0 0 0 3rpx @accent; }
-.calendar-legend { display: flex; align-items: center; justify-content: flex-end; gap: 7rpx; margin-top: 16rpx; color: @faint; font-size: 20rpx; }
-.legend-dot { width: 20rpx; height: 20rpx; border-radius: 6rpx; }
-.record-loading { color: @muted; font-size: 25rpx; text-align: center; }
-.record-error { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; color: @error; font-size: 24rpx; }
-.record-error__button { flex-shrink: 0; margin: 0; background: @primary-soft; color: @primary; font-size: 23rpx; }
 .service-section { margin-top: 26rpx; }
 .service-section__title { display: block; margin: 0 4rpx 13rpx; color: @text; font-size: 30rpx; font-weight: 800; }
 .service-card { overflow: hidden; border-radius: 20rpx; background: @surface; box-shadow: @shadow-soft; }
