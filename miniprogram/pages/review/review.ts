@@ -31,6 +31,21 @@ export function resolveWordAudioTapAction(
   return 'start'
 }
 
+export function buildReviewSourceUrl(
+  item: Pick<ReviewWord | ReviewCue, 'courseId' | 'cueId'> | undefined,
+  reviewOnly = false,
+): string {
+  if (!item?.courseId || !item.cueId) return ''
+  const query = [
+    `id=${encodeURIComponent(item.courseId)}`,
+    `cueId=${encodeURIComponent(item.cueId)}`,
+    'stage=practice',
+    'autoplay=1',
+    reviewOnly ? 'review=1' : '',
+  ].filter(Boolean).join('&')
+  return `/pages/course/course?${query}`
+}
+
 type ReviewPageData = {
   tab: ReviewTab
   words: ReviewWord[]
@@ -92,17 +107,12 @@ Page<ReviewPageData, WechatMiniprogram.IAnyObject>({
     this.openSource(item, true)
   },
   openSource(item: ReviewWord | ReviewCue | undefined, reviewOnly = false) {
-    if (!item?.courseId || !item.cueId) {
+    const url = buildReviewSourceUrl(item, reviewOnly)
+    if (!url) {
       wx.showToast({ title: '这条记录暂无来源句', icon: 'none' })
       return
     }
-    const query = [
-      `id=${encodeURIComponent(item.courseId)}`,
-      `cueId=${encodeURIComponent(item.cueId)}`,
-      'stage=practice',
-      reviewOnly ? 'review=1' : '',
-    ].filter(Boolean).join('&')
-    wx.navigateTo({ url: `/pages/course/course?${query}` })
+    wx.navigateTo({ url })
   },
   handleDeleteWord(event: WechatMiniprogram.BaseEvent) {
     const normalized = String((event.currentTarget.dataset as { id?: string }).id ?? '')

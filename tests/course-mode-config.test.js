@@ -128,3 +128,44 @@ for (const playMode of ["echo", "shadow"]) {
     strict_1.default.deepEqual(started, playMode === "shadow" ? ["shadow"] : []);
 }
 console.log("stage reset scroll tests passed.");
+const focusTarget = { id: "focus-cue", start: 2, end: 3 };
+const selectedFromSource = [];
+const centeredFromSource = [];
+const playedFromSource = [];
+const readyFocusHarness = {
+    data: {
+        subtitles: [focusTarget],
+        showPracticeControls: true,
+        playMode: "echo",
+        audioLoading: false,
+        course: { audio: "https://audio.test/course.mp3" },
+    },
+    audioContext: {},
+    audioReady: true,
+    pendingSubtitle: null,
+    selectCue: (cueId) => selectedFromSource.push(cueId),
+    _centerSubtitleImpl: (cueId) => centeredFromSource.push(cueId),
+    ensureAudioContext: () => undefined,
+    playSubtitle: (cue) => playedFromSource.push(cue.id),
+};
+pageDefinition.focusCueFromSource.call(readyFocusHarness, focusTarget.id, true);
+strict_1.default.deepEqual(selectedFromSource, [focusTarget.id]);
+strict_1.default.deepEqual(centeredFromSource, [focusTarget.id]);
+strict_1.default.deepEqual(playedFromSource, [focusTarget.id]);
+const loadingFocusHarness = {
+    ...readyFocusHarness,
+    data: { ...readyFocusHarness.data, audioLoading: true },
+    audioReady: false,
+    pendingSubtitle: null,
+    playSubtitle: () => strict_1.default.fail("loading source focus must wait for onCanplay"),
+};
+pageDefinition.focusCueFromSource.call(loadingFocusHarness, focusTarget.id, true);
+strict_1.default.equal(loadingFocusHarness.pendingSubtitle?.id, focusTarget.id);
+const locateOnlyHarness = {
+    ...readyFocusHarness,
+    pendingSubtitle: null,
+    playSubtitle: () => strict_1.default.fail("ordinary cue deep links must not autoplay"),
+};
+pageDefinition.focusCueFromSource.call(locateOnlyHarness, focusTarget.id, false);
+strict_1.default.equal(locateOnlyHarness.pendingSubtitle, null);
+console.log("course source focus autoplay tests passed.");

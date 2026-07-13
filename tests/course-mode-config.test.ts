@@ -104,6 +104,7 @@ console.log("stage presentation tests passed.")
 // 阶段切换属于用户主动导航，必须绕过播放过程的滚动节流并立即回到第一句。
 type CoursePageDefinition = {
   startStageFromBeginning(stage: "listen" | "practice" | "follow"): void
+  focusCueFromSource(cueId: string, autoplay: boolean): void
 }
 
 const testGlobals = globalThis as typeof globalThis & {
@@ -150,3 +151,48 @@ for (const playMode of ["echo", "shadow"] as const) {
 }
 
 console.log("stage reset scroll tests passed.")
+
+const focusTarget = { id: "focus-cue", start: 2, end: 3 }
+const selectedFromSource: string[] = []
+const centeredFromSource: string[] = []
+const playedFromSource: string[] = []
+const readyFocusHarness: any = {
+  data: {
+    subtitles: [focusTarget],
+    showPracticeControls: true,
+    playMode: "echo",
+    audioLoading: false,
+    course: { audio: "https://audio.test/course.mp3" },
+  },
+  audioContext: {},
+  audioReady: true,
+  pendingSubtitle: null,
+  selectCue: (cueId: string) => selectedFromSource.push(cueId),
+  _centerSubtitleImpl: (cueId: string) => centeredFromSource.push(cueId),
+  ensureAudioContext: () => undefined,
+  playSubtitle: (cue: { id: string }) => playedFromSource.push(cue.id),
+}
+pageDefinition.focusCueFromSource.call(readyFocusHarness, focusTarget.id, true)
+assert.deepEqual(selectedFromSource, [focusTarget.id])
+assert.deepEqual(centeredFromSource, [focusTarget.id])
+assert.deepEqual(playedFromSource, [focusTarget.id])
+
+const loadingFocusHarness: any = {
+  ...readyFocusHarness,
+  data: { ...readyFocusHarness.data, audioLoading: true },
+  audioReady: false,
+  pendingSubtitle: null,
+  playSubtitle: () => assert.fail("loading source focus must wait for onCanplay"),
+}
+pageDefinition.focusCueFromSource.call(loadingFocusHarness, focusTarget.id, true)
+assert.equal(loadingFocusHarness.pendingSubtitle?.id, focusTarget.id)
+
+const locateOnlyHarness: any = {
+  ...readyFocusHarness,
+  pendingSubtitle: null,
+  playSubtitle: () => assert.fail("ordinary cue deep links must not autoplay"),
+}
+pageDefinition.focusCueFromSource.call(locateOnlyHarness, focusTarget.id, false)
+assert.equal(locateOnlyHarness.pendingSubtitle, null)
+
+console.log("course source focus autoplay tests passed.")

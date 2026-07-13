@@ -40,13 +40,14 @@ const testGlobals = globalThis;
 const previousPage = testGlobals.Page;
 const previousWx = testGlobals.wx;
 let resolveWordAudioTapAction;
+let buildReviewSourceUrl;
 let reviewPageDefinition = null;
 try {
     testGlobals.Page = definition => {
         reviewPageDefinition = definition;
     };
     testGlobals.wx = {};
-    ({ resolveWordAudioTapAction } = require('../miniprogram/pages/review/review'));
+    ({ resolveWordAudioTapAction, buildReviewSourceUrl } = require('../miniprogram/pages/review/review'));
 }
 finally {
     testGlobals.Page = previousPage;
@@ -57,6 +58,10 @@ strict_1.default.equal(resolveWordAudioTapAction({ id: 'quote', status: 'playing
 strict_1.default.equal(resolveWordAudioTapAction({ id: 'quote', status: 'paused' }, 'quote'), 'resume');
 strict_1.default.equal(resolveWordAudioTapAction({ id: 'quote', status: 'loading' }, 'quote'), 'cancel');
 strict_1.default.equal(resolveWordAudioTapAction({ id: 'quote', status: 'playing' }, 'sample'), 'start');
+strict_1.default.ok(buildReviewSourceUrl);
+strict_1.default.equal(buildReviewSourceUrl({ courseId: 'scene 1', cueId: 'cue/2' }), '/pages/course/course?id=scene%201&cueId=cue%2F2&stage=practice&autoplay=1');
+strict_1.default.equal(buildReviewSourceUrl({ courseId: 'scene-1', cueId: 'cue-2' }, true), '/pages/course/course?id=scene-1&cueId=cue-2&stage=practice&autoplay=1&review=1');
+strict_1.default.equal(buildReviewSourceUrl(undefined), '');
 strict_1.default.ok(reviewPageDefinition);
 const reviewPage = reviewPageDefinition;
 const audioHandlers = {};

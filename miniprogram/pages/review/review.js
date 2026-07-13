@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.resolveWordAudioTapAction = resolveWordAudioTapAction;
+exports.buildReviewSourceUrl = buildReviewSourceUrl;
 const api_1 = require("../../utils/api");
 const review_library_1 = require("../../utils/review-library");
 const practice_marks_1 = require("../../utils/practice-marks");
@@ -14,6 +15,18 @@ function resolveWordAudioTapAction(current, targetId) {
     if (current.status === 'loading')
         return 'cancel';
     return 'start';
+}
+function buildReviewSourceUrl(item, reviewOnly = false) {
+    if (!item?.courseId || !item.cueId)
+        return '';
+    const query = [
+        `id=${encodeURIComponent(item.courseId)}`,
+        `cueId=${encodeURIComponent(item.cueId)}`,
+        'stage=practice',
+        'autoplay=1',
+        reviewOnly ? 'review=1' : '',
+    ].filter(Boolean).join('&');
+    return `/pages/course/course?${query}`;
 }
 Page({
     wordAudioContext: null,
@@ -65,17 +78,12 @@ Page({
         this.openSource(item, true);
     },
     openSource(item, reviewOnly = false) {
-        if (!item?.courseId || !item.cueId) {
+        const url = buildReviewSourceUrl(item, reviewOnly);
+        if (!url) {
             wx.showToast({ title: '这条记录暂无来源句', icon: 'none' });
             return;
         }
-        const query = [
-            `id=${encodeURIComponent(item.courseId)}`,
-            `cueId=${encodeURIComponent(item.cueId)}`,
-            'stage=practice',
-            reviewOnly ? 'review=1' : '',
-        ].filter(Boolean).join('&');
-        wx.navigateTo({ url: `/pages/course/course?${query}` });
+        wx.navigateTo({ url });
     },
     handleDeleteWord(event) {
         const normalized = String(event.currentTarget.dataset.id ?? '');

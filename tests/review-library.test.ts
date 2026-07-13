@@ -51,6 +51,10 @@ let resolveWordAudioTapAction: ((
   current: { id: string; status: 'idle' | 'loading' | 'playing' | 'paused' },
   targetId: string,
 ) => 'start' | 'pause' | 'resume' | 'cancel') | undefined
+let buildReviewSourceUrl: ((
+  item: { courseId?: string; cueId?: string } | undefined,
+  reviewOnly?: boolean,
+) => string) | undefined
 let reviewPageDefinition: Record<string, (...args: any[]) => any> | null = null
 
 try {
@@ -58,7 +62,7 @@ try {
     reviewPageDefinition = definition as Record<string, (...args: any[]) => any>
   }
   testGlobals.wx = {}
-  ;({ resolveWordAudioTapAction } = require('../miniprogram/pages/review/review'))
+  ;({ resolveWordAudioTapAction, buildReviewSourceUrl } = require('../miniprogram/pages/review/review'))
 } finally {
   testGlobals.Page = previousPage
   testGlobals.wx = previousWx
@@ -69,6 +73,16 @@ assert.equal(resolveWordAudioTapAction({ id: 'quote', status: 'playing' }, 'quot
 assert.equal(resolveWordAudioTapAction({ id: 'quote', status: 'paused' }, 'quote'), 'resume')
 assert.equal(resolveWordAudioTapAction({ id: 'quote', status: 'loading' }, 'quote'), 'cancel')
 assert.equal(resolveWordAudioTapAction({ id: 'quote', status: 'playing' }, 'sample'), 'start')
+assert.ok(buildReviewSourceUrl)
+assert.equal(
+  buildReviewSourceUrl({ courseId: 'scene 1', cueId: 'cue/2' }),
+  '/pages/course/course?id=scene%201&cueId=cue%2F2&stage=practice&autoplay=1',
+)
+assert.equal(
+  buildReviewSourceUrl({ courseId: 'scene-1', cueId: 'cue-2' }, true),
+  '/pages/course/course?id=scene-1&cueId=cue-2&stage=practice&autoplay=1&review=1',
+)
+assert.equal(buildReviewSourceUrl(undefined), '')
 
 assert.ok(reviewPageDefinition)
 const reviewPage = reviewPageDefinition as Record<string, (...args: any[]) => any>

@@ -212,6 +212,7 @@ Page({
     studySessionPracticeStart: 0,
     pendingFocusCueId: '',
     focusPracticeRequested: false,
+    focusAutoplayRequested: false,
     reviewOnlyRequested: false,
     currentSubtitleIndex: 0,
     trackingTimer: null,
@@ -498,6 +499,7 @@ Page({
         this.courseId = id;
         this.pendingFocusCueId = String(query?.cueId ?? '').trim();
         this.focusPracticeRequested = query?.stage === 'practice' || Boolean(this.pendingFocusCueId);
+        this.focusAutoplayRequested = query?.autoplay === '1' && Boolean(this.pendingFocusCueId);
         this.reviewOnlyRequested = query?.review === '1';
         this.pendingBackgroundAudioRestore = query?.fromBackgroundAudio === '1';
         this.audioLoadTimeoutController = playerCore.createAudioLoadTimeoutController({
@@ -691,7 +693,9 @@ Page({
                 showModeSelector: modePresentation.showModeSelector,
                 showShadowMode: modePresentation.showShadowMode,
                 showPracticeControls: modePresentation.showPracticeControls,
-                showStageGuide: modePresentation.showPracticeControls && !hasSeenStageGuide(),
+                showStageGuide: modePresentation.showPracticeControls &&
+                    !this.focusAutoplayRequested &&
+                    !hasSeenStageGuide(),
                 stage: modePresentation.effectiveStage,
                 playMode: modePresentation.effectivePlayMode,
             });
@@ -712,8 +716,10 @@ Page({
             this.scheduleCourseShareImage();
             if (this.pendingFocusCueId) {
                 const cueId = this.pendingFocusCueId;
+                const autoplay = this.focusAutoplayRequested;
                 this.pendingFocusCueId = '';
-                setTimeout(() => this.selectCue(cueId), 80);
+                this.focusAutoplayRequested = false;
+                setTimeout(() => this.focusCueFromSource(cueId, autoplay), 80);
             }
             const restoredFromBackgroundAudio = modePresentation.showPracticeControls && this.pendingBackgroundAudioRestore
                 ? this.restoreBackgroundAudioFromStorage()
@@ -2591,6 +2597,29 @@ Page({
         });
         this.scheduleSceneProgressSync();
         this.centerSubtitle(view.id);
+    },
+    // 处理带 cueId 的来源回跳。复习页会显式传 autoplay=1；普通深链仍只定位，不自动播放。
+    focusCueFromSource(cueId, autoplay) {
+        const view = this.data.subtitles.find(item => item.id === cueId);
+        if (!view) {
+            return;
+        }
+        this.selectCue(cueId);
+        // 来源回跳是一次明确定位，绕过日常播放跟随的滚动节流。
+        this._centerSubtitleImpl(view.id);
+        if (!autoplay ||
+            !this.data.showPracticeControls ||
+            this.data.playMode !== 'echo' ||
+            !this.data.course?.audio) {
+            return;
+        }
+        this.ensureAudioContext(this.data.course.audio);
+        if (this.audioReady && !this.data.audioLoading) {
+            this.playSubtitle(view);
+            return;
+        }
+        // 音频仍在加载时保留目标句，onCanplay 会通过 playSubtitle 自动起播并设置句末停止。
+        this.pendingSubtitle = view;
     },
     // 阶段切换/重听统一从对话开头开始：通听与跟读（连续）自动起播，
     // 留白跟读选中首句起播，精练只定位到第一句等用户操作
