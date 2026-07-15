@@ -44,6 +44,7 @@ exports.DEFAULT_HOME_AD = {
     contactTip: '点击放大，长按识别二维码',
 };
 exports.DEFAULT_APP_CONFIG = {
+    interactiveFeaturesEnabled: false,
     home: {
         bannerEnabled: false,
         practiceHelpEnabled: false,
@@ -127,6 +128,7 @@ function setEntitlement(entitlement, notify = true) {
 }
 function setAppConfig(appConfig, notify = true) {
     state.appConfig = {
+        interactiveFeaturesEnabled: appConfig.interactiveFeaturesEnabled ?? exports.DEFAULT_APP_CONFIG.interactiveFeaturesEnabled,
         home: normalizeHomeConfig(appConfig.home),
         courseDetail: {
             shadowModeEnabled: appConfig.courseDetail?.shadowModeEnabled ?? exports.DEFAULT_APP_CONFIG.courseDetail.shadowModeEnabled,
@@ -154,6 +156,7 @@ function initializeStore(initial) {
         : initial?.fullAccess ?? false;
     state.appConfig = initial?.appConfig
         ? {
+            interactiveFeaturesEnabled: initial.appConfig.interactiveFeaturesEnabled ?? exports.DEFAULT_APP_CONFIG.interactiveFeaturesEnabled,
             home: normalizeHomeConfig(initial.appConfig.home),
             courseDetail: {
                 shadowModeEnabled: initial.appConfig.courseDetail?.shadowModeEnabled ?? exports.DEFAULT_APP_CONFIG.courseDetail.shadowModeEnabled,

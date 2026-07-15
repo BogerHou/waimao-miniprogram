@@ -5,6 +5,7 @@ const env_1 = require("../../config/env");
 const share_1 = require("../../utils/share");
 const index_1 = require("../../store/index");
 const util_1 = require("../../utils/util");
+const feature_flags_1 = require("../../config/feature-flags");
 Page({
     storeUnsubscribe: undefined,
     data: {
@@ -19,7 +20,18 @@ Page({
         codeError: '',
         expiresAtLabel: '1 年访问权限已生效',
     },
-    onLoad() {
+    async onLoad() {
+        const app = getApp();
+        try {
+            await app.globalData.readyPromise;
+        }
+        catch (_error) {
+            // App config keeps its safe local fallback when refresh fails.
+        }
+        if (!(0, feature_flags_1.resolveInteractiveFeaturesEnabled)((0, index_1.getState)().appConfig)) {
+            wx.switchTab({ url: '/pages/index/index' });
+            return;
+        }
         (0, share_1.enablePageShareMenu)();
         this.storeUnsubscribe = (0, index_1.subscribe)(state => this.handleStoreUpdate(state));
         this.handleStoreUpdate((0, index_1.getState)());

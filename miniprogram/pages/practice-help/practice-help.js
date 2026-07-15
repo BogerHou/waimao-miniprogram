@@ -3,6 +3,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const share_1 = require("../../utils/share");
 const share_card_1 = require("../../utils/share-card");
 const share_poster_1 = require("../../utils/share-poster");
+const feature_flags_1 = require("../../config/feature-flags");
+const index_1 = require("../../store/index");
 Page({
     data: {
         shareImageUrl: '',
@@ -58,7 +60,18 @@ Page({
             },
         ],
     },
-    onLoad() {
+    async onLoad() {
+        const app = getApp();
+        try {
+            await app.globalData.readyPromise;
+        }
+        catch (_error) {
+            // App config keeps its safe local fallback when refresh fails.
+        }
+        if (!(0, feature_flags_1.resolveInteractiveFeaturesEnabled)((0, index_1.getState)().appConfig)) {
+            wx.switchTab({ url: '/pages/index/index' });
+            return;
+        }
         (0, share_1.enablePageShareMenu)();
         void this.generateShareImage();
     },

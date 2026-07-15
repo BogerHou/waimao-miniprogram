@@ -54,6 +54,7 @@ let resolveWordAudioTapAction: ((
 let buildReviewSourceUrl: ((
   item: { courseId?: string; cueId?: string } | undefined,
   reviewOnly?: boolean,
+  audioPlaybackEnabled?: boolean,
 ) => string) | undefined
 let reviewPageDefinition: Record<string, (...args: any[]) => any> | null = null
 
@@ -83,6 +84,10 @@ assert.equal(
   '/pages/course/course?id=scene-1&cueId=cue-2&stage=practice&autoplay=1&review=1',
 )
 assert.equal(buildReviewSourceUrl(undefined), '')
+assert.equal(
+  buildReviewSourceUrl({ courseId: 'scene-1', cueId: 'cue-2' }, true, false),
+  '/pages/course/course?id=scene-1&cueId=cue-2',
+)
 
 assert.ok(reviewPageDefinition)
 const reviewPage = reviewPageDefinition as Record<string, (...args: any[]) => any>

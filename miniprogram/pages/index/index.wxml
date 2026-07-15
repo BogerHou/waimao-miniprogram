@@ -23,7 +23,7 @@
           <text class="hero__greeting">{{userNickname}}</text>
           <view class="hero__membership">
             <view class="hero__membership-dot"></view>
-            <text>{{fullAccess ? '全部课程已解锁' : '第一章免费试学'}}</text>
+            <text>{{membershipUnlockEnabled ? (fullAccess ? '全部课程已解锁' : '第一章免费试学') : '学习进度已同步'}}</text>
           </view>
         </view>
         <text class="hero__profile-arrow">›</text>
@@ -31,7 +31,7 @@
 
       <view wx:else class="hero__login">
         <view class="hero__login-copy">
-          <text class="hero__login-title">第一章免费试学</text>
+          <text class="hero__login-title">{{membershipUnlockEnabled ? '第一章免费试学' : '外贸场景课程'}}</text>
           <text class="hero__login-tip">登录后保存学习进度</text>
         </view>
         <button
@@ -110,9 +110,9 @@
                   <text class="chapter-card__title">{{item.title}}</text>
                 </view>
                 <view class="chapter-card__side">
-                  <text wx:if="{{item.free}}" class="chapter-card__state chapter-card__state--free">免费</text>
-                  <text wx:elif="{{!item.locked}}" class="chapter-card__state chapter-card__state--open">已解锁</text>
-                  <view wx:else class="chapter-card__lock" aria-label="已锁定">
+                  <text wx:if="{{membershipUnlockEnabled && item.free}}" class="chapter-card__state chapter-card__state--free">免费</text>
+                  <text wx:elif="{{membershipUnlockEnabled && !item.locked}}" class="chapter-card__state chapter-card__state--open">已解锁</text>
+                  <view wx:elif="{{membershipUnlockEnabled}}" class="chapter-card__lock" aria-label="已锁定">
                     <view class="mini-lock__shackle"></view>
                     <view class="mini-lock__body"></view>
                   </view>
@@ -137,7 +137,7 @@
                     <text wx:if="{{scene.isCurrent && scene.status !== 'completed'}}" class="scene-item__badge">上次学到</text>
                   </view>
                   <icon wx:if="{{scene.status === 'completed'}}" type="success_no_circle" size="20" color="#10b981" />
-                  <view wx:elif="{{scene.locked}}" class="scene-item__lock" aria-label="已锁定">
+                  <view wx:elif="{{membershipUnlockEnabled && scene.locked}}" class="scene-item__lock" aria-label="已锁定">
                     <view class="mini-lock__shackle"></view>
                     <view class="mini-lock__body"></view>
                   </view>
@@ -225,10 +225,6 @@
       <text class="login-privacy-tip">仅用于本小程序内的学习档案</text>
     </view>
   </view>
-</view>
-
-<view class="fab-container" bindtap="goToContact" aria-role="button" aria-label="交流与反馈">
-  <view class="fab-button"><view class="message-icon"></view></view>
 </view>
 
 <canvas

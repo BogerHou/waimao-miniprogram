@@ -26,6 +26,7 @@ interface IAppGlobalData {
   progress?: IUserProgress
   fullAccess?: boolean
   appConfig?: {
+    interactiveFeaturesEnabled?: boolean
     home?: {
       unlockPromptEnabled?: boolean
       unlockPromptTitle?: string
@@ -45,6 +46,7 @@ interface IAppOption {
   ensureAuth: (profileOverride?: { nickname?: string; avatarUrl?: string }) => Promise<void>
   refreshProgress: () => Promise<void>
   refreshAppConfig: () => Promise<void>
+  configureGlobalAudioPlayback: () => void
   restoreBackgroundAudioRoute: () => void
   initializeAuth: (force?: boolean, profileOverride?: { nickname?: string; avatarUrl?: string }) => Promise<void>
   fetchUserData: () => Promise<void>

@@ -995,50 +995,6 @@
   text-align: center;
 }
 
-.fab-container {
-  position: fixed;
-  right: 30rpx;
-  bottom: calc(30rpx + env(safe-area-inset-bottom));
-  z-index: 20;
-}
-
-.fab-button {
-  width: 78rpx;
-  height: 78rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1rpx solid rgba(255, 255, 255, 0.8);
-  border-radius: 50%;
-  background: @primary;
-  box-shadow: 0 10rpx 24rpx fade(@primary-dark, 24%);
-}
-
-.fab-button:active {
-  transform: scale(0.94);
-}
-
-.message-icon {
-  width: 32rpx;
-  height: 25rpx;
-  position: relative;
-  box-sizing: border-box;
-  border: 3rpx solid #ffffff;
-  border-radius: 8rpx;
-}
-
-.message-icon::after {
-  content: '';
-  position: absolute;
-  left: 5rpx;
-  bottom: -8rpx;
-  width: 10rpx;
-  height: 10rpx;
-  box-sizing: border-box;
-  border-left: 3rpx solid #ffffff;
-  transform: skewY(-38deg);
-}
-
 .share-poster-canvas {
   position: fixed;
   top: -9999px;

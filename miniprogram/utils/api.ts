@@ -130,6 +130,7 @@ export type CourseDetailResponse = {
 }
 
 export type AppConfigResponse = {
+  interactiveFeaturesEnabled?: boolean
   home: {
     bannerEnabled: boolean
     practiceHelpEnabled: boolean

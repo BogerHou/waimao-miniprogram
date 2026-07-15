@@ -33,6 +33,8 @@ import {
   normalizeBackgroundAudioResumeState,
   shouldRestoreBackgroundAudioRoute,
 } from './pages/course/shadow-background-handoff'
+import { resolveInteractiveFeaturesEnabled } from './config/feature-flags'
+import { createWxReviewStorageGuard } from './utils/review-storage-guard'
 
 type Unsubscribe = () => void
 
@@ -100,18 +102,7 @@ App<IAppOption>({
     })
 
     // 🚀 优化 iOS 音频播放：即使在静音模式下也能播放声音
-    if (wx.setInnerAudioOption) {
-      wx.setInnerAudioOption({
-        obeyMuteSwitch: false,
-        speakerOn: true, // 默认开启扬声器
-        success: () => console.log('[App] 全局音频配置成功'),
-        fail: (err) => {
-          if (!isDevtoolsUnsupportedAudioOptionError(err)) {
-            console.warn('[App] 全局音频配置失败', err)
-          }
-        }
-      })
-    }
+    this.configureGlobalAudioPlayback()
 
     const configPromise = this.refreshAppConfig()
 
@@ -134,7 +125,9 @@ App<IAppOption>({
   },
   onShow() {
     void this.refreshAppConfig()
-    this.restoreBackgroundAudioRoute?.()
+    if (resolveInteractiveFeaturesEnabled(getStoreState().appConfig)) {
+      this.restoreBackgroundAudioRoute?.()
+    }
   },
   onHide() {
     flushMetrics()
@@ -171,6 +164,22 @@ App<IAppOption>({
   async refreshAppConfig() {
     await syncAppConfig(fetchAppConfig, appConfig => {
       updateAppConfigInStore(appConfig)
+    })
+    this.configureGlobalAudioPlayback()
+  },
+  configureGlobalAudioPlayback() {
+    if (!resolveInteractiveFeaturesEnabled(getStoreState().appConfig) || !wx.setInnerAudioOption) {
+      return
+    }
+    wx.setInnerAudioOption({
+      obeyMuteSwitch: false,
+      speakerOn: true,
+      success: () => console.log('[App] 全局音频配置成功'),
+      fail: (err) => {
+        if (!isDevtoolsUnsupportedAudioOptionError(err)) {
+          console.warn('[App] 全局音频配置失败', err)
+        }
+      },
     })
   },
   restoreBackgroundAudioRoute() {
@@ -229,6 +238,8 @@ App<IAppOption>({
     }, 80)
   },
   async initializeAuth(force = false, profileOverride?: LoginProfilePayload) {
+    const restoreLocalReviewData = createWxReviewStorageGuard()
+    try {
     const state = getStoreState()
     if (!force && state.token) {
       try {
@@ -271,6 +282,9 @@ App<IAppOption>({
     } catch (error) {
       console.warn('Failed to fetch progress', error)
       updateProgressInStore(null)
+    }
+    } finally {
+      restoreLocalReviewData()
     }
   },
   async fetchUserData() {

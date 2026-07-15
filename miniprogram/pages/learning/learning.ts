@@ -1,6 +1,10 @@
 import { fetchLearningRecords } from '../../utils/api'
 import { formatStudyDuration } from '../../utils/learning-records'
 import { getState as getStoreState } from '../../store/index'
+import {
+  FEATURE_FLAGS,
+  resolveInteractiveFeaturesEnabled,
+} from '../../config/feature-flags'
 
 type LearningPageData = {
   isAuthenticated: boolean
@@ -14,6 +18,8 @@ type LearningPageData = {
   studyDurationLabel: string
   loading: boolean
   error: string
+  membershipUnlockEnabled: boolean
+  audioPlaybackEnabled: boolean
 }
 
 Page<LearningPageData, WechatMiniprogram.IAnyObject>({
@@ -21,9 +27,12 @@ Page<LearningPageData, WechatMiniprogram.IAnyObject>({
     isAuthenticated: false, nickname: '', avatarUrl: '', avatarInitial: 'L',
     fullAccess: false, membershipLabel: '登录后查看会员权益', streakCount: 0, totalCompleted: 0,
     studyDurationLabel: '0 分钟', loading: false, error: '',
+    membershipUnlockEnabled: FEATURE_FLAGS.membershipUnlock,
+    audioPlaybackEnabled: FEATURE_FLAGS.audioPlayback,
   },
   onShow() {
     const state = getStoreState()
+    const interactiveFeaturesEnabled = resolveInteractiveFeaturesEnabled(state.appConfig)
     if (!state.token || !state.user) {
       this.setData({
         isAuthenticated: false,
@@ -37,6 +46,8 @@ Page<LearningPageData, WechatMiniprogram.IAnyObject>({
         studyDurationLabel: '0 分钟',
         loading: false,
         error: '',
+        membershipUnlockEnabled: interactiveFeaturesEnabled,
+        audioPlaybackEnabled: interactiveFeaturesEnabled,
       })
       return
     }
@@ -51,6 +62,8 @@ Page<LearningPageData, WechatMiniprogram.IAnyObject>({
       streakCount: state.progress?.streakCount ?? state.user.streakCount ?? 0,
       totalCompleted: state.progress?.totalCompleted ?? state.user.totalCompleted ?? 0,
       studyDurationLabel: formatStudyDuration(state.user.studySeconds ?? 0),
+      membershipUnlockEnabled: interactiveFeaturesEnabled,
+      audioPlaybackEnabled: interactiveFeaturesEnabled,
     })
     void this.loadRecords()
   },
@@ -77,6 +90,8 @@ Page<LearningPageData, WechatMiniprogram.IAnyObject>({
     wx.switchTab({ url: '/pages/index/index' })
   },
   goToUnlock() {
+    if (!this.data.membershipUnlockEnabled) return
+
     const state = getStoreState()
     const nickname = state.user?.nickname?.trim()
     if (!this.data.isAuthenticated || !nickname || nickname === 'Learner') {

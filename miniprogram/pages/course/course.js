@@ -35,6 +35,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 const api_1 = require("../../utils/api");
 const env_1 = require("../../config/env");
+const feature_flags_1 = require("../../config/feature-flags");
 const metrics_1 = require("../../utils/metrics");
 const practice_marks_1 = require("../../utils/practice-marks");
 const review_library_1 = require("../../utils/review-library");
@@ -182,6 +183,7 @@ Page({
         nextScene: null,
         reviewOnlyMode: false,
         starredCueCount: 0,
+        audioPlaybackEnabled: feature_flags_1.FEATURE_FLAGS.audioPlayback,
     },
     courseId: '',
     // InnerAudioContext (用于 Shadow 模式)
@@ -489,6 +491,7 @@ Page({
     },
     onLoad(query) {
         (0, share_1.enablePageShareMenu)();
+        const interactiveFeaturesEnabled = (0, feature_flags_1.resolveInteractiveFeaturesEnabled)((0, index_1.getState)().appConfig);
         const id = query?.id;
         if (!id) {
             this.setData({
@@ -499,9 +502,13 @@ Page({
         this.courseId = id;
         this.pendingFocusCueId = String(query?.cueId ?? '').trim();
         this.focusPracticeRequested = query?.stage === 'practice' || Boolean(this.pendingFocusCueId);
-        this.focusAutoplayRequested = query?.autoplay === '1' && Boolean(this.pendingFocusCueId);
+        this.focusAutoplayRequested =
+            interactiveFeaturesEnabled &&
+                query?.autoplay === '1' &&
+                Boolean(this.pendingFocusCueId);
         this.reviewOnlyRequested = query?.review === '1';
-        this.pendingBackgroundAudioRestore = query?.fromBackgroundAudio === '1';
+        this.pendingBackgroundAudioRestore =
+            interactiveFeaturesEnabled && query?.fromBackgroundAudio === '1';
         this.audioLoadTimeoutController = playerCore.createAudioLoadTimeoutController({
             getSourceOptions: () => this.audioSourceOptions,
             getCurrentSource: () => this.audioSource || this.audioContext?.src || '',
@@ -632,10 +639,11 @@ Page({
         try {
             const detail = await (0, api_1.fetchCourseDetail)(id);
             const appConfig = (0, index_1.getState)().appConfig;
+            const interactiveFeaturesEnabled = (0, feature_flags_1.resolveInteractiveFeaturesEnabled)(appConfig);
             const modePresentation = (0, course_mode_config_1.resolveStagePresentation)({
                 currentStage: this.focusPracticeRequested ? 'practice' : this.data.stage,
                 gapEnabled: this.data.gapEnabled,
-                shadowModeEnabled: appConfig.courseDetail.shadowModeEnabled,
+                shadowModeEnabled: interactiveFeaturesEnabled && appConfig.courseDetail.shadowModeEnabled,
             });
             // 音频策略：新版接口提供七牛和服务器地址，旧接口仍只提供服务器地址。
             const availableAudioSources = (detail.audioSources ?? []).map(source => ({
@@ -690,6 +698,7 @@ Page({
                 nextScene: null,
                 reviewOnlyMode: this.reviewOnlyRequested && starredCueCount > 0,
                 starredCueCount,
+                audioPlaybackEnabled: interactiveFeaturesEnabled,
                 showModeSelector: modePresentation.showModeSelector,
                 showShadowMode: modePresentation.showShadowMode,
                 showPracticeControls: modePresentation.showPracticeControls,
@@ -1704,10 +1713,11 @@ Page({
         }
     },
     handleStoreUpdate(state) {
+        const interactiveFeaturesEnabled = (0, feature_flags_1.resolveInteractiveFeaturesEnabled)(state.appConfig);
         const modePresentation = (0, course_mode_config_1.resolveStagePresentation)({
             currentStage: this.data.stage,
             gapEnabled: this.data.gapEnabled,
-            shadowModeEnabled: state.appConfig.courseDetail.shadowModeEnabled,
+            shadowModeEnabled: interactiveFeaturesEnabled && state.appConfig.courseDetail.shadowModeEnabled,
         });
         if (this.data.playMode === 'shadow' && modePresentation.effectivePlayMode === 'echo') {
             this.stopBackgroundPlayback(true);
@@ -1733,6 +1743,7 @@ Page({
         }
         this.setData({
             showModeSelector: modePresentation.showModeSelector,
+            audioPlaybackEnabled: interactiveFeaturesEnabled,
             showShadowMode: modePresentation.showShadowMode,
             showPracticeControls: modePresentation.showPracticeControls,
             showStageGuide: modePresentation.showPracticeControls
@@ -1995,6 +2006,8 @@ Page({
         });
     },
     handlePlayWordAudio(event) {
+        if (!this.data.audioPlaybackEnabled)
+            return;
         const variant = event.currentTarget.dataset.variant;
         const url = variant === 'uk' ? this.data.wordPopupAudioUk : this.data.wordPopupAudioUs;
         console.log('[WordAudio] play', { variant, url });

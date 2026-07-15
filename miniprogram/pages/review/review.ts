@@ -15,6 +15,11 @@ import {
   normalizeStarredCueMap,
   toggleStarredCue,
 } from '../../utils/practice-marks'
+import {
+  FEATURE_FLAGS,
+  resolveInteractiveFeaturesEnabled,
+} from '../../config/feature-flags'
+import { getState as getStoreState } from '../../store/index'
 
 type ReviewTab = 'words' | 'cues'
 export type WordAudioStatus = 'idle' | 'loading' | 'playing' | 'paused'
@@ -34,14 +39,15 @@ export function resolveWordAudioTapAction(
 export function buildReviewSourceUrl(
   item: Pick<ReviewWord | ReviewCue, 'courseId' | 'cueId'> | undefined,
   reviewOnly = false,
+  audioPlaybackEnabled = true,
 ): string {
   if (!item?.courseId || !item.cueId) return ''
   const query = [
     `id=${encodeURIComponent(item.courseId)}`,
     `cueId=${encodeURIComponent(item.cueId)}`,
-    'stage=practice',
-    'autoplay=1',
-    reviewOnly ? 'review=1' : '',
+    audioPlaybackEnabled ? 'stage=practice' : '',
+    audioPlaybackEnabled ? 'autoplay=1' : '',
+    audioPlaybackEnabled && reviewOnly ? 'review=1' : '',
   ].filter(Boolean).join('&')
   return `/pages/course/course?${query}`
 }
@@ -55,6 +61,7 @@ type ReviewPageData = {
   loading: boolean
   activeWordAudioId: string
   wordAudioStatus: WordAudioStatus
+  audioPlaybackEnabled: boolean
 }
 
 Page<ReviewPageData, WechatMiniprogram.IAnyObject>({
@@ -68,8 +75,12 @@ Page<ReviewPageData, WechatMiniprogram.IAnyObject>({
     loading: false,
     activeWordAudioId: '',
     wordAudioStatus: 'idle',
+    audioPlaybackEnabled: FEATURE_FLAGS.audioPlayback,
   },
   onShow() {
+    this.setData({
+      audioPlaybackEnabled: resolveInteractiveFeaturesEnabled(getStoreState().appConfig),
+    })
     this.loadLibrary()
     void this.hydrateLegacyCueDetails()
   },
@@ -107,7 +118,7 @@ Page<ReviewPageData, WechatMiniprogram.IAnyObject>({
     this.openSource(item, true)
   },
   openSource(item: ReviewWord | ReviewCue | undefined, reviewOnly = false) {
-    const url = buildReviewSourceUrl(item, reviewOnly)
+    const url = buildReviewSourceUrl(item, reviewOnly, this.data.audioPlaybackEnabled)
     if (!url) {
       wx.showToast({ title: '这条记录暂无来源句', icon: 'none' })
       return
@@ -132,6 +143,8 @@ Page<ReviewPageData, WechatMiniprogram.IAnyObject>({
     this.loadLibrary()
   },
   handlePlayWordAudio(event: WechatMiniprogram.BaseEvent) {
+    if (!this.data.audioPlaybackEnabled) return
+
     const { id, url } = event.currentTarget.dataset as { id?: string; url?: string }
     const audioId = String(id ?? '')
     const audioUrl = String(url ?? '')
