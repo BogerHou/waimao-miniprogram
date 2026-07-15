@@ -193,14 +193,14 @@
           <view class="word-phonetic">
             <text class="phonetic-label">美音</text>
             <text class="phonetic-text">{{wordPopupPhoneticUs}}</text>
-            <view wx:if="{{wordPopupAudioUs}}" class="phonetic-audio" hover-class="phonetic-audio-active" hover-stop-propagation data-variant="us" bindtap="handlePlayWordAudio">
+            <view wx:if="{{audioPlaybackEnabled && wordPopupAudioUs}}" class="phonetic-audio" hover-class="phonetic-audio-active" hover-stop-propagation data-variant="us" bindtap="handlePlayWordAudio">
               <view class="sound-icon"><view class="sound-icon__wave sound-icon__wave--near"></view><view class="sound-icon__wave sound-icon__wave--far"></view></view>
             </view>
           </view>
           <view class="word-phonetic">
             <text class="phonetic-label">英音</text>
             <text class="phonetic-text">{{wordPopupPhoneticUk}}</text>
-            <view wx:if="{{wordPopupAudioUk}}" class="phonetic-audio" hover-class="phonetic-audio-active" hover-stop-propagation data-variant="uk" bindtap="handlePlayWordAudio">
+            <view wx:if="{{audioPlaybackEnabled && wordPopupAudioUk}}" class="phonetic-audio" hover-class="phonetic-audio-active" hover-stop-propagation data-variant="uk" bindtap="handlePlayWordAudio">
               <view class="sound-icon"><view class="sound-icon__wave sound-icon__wave--near"></view><view class="sound-icon__wave sound-icon__wave--far"></view></view>
             </view>
           </view>

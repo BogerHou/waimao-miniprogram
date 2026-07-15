@@ -5,6 +5,8 @@ exports.buildReviewSourceUrl = buildReviewSourceUrl;
 const api_1 = require("../../utils/api");
 const review_library_1 = require("../../utils/review-library");
 const practice_marks_1 = require("../../utils/practice-marks");
+const feature_flags_1 = require("../../config/feature-flags");
+const index_1 = require("../../store/index");
 function resolveWordAudioTapAction(current, targetId) {
     if (current.id !== targetId)
         return 'start';
@@ -16,15 +18,15 @@ function resolveWordAudioTapAction(current, targetId) {
         return 'cancel';
     return 'start';
 }
-function buildReviewSourceUrl(item, reviewOnly = false) {
+function buildReviewSourceUrl(item, reviewOnly = false, audioPlaybackEnabled = true) {
     if (!item?.courseId || !item.cueId)
         return '';
     const query = [
         `id=${encodeURIComponent(item.courseId)}`,
         `cueId=${encodeURIComponent(item.cueId)}`,
-        'stage=practice',
-        'autoplay=1',
-        reviewOnly ? 'review=1' : '',
+        audioPlaybackEnabled ? 'stage=practice' : '',
+        audioPlaybackEnabled ? 'autoplay=1' : '',
+        audioPlaybackEnabled && reviewOnly ? 'review=1' : '',
     ].filter(Boolean).join('&');
     return `/pages/course/course?${query}`;
 }
@@ -39,8 +41,12 @@ Page({
         loading: false,
         activeWordAudioId: '',
         wordAudioStatus: 'idle',
+        audioPlaybackEnabled: feature_flags_1.FEATURE_FLAGS.audioPlayback,
     },
     onShow() {
+        this.setData({
+            audioPlaybackEnabled: (0, feature_flags_1.resolveInteractiveFeaturesEnabled)((0, index_1.getState)().appConfig),
+        });
         this.loadLibrary();
         void this.hydrateLegacyCueDetails();
     },
@@ -78,7 +84,7 @@ Page({
         this.openSource(item, true);
     },
     openSource(item, reviewOnly = false) {
-        const url = buildReviewSourceUrl(item, reviewOnly);
+        const url = buildReviewSourceUrl(item, reviewOnly, this.data.audioPlaybackEnabled);
         if (!url) {
             wx.showToast({ title: '这条记录暂无来源句', icon: 'none' });
             return;
@@ -105,6 +111,8 @@ Page({
         this.loadLibrary();
     },
     handlePlayWordAudio(event) {
+        if (!this.data.audioPlaybackEnabled)
+            return;
         const { id, url } = event.currentTarget.dataset;
         const audioId = String(id ?? '');
         const audioUrl = String(url ?? '');

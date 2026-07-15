@@ -59,6 +59,7 @@ export const DEFAULT_HOME_AD = {
 }
 
 export const DEFAULT_APP_CONFIG: AppConfigResponse = {
+  interactiveFeaturesEnabled: false,
   home: {
     bannerEnabled: false,
     practiceHelpEnabled: false,
@@ -151,6 +152,8 @@ export function setEntitlement(entitlement: EntitlementInfo | null, notify = tru
 
 export function setAppConfig(appConfig: AppConfigResponse, notify = true) {
   state.appConfig = {
+    interactiveFeaturesEnabled:
+      appConfig.interactiveFeaturesEnabled ?? DEFAULT_APP_CONFIG.interactiveFeaturesEnabled,
     home: normalizeHomeConfig(appConfig.home),
     courseDetail: {
       shadowModeEnabled: appConfig.courseDetail?.shadowModeEnabled ?? DEFAULT_APP_CONFIG.courseDetail.shadowModeEnabled,
@@ -179,7 +182,9 @@ export function initializeStore(initial?: Partial<StoreState>) {
     ? Boolean(state.entitlement.fullAccess)
     : initial?.fullAccess ?? false
   state.appConfig = initial?.appConfig
-    ? {
+      ? {
+        interactiveFeaturesEnabled:
+          initial.appConfig.interactiveFeaturesEnabled ?? DEFAULT_APP_CONFIG.interactiveFeaturesEnabled,
         home: normalizeHomeConfig(initial.appConfig.home),
         courseDetail: {
           shadowModeEnabled:

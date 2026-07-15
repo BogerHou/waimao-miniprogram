@@ -47,12 +47,12 @@
       <view class="service-section">
         <text class="service-section__title">服务与支持</text>
         <view class="service-card">
-          <view class="service-row" bindtap="goToUnlock" aria-role="button">
+          <view wx:if="{{membershipUnlockEnabled}}" class="service-row" bindtap="goToUnlock" aria-role="button">
             <view class="service-row__mark service-row__mark--member"><image class="service-row__icon" src="/assets/icons/membership-badge.svg" mode="aspectFit"></image></view>
             <view class="service-row__copy"><text class="service-row__title">会员权益</text><text class="service-row__desc">{{membershipLabel}}</text></view>
             <text class="service-row__arrow">›</text>
           </view>
-          <view class="service-row" bindtap="goToPracticeHelp" aria-role="button">
+          <view wx:if="{{audioPlaybackEnabled}}" class="service-row" bindtap="goToPracticeHelp" aria-role="button">
             <view class="service-row__mark"><image class="service-row__icon" src="/assets/icons/practice-method.svg" mode="aspectFit"></image></view>
             <view class="service-row__copy"><text class="service-row__title">练习方法</text><text class="service-row__desc">通听、精练、跟读怎么配合</text></view>
             <text class="service-row__arrow">›</text>

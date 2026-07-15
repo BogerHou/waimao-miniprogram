@@ -7,6 +7,8 @@ const app_config_sync_1 = require("./utils/app-config-sync");
 const auth_session_1 = require("./utils/auth-session");
 const metrics_1 = require("./utils/metrics");
 const shadow_background_handoff_1 = require("./pages/course/shadow-background-handoff");
+const feature_flags_1 = require("./config/feature-flags");
+const review_storage_guard_1 = require("./utils/review-storage-guard");
 function isDevtoolsUnsupportedAudioOptionError(error) {
     return String(error.errMsg ?? '').includes('开发者工具暂时不支持');
 }
@@ -60,18 +62,7 @@ App({
             this.syncFromStore();
         });
         // 🚀 优化 iOS 音频播放：即使在静音模式下也能播放声音
-        if (wx.setInnerAudioOption) {
-            wx.setInnerAudioOption({
-                obeyMuteSwitch: false,
-                speakerOn: true, // 默认开启扬声器
-                success: () => console.log('[App] 全局音频配置成功'),
-                fail: (err) => {
-                    if (!isDevtoolsUnsupportedAudioOptionError(err)) {
-                        console.warn('[App] 全局音频配置失败', err);
-                    }
-                }
-            });
-        }
+        this.configureGlobalAudioPlayback();
         const configPromise = this.refreshAppConfig();
         const state = (0, index_1.getState)();
         if (state.token) {
@@ -94,7 +85,9 @@ App({
     },
     onShow() {
         void this.refreshAppConfig();
-        this.restoreBackgroundAudioRoute?.();
+        if ((0, feature_flags_1.resolveInteractiveFeaturesEnabled)((0, index_1.getState)().appConfig)) {
+            this.restoreBackgroundAudioRoute?.();
+        }
     },
     onHide() {
         (0, metrics_1.flushMetrics)();
@@ -130,6 +123,22 @@ App({
     async refreshAppConfig() {
         await (0, app_config_sync_1.refreshAppConfig)(api_1.fetchAppConfig, appConfig => {
             (0, index_1.setAppConfig)(appConfig);
+        });
+        this.configureGlobalAudioPlayback();
+    },
+    configureGlobalAudioPlayback() {
+        if (!(0, feature_flags_1.resolveInteractiveFeaturesEnabled)((0, index_1.getState)().appConfig) || !wx.setInnerAudioOption) {
+            return;
+        }
+        wx.setInnerAudioOption({
+            obeyMuteSwitch: false,
+            speakerOn: true,
+            success: () => console.log('[App] 全局音频配置成功'),
+            fail: (err) => {
+                if (!isDevtoolsUnsupportedAudioOptionError(err)) {
+                    console.warn('[App] 全局音频配置失败', err);
+                }
+            },
         });
     },
     restoreBackgroundAudioRoute() {
@@ -177,49 +186,55 @@ App({
         }, 80);
     },
     async initializeAuth(force = false, profileOverride) {
-        const state = (0, index_1.getState)();
-        if (!force && state.token) {
-            try {
-                await this.fetchUserData();
-                return;
-            }
-            catch (error) {
-                if ((0, auth_session_1.shouldPreserveCachedSessionAfterRefreshFailure)((0, storage_1.getToken)())) {
-                    console.warn('Failed to refresh cached session; preserving local auth', error);
+        const restoreLocalReviewData = (0, review_storage_guard_1.createWxReviewStorageGuard)();
+        try {
+            const state = (0, index_1.getState)();
+            if (!force && state.token) {
+                try {
+                    await this.fetchUserData();
                     return;
                 }
-                console.warn('Cached token invalid, relogin required', error);
-                (0, storage_1.clearToken)();
-                (0, storage_1.clearUserCache)();
-                (0, index_1.setToken)(null);
-                (0, index_1.setUser)(null);
+                catch (error) {
+                    if ((0, auth_session_1.shouldPreserveCachedSessionAfterRefreshFailure)((0, storage_1.getToken)())) {
+                        console.warn('Failed to refresh cached session; preserving local auth', error);
+                        return;
+                    }
+                    console.warn('Cached token invalid, relogin required', error);
+                    (0, storage_1.clearToken)();
+                    (0, storage_1.clearUserCache)();
+                    (0, index_1.setToken)(null);
+                    (0, index_1.setUser)(null);
+                    (0, index_1.setProgress)(null);
+                    (0, index_1.setFullAccess)(false);
+                }
+            }
+            const code = await wxLogin();
+            const profilePayload = profileOverride ?? (await resolveLoginProfilePayload());
+            const loginResult = await (0, api_1.loginWithCode)(code, profilePayload);
+            const mergedUser = {
+                ...loginResult.user,
+                nickname: profilePayload?.nickname ?? loginResult.user.nickname,
+                avatarUrl: profilePayload?.avatarUrl ?? loginResult.user.avatarUrl,
+            };
+            (0, index_1.setToken)(loginResult.token);
+            (0, index_1.setUser)(mergedUser);
+            if (loginResult.entitlement) {
+                (0, index_1.setEntitlement)(loginResult.entitlement);
+            }
+            else {
+                (0, index_1.setFullAccess)(Boolean(loginResult.fullAccess));
+            }
+            try {
+                const progress = loginResult.progress ?? await (0, api_1.fetchUserProgress)();
+                (0, index_1.setProgress)(progress);
+            }
+            catch (error) {
+                console.warn('Failed to fetch progress', error);
                 (0, index_1.setProgress)(null);
-                (0, index_1.setFullAccess)(false);
             }
         }
-        const code = await wxLogin();
-        const profilePayload = profileOverride ?? (await resolveLoginProfilePayload());
-        const loginResult = await (0, api_1.loginWithCode)(code, profilePayload);
-        const mergedUser = {
-            ...loginResult.user,
-            nickname: profilePayload?.nickname ?? loginResult.user.nickname,
-            avatarUrl: profilePayload?.avatarUrl ?? loginResult.user.avatarUrl,
-        };
-        (0, index_1.setToken)(loginResult.token);
-        (0, index_1.setUser)(mergedUser);
-        if (loginResult.entitlement) {
-            (0, index_1.setEntitlement)(loginResult.entitlement);
-        }
-        else {
-            (0, index_1.setFullAccess)(Boolean(loginResult.fullAccess));
-        }
-        try {
-            const progress = loginResult.progress ?? await (0, api_1.fetchUserProgress)();
-            (0, index_1.setProgress)(progress);
-        }
-        catch (error) {
-            console.warn('Failed to fetch progress', error);
-            (0, index_1.setProgress)(null);
+        finally {
+            restoreLocalReviewData();
         }
     },
     async fetchUserData() {

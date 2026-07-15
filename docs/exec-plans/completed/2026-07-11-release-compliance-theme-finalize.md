@@ -1,5 +1,7 @@
 # 发布合规与主题定稿收尾
 
+> 状态：已完成并归档（2026-07-13）。代码侧主题、隐私授权与头像压缩已经落地，微信后台合规配置和当前关闭态真机验收均已完成。
+
 ## 目标
 
 清掉直接影响审核与发布的两件事：微信隐私协议合规，以及双主题择一定稿后的视觉收尾。
@@ -11,7 +13,7 @@
 
 ## 背景
 
-- 相关文档：`docs/QUALITY_SCORE.md`（安全行待办"确认隐私保护指引"）、`docs/DESIGN.md`（双主题切换机制）。
+- 相关文档：`docs/QUALITY_SCORE.md`、`docs/DESIGN.md`（双主题切换机制）。
 - 相关代码路径：`miniprogram/styles/theme.less`、`miniprogram/styles/palettes/`、`miniprogram/pages/course/course.wxml`、`miniprogram/utils/share-poster.ts`、`miniprogram/pages/index/index.ts`（头像上传）、`miniprogram/pages/course/course.ts`（录音权限）。
 - 已知约束：wxml 内联属性吃不到 less 变量，定稿色需写死或从 ts data 注入。
 
@@ -37,7 +39,7 @@
 - [x] 视觉收尾与文档更新（删 warm palette、theme.less 单 import、course.wxml slider activeColor 走 `themeAccent`/navbar 与全站 navbar 背景改 `#F5F7FB`、unlock 图标改主色、DESIGN.md/FRONTEND.md 改单主题）（2026-07-12）。
 - [x] 头像上传前 `wx.compressImage`（400 宽/quality 80，失败回退原图）、改 jpeg base64（2026-07-12）。
 - [x] 录音权限流程：`decideRecordAuthAction` 纯逻辑判定 + 页面 getSetting/authorize/openSetting 接线；`scope.record` 由运行时授权，不能写入仅支持位置用途说明的 `app.json.permission`（2026-07-12 修正）。
-- [ ] 微信管理后台：配置隐私保护指引（头像/昵称/录音三项收集说明），确认审核专用邀请码（人工，后台操作）。
+- [x] 微信管理后台：隐私保护指引、相关发布合规配置和当前关闭态真机验收完成（2026-07-13 用户确认）。当前版本不展示邀请码入口，因此审核说明不再要求审核专用邀请码。
 
 ## 决策记录
 
@@ -45,3 +47,4 @@
 - 2026-07-12：主题定稿 business；里程碑 1 关闭。录音权限（里程碑 3 期间新增的功能）纳入隐私合规范围。
 - 2026-07-12：代码侧合规完成（运行时录音授权流程、头像压缩）。隐私保护指引正文属微信管理后台配置项，无法在仓库内完成，留作上线前人工操作项。
 - 2026-07-12：真机前编译暴露 `app.json permission["scope.record"]` 无效；按官方配置结构删除该声明，录音仍通过 `wx.authorize` 授权并继续纳入隐私保护指引。
+- 2026-07-13：用户确认微信后台合规项和真机验收已经完成。当前发布级总开关关闭，审核材料按 7 章正文全部开放、会员与音频能力暂不展示的实际体验编写，本计划完成并归档。

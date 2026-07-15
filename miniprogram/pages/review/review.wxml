@@ -27,7 +27,7 @@
             </view>
             <view class="word-card__actions">
               <view
-                wx:if="{{item.audioUs || item.audioUk}}"
+                wx:if="{{audioPlaybackEnabled && (item.audioUs || item.audioUk)}}"
                 class="word-card__audio {{activeWordAudioId === item.normalized ? 'word-card__audio--' + wordAudioStatus : ''}}"
                 data-id="{{item.normalized}}"
                 data-url="{{item.audioUs || item.audioUk}}"
@@ -48,7 +48,7 @@
           <view wx:if="{{item.cueText}}" class="source-quote" data-id="{{item.normalized}}" bindtap="handleOpenWordSource">
             <text class="source-quote__text">{{item.cueText}}</text>
             <text wx:if="{{item.cueTranslation}}" class="source-quote__translation">{{item.cueTranslation}}</text>
-            <text class="source-quote__course">{{item.courseTitle || '来源课程'}} · 回到原句 ›</text>
+            <text class="source-quote__course">{{item.courseTitle || '来源课程'}} · {{audioPlaybackEnabled ? '回到原句' : '查看原句'}} ›</text>
           </view>
         </view>
         <view wx:if="{{!words.length}}" class="review-empty">
@@ -64,7 +64,7 @@
           <view class="cue-card__body">
             <text class="cue-card__text">{{item.cueText || '难句内容加载中'}}</text>
             <text wx:if="{{item.cueTranslation}}" class="cue-card__translation">{{item.cueTranslation}}</text>
-            <text class="cue-card__course">{{item.courseTitle || item.courseId}} · 进入难句练习 ›</text>
+            <text class="cue-card__course">{{item.courseTitle || item.courseId}} · {{audioPlaybackEnabled ? '进入难句练习' : '查看原句'}} ›</text>
           </view>
           <view class="review-delete" data-course-id="{{item.courseId}}" data-cue-id="{{item.cueId}}" catchtap="handleDeleteCue" aria-role="button" aria-label="移除难句">
             <image class="review-delete__icon" src="/assets/icons/trash-2.svg" mode="aspectFit"></image>
@@ -73,7 +73,7 @@
         <view wx:if="{{!cues.length && !loading}}" class="review-empty">
           <text class="review-empty__mark review-empty__mark--star">★</text>
           <text class="review-empty__title">还没有难句</text>
-          <text class="review-empty__desc">进入课程的精练阶段，把想反复练习的句子标记下来</text>
+          <text class="review-empty__desc">{{audioPlaybackEnabled ? '进入课程的精练阶段，把想反复练习的句子标记下来' : '课程中保存的难句会出现在这里'}}</text>
         </view>
         <view wx:if="{{loading}}" class="review-loading">正在整理已有难句…</view>
       </view>

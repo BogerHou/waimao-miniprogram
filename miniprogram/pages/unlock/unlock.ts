@@ -21,6 +21,7 @@ import {
   formatEntitlementExpiry,
   formatInviteErrorMessage,
 } from '../../utils/util'
+import { resolveInteractiveFeaturesEnabled } from '../../config/feature-flags'
 
 type UnlockPageData = {
   code: string
@@ -49,7 +50,17 @@ Page<UnlockPageData, WechatMiniprogram.IAnyObject>({
     codeError: '',
     expiresAtLabel: '1 年访问权限已生效',
   },
-  onLoad() {
+  async onLoad() {
+    const app = getApp<IAppOption>()
+    try {
+      await app.globalData.readyPromise
+    } catch (_error) {
+      // App config keeps its safe local fallback when refresh fails.
+    }
+    if (!resolveInteractiveFeaturesEnabled(getStoreState().appConfig)) {
+      wx.switchTab({ url: '/pages/index/index' })
+      return
+    }
     enablePageShareMenu()
     ;(this as any).storeUnsubscribe = subscribe(state => this.handleStoreUpdate(state))
     this.handleStoreUpdate(getStoreState())

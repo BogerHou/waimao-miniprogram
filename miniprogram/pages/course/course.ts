@@ -9,6 +9,10 @@ import {
   fetchWordLookup,
 } from '../../utils/api'
 import { API_BASE_URL } from '../../config/env'
+import {
+  FEATURE_FLAGS,
+  resolveInteractiveFeaturesEnabled,
+} from '../../config/feature-flags'
 import { reportMetric } from '../../utils/metrics'
 import {
   STARRED_CUES_STORAGE_KEY,
@@ -235,6 +239,7 @@ type CoursePageData = {
   nextScene: NextSceneCandidate | null
   reviewOnlyMode: boolean
   starredCueCount: number
+  audioPlaybackEnabled: boolean
 }
 
 type SubtitleLike = Pick<SubtitleEntry, 'id' | 'start' | 'end'>
@@ -314,6 +319,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     nextScene: null,
     reviewOnlyMode: false,
     starredCueCount: 0,
+    audioPlaybackEnabled: FEATURE_FLAGS.audioPlayback,
   },
   courseId: '' as string,
   // InnerAudioContext (用于 Shadow 模式)
@@ -652,6 +658,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
 
   onLoad(query) {
     enablePageShareMenu();
+    const interactiveFeaturesEnabled = resolveInteractiveFeaturesEnabled(getStoreState().appConfig)
     const id = query?.id
     if (!id) {
       this.setData({
@@ -662,9 +669,13 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     this.courseId = id
     this.pendingFocusCueId = String(query?.cueId ?? '').trim()
     this.focusPracticeRequested = query?.stage === 'practice' || Boolean(this.pendingFocusCueId)
-    this.focusAutoplayRequested = query?.autoplay === '1' && Boolean(this.pendingFocusCueId)
+    this.focusAutoplayRequested =
+      interactiveFeaturesEnabled &&
+      query?.autoplay === '1' &&
+      Boolean(this.pendingFocusCueId)
     this.reviewOnlyRequested = query?.review === '1'
-    this.pendingBackgroundAudioRestore = query?.fromBackgroundAudio === '1'
+    this.pendingBackgroundAudioRestore =
+      interactiveFeaturesEnabled && query?.fromBackgroundAudio === '1'
     this.audioLoadTimeoutController = playerCore.createAudioLoadTimeoutController({
       getSourceOptions: () => this.audioSourceOptions,
       getCurrentSource: () => this.audioSource || this.audioContext?.src || '',
@@ -804,10 +815,12 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     try {
       const detail = await fetchCourseDetail(id)
       const appConfig = getStoreState().appConfig
+      const interactiveFeaturesEnabled = resolveInteractiveFeaturesEnabled(appConfig)
       const modePresentation = resolveStagePresentation({
         currentStage: this.focusPracticeRequested ? 'practice' : this.data.stage,
         gapEnabled: this.data.gapEnabled,
-        shadowModeEnabled: appConfig.courseDetail.shadowModeEnabled,
+        shadowModeEnabled:
+          interactiveFeaturesEnabled && appConfig.courseDetail.shadowModeEnabled,
       })
 
       // 音频策略：新版接口提供七牛和服务器地址，旧接口仍只提供服务器地址。
@@ -871,6 +884,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
         nextScene: null,
         reviewOnlyMode: this.reviewOnlyRequested && starredCueCount > 0,
         starredCueCount,
+        audioPlaybackEnabled: interactiveFeaturesEnabled,
         showModeSelector: modePresentation.showModeSelector,
         showShadowMode: modePresentation.showShadowMode,
         showPracticeControls: modePresentation.showPracticeControls,
@@ -1992,10 +2006,12 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
   },
 
   handleStoreUpdate(state: StoreState) {
+    const interactiveFeaturesEnabled = resolveInteractiveFeaturesEnabled(state.appConfig)
     const modePresentation = resolveStagePresentation({
       currentStage: this.data.stage,
       gapEnabled: this.data.gapEnabled,
-      shadowModeEnabled: state.appConfig.courseDetail.shadowModeEnabled,
+      shadowModeEnabled:
+        interactiveFeaturesEnabled && state.appConfig.courseDetail.shadowModeEnabled,
     })
 
     if (this.data.playMode === 'shadow' && modePresentation.effectivePlayMode === 'echo') {
@@ -2027,6 +2043,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
 
     this.setData({
       showModeSelector: modePresentation.showModeSelector,
+      audioPlaybackEnabled: interactiveFeaturesEnabled,
       showShadowMode: modePresentation.showShadowMode,
       showPracticeControls: modePresentation.showPracticeControls,
       showStageGuide: modePresentation.showPracticeControls
@@ -2308,6 +2325,8 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
   },
 
   handlePlayWordAudio(event: WechatMiniprogram.BaseEvent) {
+    if (!this.data.audioPlaybackEnabled) return
+
     const variant = (event.currentTarget.dataset as { variant?: string }).variant
     const url = variant === 'uk' ? this.data.wordPopupAudioUk : this.data.wordPopupAudioUs
     console.log('[WordAudio] play', { variant, url })

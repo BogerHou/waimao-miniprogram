@@ -8,6 +8,7 @@ const share_1 = require("../../utils/share");
 const share_card_1 = require("../../utils/share-card");
 const share_poster_1 = require("../../utils/share-poster");
 const scene_search_1 = require("../../utils/scene-search");
+const feature_flags_1 = require("../../config/feature-flags");
 const DEFAULT_NICKNAME = 'Learner';
 const DEFAULT_AVATAR_INITIAL = 'L';
 Page({
@@ -49,6 +50,7 @@ Page({
         unlockPromptCta: '去解锁',
         showPracticeHelp: false,
         scrollWithAnimation: true,
+        membershipUnlockEnabled: feature_flags_1.FEATURE_FLAGS.membershipUnlock,
     },
     scheduleShareImage: (0, storage_1.debounce)(function () {
         void this.generateShareImage();
@@ -174,7 +176,8 @@ Page({
         const initialSource = rawNickname || DEFAULT_AVATAR_INITIAL;
         const avatarInitial = (initialSource.charAt(0) || DEFAULT_AVATAR_INITIAL).toUpperCase();
         const avatarUrl = isAuthenticated ? (state.user?.avatarUrl?.trim() ?? '') : '';
-        const chapters = applyProgressToChapters(chaptersOverride ?? this.data.chapters, state.progress, state.fullAccess);
+        const interactiveFeaturesEnabled = (0, feature_flags_1.resolveInteractiveFeaturesEnabled)(state.appConfig);
+        const chapters = applyProgressToChapters(chaptersOverride ?? this.data.chapters, state.progress, state.fullAccess, interactiveFeaturesEnabled);
         const displayChapters = (0, scene_search_1.filterChaptersBySceneQuery)(chapters, this.data.searchQuery);
         const sceneCount = courseCountOverride ?? countScenes(chapters);
         const continueScene = isAuthenticated
@@ -196,11 +199,14 @@ Page({
             continueScene,
             isAuthenticated,
             fullAccess: state.fullAccess,
-            showUnlockPrompt: Boolean(home.unlockPromptEnabled) && !state.fullAccess,
+            membershipUnlockEnabled: interactiveFeaturesEnabled,
+            showUnlockPrompt: interactiveFeaturesEnabled &&
+                Boolean(home.unlockPromptEnabled) &&
+                !state.fullAccess,
             unlockPromptTitle: home.unlockPromptTitle || this.data.unlockPromptTitle,
             unlockPromptDescription: home.unlockPromptDescription || this.data.unlockPromptDescription,
             unlockPromptCta: home.unlockPromptCta || this.data.unlockPromptCta,
-            showPracticeHelp: Boolean(home.practiceHelpEnabled),
+            showPracticeHelp: interactiveFeaturesEnabled && Boolean(home.practiceHelpEnabled),
             shareImageUrl: this.data.shareImageUrl,
         });
         this.scheduleShareImage();
@@ -249,6 +255,8 @@ Page({
         });
     },
     async goToUnlock() {
+        if (!this.data.membershipUnlockEnabled)
+            return;
         const state = (0, index_1.getState)();
         const nickname = state.user?.nickname?.trim();
         const needsProfile = !nickname || nickname === DEFAULT_NICKNAME;
@@ -260,11 +268,6 @@ Page({
         }
         wx.navigateTo({
             url: '/pages/unlock/unlock',
-        });
-    },
-    goToContact() {
-        wx.navigateTo({
-            url: '/pages/contact/contact',
         });
     },
     goToPracticeHelp() {
@@ -464,6 +467,7 @@ Page({
             courseCount: this.data.courseCount,
             streakCount: this.data.streakCount,
             featuredCourseTitle: firstScene ? `${firstChapter.label} ${firstScene.title}` : '外贸英语影子跟读',
+            audioPlaybackEnabled: this.data.membershipUnlockEnabled,
         });
         try {
             const shareImageUrl = await (0, share_poster_1.renderSharePoster)(this, 'index-share-canvas', card, '学习主页');
@@ -488,12 +492,12 @@ function normalizeProgress(progress) {
         completedCourseIds: completedSceneIds,
     };
 }
-function applyProgressToChapters(chapters, progress, fullAccess) {
+function applyProgressToChapters(chapters, progress, fullAccess, membershipUnlockEnabled = true) {
     const sceneProgress = new Map((progress?.scenes ?? []).map(item => [item.sceneId, item]));
     const completed = new Set(progress?.completedSceneIds ?? progress?.completedCourseIds ?? []);
     const currentSceneId = progress?.currentSceneId ?? null;
     return chapters.map(chapter => {
-        const locked = !chapter.free && !fullAccess;
+        const locked = membershipUnlockEnabled && !chapter.free && !fullAccess;
         const scenes = chapter.scenes.map(scene => {
             const progressItem = sceneProgress.get(scene.id) ?? scene.progress ?? null;
             const done = completed.has(scene.id) || Boolean(progressItem?.sceneCompleted);

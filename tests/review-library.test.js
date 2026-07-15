@@ -62,6 +62,7 @@ strict_1.default.ok(buildReviewSourceUrl);
 strict_1.default.equal(buildReviewSourceUrl({ courseId: 'scene 1', cueId: 'cue/2' }), '/pages/course/course?id=scene%201&cueId=cue%2F2&stage=practice&autoplay=1');
 strict_1.default.equal(buildReviewSourceUrl({ courseId: 'scene-1', cueId: 'cue-2' }, true), '/pages/course/course?id=scene-1&cueId=cue-2&stage=practice&autoplay=1&review=1');
 strict_1.default.equal(buildReviewSourceUrl(undefined), '');
+strict_1.default.equal(buildReviewSourceUrl({ courseId: 'scene-1', cueId: 'cue-2' }, true, false), '/pages/course/course?id=scene-1&cueId=cue-2');
 strict_1.default.ok(reviewPageDefinition);
 const reviewPage = reviewPageDefinition;
 const audioHandlers = {};

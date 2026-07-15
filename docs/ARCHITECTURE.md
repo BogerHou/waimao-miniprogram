@@ -14,6 +14,7 @@
 - `miniprogram/pages/unlock/`：小程序专用邀请码解锁页；进入前要求用户填写头像/昵称完成登录，页面内展示微信二维码、会员权益和邀请码兑换控件。
 - `miniprogram/utils/api.ts`：外贸小程序 API 客户端，统一使用 `/api/waimao-mini/*`。
 - `miniprogram/store/`：轻量全局状态，保存登录用户、进度、app config 和 full access entitlement。
+- `miniprogram/config/feature-flags.ts`：服务端配置不可用时的安全回退；正常运行以服务端 `$DATA_ROOT/waimao-mini/app-config.json` 的 `interactiveFeaturesEnabled` 为真源。当前关闭会员解锁与音频播放能力，但仍展示全部章节并允许读取课程正文。
 - `tests/`：可在 Node 环境运行的小程序纯逻辑测试。
 - `docs/`：协作、架构、质量和变更历史。
 
@@ -39,13 +40,13 @@
 2. 小节详情调用 `/api/waimao-mini/courses/:id` 获取场景字幕、整章音频源、小节播放范围和知识点；新版接口通过 `audioSources` 返回七牛私有签名地址和服务器签名备用源，旧 `audio` 字段保持服务器地址以兼容旧版客户端。
 3. Shadow 模式优先使用七牛整章音频，加载失败时按 `provider` 回退服务器源；前端继续用小节 `range.start/end` 和短句 cue `start/end` 限制播放范围。
 4. 完成小节后调用 `/api/waimao-mini/users/me/progress`，前端上报 `sceneId`、`cueIndex` 和 `totalCues`，后端按小节保存 cue 进度并汇总章节进度。
-5. 点击首页解锁提示或锁定小节时先强制微信登录，再进入解锁页。
-6. 邀请码解锁调用 `/api/waimao-mini/invite/redeem`，写入小程序专用 entitlement；会员权益为全部章节 1 年访问权。
+5. 发布级总开关开启时，点击首页解锁提示或锁定小节会先强制微信登录，再进入解锁页；关闭时，服务器不执行会员拦截，全部章节可读，客户端隐藏会员入口、锁定态和音频练习控件。
+6. 总开关开启后，邀请码解锁调用 `/api/waimao-mini/invite/redeem`，写入小程序专用 entitlement；会员权益为全部章节 1 年访问权。
 7. API 5xx/网络失败、CDN 音频加载超时和实际切源先在客户端采样聚合，再直连 `/api/waimao-mini/metrics` 批量上报；该请求不经过通用请求封装，失败静默丢弃，避免递归和弱网流量放大。
 8. 首页场景搜索只过滤已经加载的章节树，不产生额外请求；查词结果与难句正文写入本地 `waimao_review_library_v1`，不上传录音或复习正文。
 9. 学习主页调用 `/api/waimao-mini/users/me/study-records?days=28` 刷新累计摘要；接口仍保留按日数据供后续使用，但当前页面不展示日历。累计资料数量从本地复习库读取，因此第一期不承诺跨设备同步。
 10. 课程长按查词只调用自家课程词典接口；中文释义和英美音标来自构建产物，英音/美音播放按用户决策继续使用有道发音地址。邮箱、网址和产品型号在字幕中保持原样但不可长按查词，数字后的 `cm/mm/pcs` 等单位仍可查询。客户端不再请求有道 JSON 或为每个单词调用 AI。
-11. 复习页回到来源句时显式携带 `stage=practice&cueId=...&autoplay=1`；课程页先进入精练并定位目标句，音频已就绪则立即播放，仍在加载则挂起到 `onCanplay` 后播放。普通只带 `cueId` 的深链继续只定位，不自动起播。
+11. 音频总开关开启时，复习页回到来源句显式携带 `stage=practice&cueId=...&autoplay=1`；关闭时只携带 `cueId` 并定位原句，不初始化或自动播放音频。
 
 ## 约束
 
@@ -54,3 +55,4 @@
 - 观测 payload 不包含完整音频 URL、query、token、用户资料或录音；匿名 metrics 端点必须保持事件白名单、批量上限、body 上限和 IP 限流。
 - 录音仍是“听完即弃”，不会进入复习库；复习库只保存查词元数据、来源句和用户主动标记的难句。
 - Web 账号打通和双音频源持续监控属于后续阶段；小程序不接微信支付，购买会员邀请码走添加微信人工交付。
+- 收藏词和难句仍以本机 storage 为真源；重新认证前会快照两个收藏 key，认证结束时只在 key 缺失的情况下恢复，避免登录流程误清空，同时不覆盖认证期间产生的更新。

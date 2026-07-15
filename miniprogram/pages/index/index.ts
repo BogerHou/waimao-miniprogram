@@ -27,6 +27,10 @@ import {
   countChapterScenes,
   filterChaptersBySceneQuery,
 } from '../../utils/scene-search'
+import {
+  FEATURE_FLAGS,
+  resolveInteractiveFeaturesEnabled,
+} from '../../config/feature-flags'
 
 const DEFAULT_NICKNAME = 'Learner'
 const DEFAULT_AVATAR_INITIAL = 'L'
@@ -71,6 +75,7 @@ type IndexPageData = {
   unlockPromptCta: string
   showPracticeHelp: boolean
   scrollWithAnimation: boolean
+  membershipUnlockEnabled: boolean
 }
 
 Page<IndexPageData, WechatMiniprogram.IAnyObject>({
@@ -112,6 +117,7 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
     unlockPromptCta: '去解锁',
     showPracticeHelp: false,
     scrollWithAnimation: true,
+    membershipUnlockEnabled: FEATURE_FLAGS.membershipUnlock,
   },
   scheduleShareImage: debounce(function (this: any) {
     void this.generateShareImage()
@@ -241,7 +247,13 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
     const initialSource = rawNickname || DEFAULT_AVATAR_INITIAL
     const avatarInitial = (initialSource.charAt(0) || DEFAULT_AVATAR_INITIAL).toUpperCase()
     const avatarUrl = isAuthenticated ? (state.user?.avatarUrl?.trim() ?? '') : ''
-    const chapters = applyProgressToChapters(chaptersOverride ?? this.data.chapters, state.progress, state.fullAccess)
+    const interactiveFeaturesEnabled = resolveInteractiveFeaturesEnabled(state.appConfig)
+    const chapters = applyProgressToChapters(
+      chaptersOverride ?? this.data.chapters,
+      state.progress,
+      state.fullAccess,
+      interactiveFeaturesEnabled,
+    )
     const displayChapters = filterChaptersBySceneQuery(chapters, this.data.searchQuery)
     const sceneCount = courseCountOverride ?? countScenes(chapters)
     const continueScene = isAuthenticated
@@ -264,11 +276,16 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
       continueScene,
       isAuthenticated,
       fullAccess: state.fullAccess,
-      showUnlockPrompt: Boolean(home.unlockPromptEnabled) && !state.fullAccess,
+      membershipUnlockEnabled: interactiveFeaturesEnabled,
+      showUnlockPrompt:
+        interactiveFeaturesEnabled &&
+        Boolean(home.unlockPromptEnabled) &&
+        !state.fullAccess,
       unlockPromptTitle: home.unlockPromptTitle || this.data.unlockPromptTitle,
       unlockPromptDescription: home.unlockPromptDescription || this.data.unlockPromptDescription,
       unlockPromptCta: home.unlockPromptCta || this.data.unlockPromptCta,
-      showPracticeHelp: Boolean(home.practiceHelpEnabled),
+      showPracticeHelp:
+        interactiveFeaturesEnabled && Boolean(home.practiceHelpEnabled),
       shareImageUrl: this.data.shareImageUrl,
     })
     this.scheduleShareImage()
@@ -317,6 +334,8 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
     })
   },
   async goToUnlock() {
+    if (!this.data.membershipUnlockEnabled) return
+
     const state = getStoreState()
     const nickname = state.user?.nickname?.trim()
     const needsProfile = !nickname || nickname === DEFAULT_NICKNAME
@@ -328,11 +347,6 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
 
     wx.navigateTo({
       url: '/pages/unlock/unlock',
-    })
-  },
-  goToContact() {
-    wx.navigateTo({
-      url: '/pages/contact/contact',
     })
   },
   goToPracticeHelp() {
@@ -531,6 +545,7 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
       courseCount: this.data.courseCount,
       streakCount: this.data.streakCount,
       featuredCourseTitle: firstScene ? `${firstChapter.label} ${firstScene.title}` : '外贸英语影子跟读',
+      audioPlaybackEnabled: this.data.membershipUnlockEnabled,
     })
 
     try {
@@ -562,13 +577,14 @@ function applyProgressToChapters(
   chapters: ChapterListItem[],
   progress: UserProgress | null,
   fullAccess: boolean,
+  membershipUnlockEnabled = true,
 ) {
   const sceneProgress = new Map((progress?.scenes ?? []).map(item => [item.sceneId, item]))
   const completed = new Set(progress?.completedSceneIds ?? progress?.completedCourseIds ?? [])
   const currentSceneId = progress?.currentSceneId ?? null
 
   return chapters.map(chapter => {
-    const locked = !chapter.free && !fullAccess
+    const locked = membershipUnlockEnabled && !chapter.free && !fullAccess
     const scenes = chapter.scenes.map(scene => {
       const progressItem = sceneProgress.get(scene.id) ?? scene.progress ?? null
       const done = completed.has(scene.id) || Boolean(progressItem?.sceneCompleted)

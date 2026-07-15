@@ -5,6 +5,8 @@ import {
 } from '../../utils/share'
 import { buildPracticeHelpShareCardModel } from '../../utils/share-card'
 import { renderSharePoster } from '../../utils/share-poster'
+import { resolveInteractiveFeaturesEnabled } from '../../config/feature-flags'
+import { getState as getStoreState } from '../../store/index'
 
 type StageStep = {
   label: string
@@ -81,8 +83,17 @@ Page<PracticeHelpData, WechatMiniprogram.IAnyObject>({
       },
     ],
   },
-
-  onLoad() {
+  async onLoad() {
+    const app = getApp<IAppOption>()
+    try {
+      await app.globalData.readyPromise
+    } catch (_error) {
+      // App config keeps its safe local fallback when refresh fails.
+    }
+    if (!resolveInteractiveFeaturesEnabled(getStoreState().appConfig)) {
+      wx.switchTab({ url: '/pages/index/index' })
+      return
+    }
     enablePageShareMenu()
     void this.generateShareImage()
   },

@@ -5,6 +5,7 @@ type IndexShareCardOptions = {
   courseCount: number
   streakCount: number
   featuredCourseTitle?: string
+  audioPlaybackEnabled?: boolean
 }
 
 type ShareCardModel = {
@@ -43,11 +44,15 @@ export function buildIndexShareCardModel(options: IndexShareCardOptions): ShareC
     badge: `已完成 ${Math.max(0, options.completedCount)} / ${Math.max(0, options.courseCount)}`,
     highlight: options.isAuthenticated
       ? `连续学习 ${Math.max(0, options.streakCount)} 天`
-      : '随时开始一节听力课程',
+      : options.audioPlaybackEnabled === false
+        ? '随时开始一节场景课程'
+        : '随时开始一节听力课程',
     snippet: truncateText(
       featuredCourseTitle
         ? `下一节推荐：${featuredCourseTitle}`
-        : '外贸场景、跟读练习与学习记录都在这里。'
+        : options.audioPlaybackEnabled === false
+          ? '外贸场景、双语内容与学习记录都在这里。'
+          : '外贸场景、跟读练习与学习记录都在这里。'
     ),
   }
 }
