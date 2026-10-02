@@ -14,6 +14,8 @@ import {
   resolveInteractiveFeaturesEnabled,
 } from '../../config/feature-flags'
 import { reportMetric } from '../../utils/metrics'
+import { claimAudioFocus, getAudioFocusOwner, releaseAudioFocus, subscribeAudioFocus } from '../../utils/audio-focus'
+import { subscribeBackgroundAudioEvent } from '../../utils/background-audio-events'
 import {
   STARRED_CUES_STORAGE_KEY,
   StarredCueMap,
@@ -346,6 +348,11 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
   activeAudioSourceProvider: '' as AudioSourceProvider | '',
   // 其他
   storeUnsubscribe: undefined as (() => void) | undefined,
+  audioFocusUnsubscribe: undefined as (() => void) | undefined,
+  audioPageActive: false,
+  audioFocusEpoch: 0,
+  shadowPlaybackGeneration: 0,
+  backgroundAudioEventUnsubscribers: [] as Array<() => void>,
   studySessionStart: null as number | null,
   studySessionPracticeStart: 0,
   pendingFocusCueId: '',
@@ -406,7 +413,12 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
   },
 
   shouldIgnoreMainAudioContextEvent() {
-    return this.suppressMainAudioContextEvents || this.data.playMode === 'shadow'
+    return !this.isCourseAudioCurrent(this.audioFocusEpoch) || this.suppressMainAudioContextEvents || this.data.playMode === 'shadow'
+  },
+
+  isCourseAudioCurrent(epoch: number) {
+    return this.audioPageActive && epoch === this.audioFocusEpoch &&
+      getAudioFocusOwner() === 'course' && resolveInteractiveFeaturesEnabled(getStoreState().appConfig)
   },
 
   clampCourseTimeToScene(courseTime: number, options: { restartWhenPastEnd?: boolean } = {}) {
@@ -585,6 +597,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
   },
 
   syncPendingShadowSeek(reason: string) {
+    if (!this.audioPageActive || getAudioFocusOwner() !== 'course') return false
     const pending = this.pendingShadowSeek
     if (!pending) {
       return true
@@ -659,6 +672,31 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
   onLoad(query) {
     enablePageShareMenu();
     const interactiveFeaturesEnabled = resolveInteractiveFeaturesEnabled(getStoreState().appConfig)
+    this.audioPageActive = true
+    this.audioFocusUnsubscribe = subscribeAudioFocus((next, previous) => {
+      if (previous !== 'course' || next === 'course') return
+      this.audioFocusEpoch++
+      this.shadowPlaybackGeneration++
+      this.audioContext?.pause()
+      this.wordAudioContext?.stop()
+      this.recordingAudioContext?.stop()
+      this.backgroundAudioManager?.pause()
+      this.clearGapTimer()
+      if (this.stopTimer) { clearTimeout(this.stopTimer); this.stopTimer = null }
+      this.pendingSubtitle = null
+      this.pendingShadowResume = null
+      this.pendingBackgroundAudioRestore = false
+      this.backgroundAudioFallbackPending = false
+      this.pendingShadowSeek = null
+      this.shadowHandoffState = null
+      this.backgroundPlaybackActive = false
+      this.stopTracking()
+      this.clearAudioLoadTimeout()
+      this.clearBackgroundAudioLoadTimeout()
+      this.setAudioLoading(false)
+      this.setData({ playing: false, isRepeating: false, comparing: false })
+    })
+    if (interactiveFeaturesEnabled) claimAudioFocus('course')
     const id = query?.id
     if (!id) {
       this.setData({
@@ -762,6 +800,12 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     void this.syncCurrentSceneProgress('unload')
     void this.finalizeStudySession(true) // 立即上报，不防抖
     this.stopBackgroundPlayback(true)
+    this.audioPageActive = false
+    this.audioFocusEpoch++
+    this.audioFocusUnsubscribe?.()
+    this.backgroundAudioEventUnsubscribers.forEach((unsubscribe: () => void) => unsubscribe())
+    this.backgroundAudioEventUnsubscribers = []
+    releaseAudioFocus('course')
     this.discardRecording()
     this.destroyAudioContext()
     this.destroyWordAudioContext()
@@ -806,6 +850,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
   },
 
   async loadCourse(id: string) {
+    const audioEpoch = this.audioFocusEpoch
     this.courseRange = null
     this.knowledgeContext = ''
     this.setData({
@@ -814,6 +859,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     })
     try {
       const detail = await fetchCourseDetail(id)
+      if (!this.audioPageActive) return
       const appConfig = getStoreState().appConfig
       const interactiveFeaturesEnabled = resolveInteractiveFeaturesEnabled(appConfig)
       const modePresentation = resolveStagePresentation({
@@ -916,7 +962,10 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
         const autoplay = this.focusAutoplayRequested
         this.pendingFocusCueId = ''
         this.focusAutoplayRequested = false
-        setTimeout(() => this.focusCueFromSource(cueId, autoplay), 80)
+        setTimeout(() => {
+          if (!this.audioPageActive || (autoplay && !this.isCourseAudioCurrent(audioEpoch))) return
+          this.focusCueFromSource(cueId, autoplay)
+        }, 80)
       }
       const restoredFromBackgroundAudio = modePresentation.showPracticeControls && this.pendingBackgroundAudioRestore
         ? this.restoreBackgroundAudioFromStorage()
@@ -934,6 +983,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
         !this.data.showStageGuide
       ) {
         setTimeout(() => {
+          if (!this.isCourseAudioCurrent(audioEpoch)) return
           this.startShadowMode()
         }, 500)
       }
@@ -1456,7 +1506,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
         audio: nextAudioSource.url,
       },
     }, () => {
-      if (!this.backgroundAudioFallbackPending) {
+      if (!this.backgroundAudioFallbackPending || !this.isCourseAudioCurrent(this.audioFocusEpoch)) {
         return
       }
       this.backgroundAudioFallbackPending = false
@@ -1472,8 +1522,13 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     }
 
     const manager = wx.getBackgroundAudioManager() as any
+    const register = (name: string, callback: (...args: any[]) => void) => {
+      this.backgroundAudioEventUnsubscribers.push(subscribeBackgroundAudioEvent(manager, name, (...args: any[]) => {
+        if (this.audioPageActive && getAudioFocusOwner() === 'course') callback(...args)
+      }))
+    }
     this.debugShadowBackground('create background manager')
-    manager.onPlay(() => {
+    register('onPlay', () => {
       this.backgroundAudioReady = true
       this.clearBackgroundAudioLoadTimeout()
       this.debugShadowBackground('background onPlay')
@@ -1491,7 +1546,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
         }
       }
     })
-    manager.onPause(() => {
+    register('onPause', () => {
       this.debugShadowBackground('background onPause')
       this.updateShadowCourseTimeFromManager(typeof manager.currentTime === 'number' ? manager.currentTime : undefined)
       if (this.data.playMode === 'shadow') {
@@ -1505,7 +1560,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
         }
       }
     })
-    manager.onStop(() => {
+    register('onStop', () => {
       this.debugShadowBackground('background onStop')
       this.updateShadowCourseTimeFromManager(typeof manager.currentTime === 'number' ? manager.currentTime : undefined)
       this.backgroundPlaybackActive = false
@@ -1518,17 +1573,17 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
       }
     })
     if (typeof manager.onEnded === 'function') {
-      manager.onEnded(() => {
+      register('onEnded', () => {
         this.debugShadowBackground('background onEnded')
       })
     }
     if (typeof manager.onWaiting === 'function') {
-      manager.onWaiting(() => {
+      register('onWaiting', () => {
         this.debugShadowBackground('background onWaiting')
       })
     }
     if (typeof manager.onCanplay === 'function') {
-      manager.onCanplay(() => {
+      register('onCanplay', () => {
         this.backgroundAudioReady = true
         this.clearBackgroundAudioLoadTimeout()
         const elapsedMs = this.backgroundAudioRequestStartedAt
@@ -1548,23 +1603,23 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
       })
     }
     if (typeof manager.onTimeUpdate === 'function') {
-      manager.onTimeUpdate(() => {
+      register('onTimeUpdate', () => {
         this.updateShadowCourseTimeFromManager(typeof manager.currentTime === 'number' ? manager.currentTime : undefined)
         this.syncPendingShadowSeek('onTimeUpdate')
       })
     }
     if (typeof manager.onNext === 'function') {
-      manager.onNext(() => {
+      register('onNext', () => {
         this.debugShadowBackground('background onNext')
       })
     }
     if (typeof manager.onPrev === 'function') {
-      manager.onPrev(() => {
+      register('onPrev', () => {
         this.debugShadowBackground('background onPrev')
       })
     }
     if (typeof manager.onError === 'function') {
-      manager.onError((error: unknown) => {
+      register('onError', (error: unknown) => {
         const failedSource = String(manager.src || '')
         logAudioRequest('background:onError', failedSource, {
           courseId: this.courseId,
@@ -1585,6 +1640,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
   },
 
   getShadowCurrentTime() {
+    if (getAudioFocusOwner() !== 'course') return this.lastKnownCourseTime
     const manager = this.ensureBackgroundAudioManager()
     return this.clampCourseTimeToScene(resolveObservedShadowCourseTime({
       observedTime: typeof manager.currentTime === 'number' ? manager.currentTime : 0,
@@ -1601,9 +1657,14 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     shouldAutoplay = true,
     options: { showLoading?: boolean } = {},
   ) {
-    if (!this.data.course) {
+    if (!this.audioPageActive || !resolveInteractiveFeaturesEnabled(getStoreState().appConfig) || !this.data.course) {
       return false
     }
+
+    claimAudioFocus('course')
+
+    const audioEpoch = this.audioFocusEpoch
+    const playbackTicket = ++this.shadowPlaybackGeneration
 
     const targetCourseTime = this.clampCourseTimeToScene(courseTime, {
       restartWhenPastEnd: true,
@@ -1662,6 +1723,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
       this.backgroundAudioRequestStartedAt = Date.now()
       this.scheduleBackgroundAudioLoadTimeout(meta.src)
       setTimeout(() => {
+        if (!this.isCourseAudioCurrent(audioEpoch) || playbackTicket !== this.shadowPlaybackGeneration || String(manager.src || '') !== meta.src) return
         this.syncPendingShadowSeek('post-src-assign')
         try {
           manager.seek(meta.startTime)
@@ -1688,12 +1750,14 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
       manager.pause()
     }
     setTimeout(() => {
+      if (!this.isCourseAudioCurrent(audioEpoch) || playbackTicket !== this.shadowPlaybackGeneration || String(manager.src || '') !== meta.src) return
       this.syncPendingShadowSeek('post-direct-seek')
     }, 0)
     return true
   },
 
   pauseShadowPlayback() {
+    if (getAudioFocusOwner() !== 'course') return
     const manager = this.ensureBackgroundAudioManager()
     this.debugShadowBackground('pause shadow playback')
     if (typeof manager.pause === 'function') {
@@ -1854,6 +1918,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
 
   handleBackgroundHandoff() {
     if (
+      getAudioFocusOwner() !== 'course' ||
       this.data.playMode !== 'shadow' ||
       !this.data.course
     ) {
@@ -1897,6 +1962,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
 
   handleForegroundReturn() {
     if (
+      getAudioFocusOwner() !== 'course' ||
       this.data.playMode !== 'shadow' ||
       !this.data.course ||
       !this.shadowHandoffState?.active ||
@@ -1947,6 +2013,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
   },
 
   resumeForegroundShadowPlayback(courseTime: number, shouldAutoplay: boolean) {
+    claimAudioFocus('course')
     const manager = this.ensureBackgroundAudioManager()
     this.lastKnownCourseTime = courseTime
     this.debugShadowBackground('resume foreground playback start', { courseTime, shouldAutoplay })
@@ -1977,6 +2044,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
   },
 
   stopBackgroundPlayback(stopPlayback: boolean) {
+    this.shadowPlaybackGeneration++
     this.debugShadowBackground('stop background playback', { stopPlayback })
     this.clearBackgroundAudioLoadTimeout()
     this.backgroundAudioReady = false
@@ -1989,7 +2057,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     if (stopPlayback) {
       this.clearBackgroundAudioResumeState()
     }
-    if (!this.backgroundAudioManager) {
+    if (!this.backgroundAudioManager || getAudioFocusOwner() !== 'course') {
       return
     }
 
@@ -2007,6 +2075,8 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
 
   handleStoreUpdate(state: StoreState) {
     const interactiveFeaturesEnabled = resolveInteractiveFeaturesEnabled(state.appConfig)
+    if (!interactiveFeaturesEnabled && this.data.audioPlaybackEnabled) this.audioFocusEpoch++
+    if (this.audioPageActive && interactiveFeaturesEnabled && !this.data.audioPlaybackEnabled) claimAudioFocus('course')
     const modePresentation = resolveStagePresentation({
       currentStage: this.data.stage,
       gapEnabled: this.data.gapEnabled,
@@ -2340,6 +2410,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
 
     this.ensureWordAudioContext()
     if (this.wordAudioContext) {
+      claimAudioFocus('course')
       this.wordAudioContext.stop()
       this.wordAudioContext.src = url
       this.wordAudioContext.play()
@@ -2392,6 +2463,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     }
 
     console.log(`[播放] 模式=${this.data.playMode}, 段落=${subtitle.id}`)
+    claimAudioFocus('course')
 
     // Echo 模式：优先使用完整音频 + seek，失败时回退到切片
     if (this.data.playMode === 'echo') {
@@ -2585,6 +2657,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
 
   // 处理重复播放的下一次
   handleRepeatNext(subtitle: SubtitleLike) {
+    const audioEpoch = this.audioFocusEpoch
     const currentCount = this.data.repeatCount + 1
 
     console.log(`[Repeat] 当前次数: ${currentCount}/${this.data.repeatTarget}`)
@@ -2594,6 +2667,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
       this.setData({ repeatCount: currentCount })
 
       setTimeout(() => {
+        if (!this.isCourseAudioCurrent(audioEpoch)) return
         if (!this.data.isRepeating) {
           console.log(`[Repeat] 重复已取消，停止`)
           return
@@ -2629,6 +2703,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
       // 影子跟读模式：重复完成后继续播放下一个段落
       if (this.data.playMode === 'shadow') {
         setTimeout(() => {
+          if (!this.isCourseAudioCurrent(audioEpoch)) return
           this.playNextInShadowMode()
         }, 200)
       }
@@ -2972,9 +3047,11 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
 
     // gap-advance：句末静音留白（约等于句长）后自动播放下一句
     const gapMs = playerCore.computeGapMs(subtitle, this.data.playbackRate)
+    const audioEpoch = this.audioFocusEpoch
     console.log('[Stage] 留白跟读等待', { subtitleId: subtitle.id, nextId: next.id, gapMs })
     this.setData({ gapWaiting: true })
     this.gapTimer = setTimeout(() => {
+      if (!this.isCourseAudioCurrent(audioEpoch)) return
       this.gapTimer = null
       this.setData({ gapWaiting: false })
       if (
@@ -3196,6 +3273,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
       context.onError(() => this.finishCompare())
       this.recordingAudioContext = context
     }
+    claimAudioFocus('course')
     this.recordingAudioContext.src = this.recordedTempPath
     this.recordingAudioContext.play()
   },
@@ -3379,6 +3457,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
 
   // 开始影子跟读模式
   startShadowMode() {
+    if (!this.isCourseAudioCurrent(this.audioFocusEpoch)) return
     this.currentSubtitleIndex = 0
     const firstSubtitle = this.data.subtitles[0]
     if (firstSubtitle) {
@@ -3396,6 +3475,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
 
   // 影子跟读模式播放下一个
   playNextInShadowMode() {
+    if (!this.isCourseAudioCurrent(this.audioFocusEpoch)) return
     if (this.data.playMode !== 'shadow') {
       return
     }
@@ -3530,6 +3610,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
     if (!this.data.showPracticeControls) {
       return
     }
+    claimAudioFocus('course')
     // Echo 模式：使用 InnerAudioContext
     if (this.data.playMode === 'echo') {
       if (!this.audioContext) {
@@ -3844,6 +3925,8 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
 
   // 应用播放速度（强制生效）
   applyPlaybackRate(speed: number) {
+    if (!this.isCourseAudioCurrent(this.audioFocusEpoch)) return
+    const audioEpoch = this.audioFocusEpoch
     this.setData({
       playbackRate: speed,
     })
@@ -3876,6 +3959,7 @@ Page<CoursePageData, WechatMiniprogram.IAnyObject>({
       context.playbackRate = speed
       // 短暂延迟后恢复播放
       setTimeout(() => {
+        if (!this.isCourseAudioCurrent(audioEpoch) || this.audioContext !== context || this.data.playMode !== 'echo') return
         context.seek(currentTime)
         context.play()
         console.log(`[Speed] 已应用速度 ${speed}x，恢复播放位置 ${currentTime.toFixed(2)}s`)

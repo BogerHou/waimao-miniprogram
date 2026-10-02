@@ -51,6 +51,8 @@ Page({
         showPracticeHelp: false,
         scrollWithAnimation: true,
         membershipUnlockEnabled: feature_flags_1.FEATURE_FLAGS.membershipUnlock,
+        audioPlaybackEnabled: feature_flags_1.FEATURE_FLAGS.audioPlayback,
+        allCoursesFree: false,
     },
     scheduleShareImage: (0, storage_1.debounce)(function () {
         void this.generateShareImage();
@@ -177,7 +179,8 @@ Page({
         const avatarInitial = (initialSource.charAt(0) || DEFAULT_AVATAR_INITIAL).toUpperCase();
         const avatarUrl = isAuthenticated ? (state.user?.avatarUrl?.trim() ?? '') : '';
         const interactiveFeaturesEnabled = (0, feature_flags_1.resolveInteractiveFeaturesEnabled)(state.appConfig);
-        const chapters = applyProgressToChapters(chaptersOverride ?? this.data.chapters, state.progress, state.fullAccess, interactiveFeaturesEnabled);
+        const membershipUnlockEnabled = (0, feature_flags_1.resolveMembershipUnlockEnabled)(state.appConfig);
+        const chapters = applyProgressToChapters(chaptersOverride ?? this.data.chapters, state.progress, state.fullAccess, membershipUnlockEnabled);
         const displayChapters = (0, scene_search_1.filterChaptersBySceneQuery)(chapters, this.data.searchQuery);
         const sceneCount = courseCountOverride ?? countScenes(chapters);
         const continueScene = isAuthenticated
@@ -199,8 +202,10 @@ Page({
             continueScene,
             isAuthenticated,
             fullAccess: state.fullAccess,
-            membershipUnlockEnabled: interactiveFeaturesEnabled,
-            showUnlockPrompt: interactiveFeaturesEnabled &&
+            membershipUnlockEnabled,
+            audioPlaybackEnabled: interactiveFeaturesEnabled,
+            allCoursesFree: state.appConfig.allCoursesFree === true,
+            showUnlockPrompt: membershipUnlockEnabled &&
                 Boolean(home.unlockPromptEnabled) &&
                 !state.fullAccess,
             unlockPromptTitle: home.unlockPromptTitle || this.data.unlockPromptTitle,
@@ -467,7 +472,7 @@ Page({
             courseCount: this.data.courseCount,
             streakCount: this.data.streakCount,
             featuredCourseTitle: firstScene ? `${firstChapter.label} ${firstScene.title}` : '外贸英语影子跟读',
-            audioPlaybackEnabled: this.data.membershipUnlockEnabled,
+            audioPlaybackEnabled: this.data.audioPlaybackEnabled,
         });
         try {
             const shareImageUrl = await (0, share_poster_1.renderSharePoster)(this, 'index-share-canvas', card, '学习主页');
@@ -497,7 +502,7 @@ function applyProgressToChapters(chapters, progress, fullAccess, membershipUnloc
     const completed = new Set(progress?.completedSceneIds ?? progress?.completedCourseIds ?? []);
     const currentSceneId = progress?.currentSceneId ?? null;
     return chapters.map(chapter => {
-        const locked = membershipUnlockEnabled && !chapter.free && !fullAccess;
+        const locked = membershipUnlockEnabled && !(chapter.trialFree ?? chapter.free) && !fullAccess;
         const scenes = chapter.scenes.map(scene => {
             const progressItem = sceneProgress.get(scene.id) ?? scene.progress ?? null;
             const done = completed.has(scene.id) || Boolean(progressItem?.sceneCompleted);

@@ -7,6 +7,7 @@ const review_library_1 = require("../../utils/review-library");
 const practice_marks_1 = require("../../utils/practice-marks");
 const feature_flags_1 = require("../../config/feature-flags");
 const index_1 = require("../../store/index");
+const audio_focus_1 = require("../../utils/audio-focus");
 function resolveWordAudioTapAction(current, targetId) {
     if (current.id !== targetId)
         return 'start';
@@ -32,6 +33,7 @@ function buildReviewSourceUrl(item, reviewOnly = false, audioPlaybackEnabled = t
 }
 Page({
     wordAudioContext: null,
+    audioFocusUnsubscribe: undefined,
     data: {
         tab: 'words',
         words: [],
@@ -43,6 +45,12 @@ Page({
         wordAudioStatus: 'idle',
         audioPlaybackEnabled: feature_flags_1.FEATURE_FLAGS.audioPlayback,
     },
+    onLoad() {
+        this.audioFocusUnsubscribe = (0, audio_focus_1.subscribeAudioFocus)((next, previous) => {
+            if (previous === 'review' && next !== 'review')
+                this.resetWordAudio();
+        });
+    },
     onShow() {
         this.setData({
             audioPlaybackEnabled: (0, feature_flags_1.resolveInteractiveFeaturesEnabled)((0, index_1.getState)().appConfig),
@@ -52,8 +60,11 @@ Page({
     },
     onHide() {
         this.resetWordAudio();
+        (0, audio_focus_1.releaseAudioFocus)('review');
     },
     onUnload() {
+        this.audioFocusUnsubscribe?.();
+        (0, audio_focus_1.releaseAudioFocus)('review');
         this.wordAudioContext?.destroy();
         this.wordAudioContext = null;
     },
@@ -133,6 +144,7 @@ Page({
                 return;
             }
             this.setData({ wordAudioStatus: 'loading' });
+            (0, audio_focus_1.claimAudioFocus)('review');
             this.wordAudioContext.play();
             return;
         }
@@ -141,6 +153,7 @@ Page({
             return;
         }
         const context = this.ensureWordAudioContext();
+        (0, audio_focus_1.claimAudioFocus)('review');
         context.stop();
         this.setData({ activeWordAudioId: audioId, wordAudioStatus: 'loading' });
         context.src = audioUrl;

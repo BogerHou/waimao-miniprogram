@@ -12,10 +12,11 @@ const appJson = JSON.parse(fs.readFileSync(path.join(root, 'miniprogram/app.json
 const tabs = appJson.tabBar?.list ?? []
 assert.deepEqual(tabs.map(item => item.pagePath), [
   'pages/index/index',
+  'pages/listening/listening',
   'pages/review/review',
   'pages/learning/learning',
 ])
-assert.deepEqual(tabs.map(item => item.text), ['课程', '复习', '我的'])
+assert.deepEqual(tabs.map(item => item.text), ['课程', '磨耳朵', '复习', '我的'])
 
 for (const tab of tabs) {
   for (const iconPath of [tab.iconPath, tab.selectedIconPath]) {

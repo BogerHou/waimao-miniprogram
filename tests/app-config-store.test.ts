@@ -93,4 +93,13 @@ function testInitializeStoreDerivesAccessFromEntitlement() {
 testInitializeStoreDefaultsShadowModeToInvisible()
 testSetAppConfigUpdatesShadowModeFlag()
 testInitializeStoreDerivesAccessFromEntitlement()
+const config = getState().appConfig
+initializeStore({ token: '', appConfig: { ...config, interactiveFeaturesEnabled: true, allCoursesFree: true } })
+assert.equal(getState().appConfig.allCoursesFree, true)
+assert.equal(getState().appConfig.interactiveFeaturesEnabled, true)
+assert.equal(getState().fullAccess, false, 'Free campaign must not create a membership entitlement')
+setAppConfig({ ...config, allCoursesFree: false })
+assert.equal(getState().appConfig.allCoursesFree, false)
+setAppConfig({ ...config, allCoursesFree: undefined })
+assert.equal(getState().appConfig.allCoursesFree, false, 'Old configs retain the original paid plan')
 console.log("app config store tests passed.")

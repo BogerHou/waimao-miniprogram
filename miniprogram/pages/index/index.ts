@@ -30,6 +30,7 @@ import {
 import {
   FEATURE_FLAGS,
   resolveInteractiveFeaturesEnabled,
+  resolveMembershipUnlockEnabled,
 } from '../../config/feature-flags'
 
 const DEFAULT_NICKNAME = 'Learner'
@@ -76,6 +77,8 @@ type IndexPageData = {
   showPracticeHelp: boolean
   scrollWithAnimation: boolean
   membershipUnlockEnabled: boolean
+  audioPlaybackEnabled: boolean
+  allCoursesFree: boolean
 }
 
 Page<IndexPageData, WechatMiniprogram.IAnyObject>({
@@ -118,6 +121,8 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
     showPracticeHelp: false,
     scrollWithAnimation: true,
     membershipUnlockEnabled: FEATURE_FLAGS.membershipUnlock,
+    audioPlaybackEnabled: FEATURE_FLAGS.audioPlayback,
+    allCoursesFree: false,
   },
   scheduleShareImage: debounce(function (this: any) {
     void this.generateShareImage()
@@ -248,11 +253,12 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
     const avatarInitial = (initialSource.charAt(0) || DEFAULT_AVATAR_INITIAL).toUpperCase()
     const avatarUrl = isAuthenticated ? (state.user?.avatarUrl?.trim() ?? '') : ''
     const interactiveFeaturesEnabled = resolveInteractiveFeaturesEnabled(state.appConfig)
+    const membershipUnlockEnabled = resolveMembershipUnlockEnabled(state.appConfig)
     const chapters = applyProgressToChapters(
       chaptersOverride ?? this.data.chapters,
       state.progress,
       state.fullAccess,
-      interactiveFeaturesEnabled,
+      membershipUnlockEnabled,
     )
     const displayChapters = filterChaptersBySceneQuery(chapters, this.data.searchQuery)
     const sceneCount = courseCountOverride ?? countScenes(chapters)
@@ -276,9 +282,11 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
       continueScene,
       isAuthenticated,
       fullAccess: state.fullAccess,
-      membershipUnlockEnabled: interactiveFeaturesEnabled,
+      membershipUnlockEnabled,
+      audioPlaybackEnabled: interactiveFeaturesEnabled,
+      allCoursesFree: state.appConfig.allCoursesFree === true,
       showUnlockPrompt:
-        interactiveFeaturesEnabled &&
+        membershipUnlockEnabled &&
         Boolean(home.unlockPromptEnabled) &&
         !state.fullAccess,
       unlockPromptTitle: home.unlockPromptTitle || this.data.unlockPromptTitle,
@@ -545,7 +553,7 @@ Page<IndexPageData, WechatMiniprogram.IAnyObject>({
       courseCount: this.data.courseCount,
       streakCount: this.data.streakCount,
       featuredCourseTitle: firstScene ? `${firstChapter.label} ${firstScene.title}` : '外贸英语影子跟读',
-      audioPlaybackEnabled: this.data.membershipUnlockEnabled,
+      audioPlaybackEnabled: this.data.audioPlaybackEnabled,
     })
 
     try {
@@ -584,7 +592,7 @@ function applyProgressToChapters(
   const currentSceneId = progress?.currentSceneId ?? null
 
   return chapters.map(chapter => {
-    const locked = membershipUnlockEnabled && !chapter.free && !fullAccess
+    const locked = membershipUnlockEnabled && !(chapter.trialFree ?? chapter.free) && !fullAccess
     const scenes = chapter.scenes.map(scene => {
       const progressItem = sceneProgress.get(scene.id) ?? scene.progress ?? null
       const done = completed.has(scene.id) || Boolean(progressItem?.sceneCompleted)

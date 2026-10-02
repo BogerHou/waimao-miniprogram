@@ -60,6 +60,7 @@ export const DEFAULT_HOME_AD = {
 
 export const DEFAULT_APP_CONFIG: AppConfigResponse = {
   interactiveFeaturesEnabled: false,
+  allCoursesFree: false,
   home: {
     bannerEnabled: false,
     practiceHelpEnabled: false,
@@ -154,6 +155,7 @@ export function setAppConfig(appConfig: AppConfigResponse, notify = true) {
   state.appConfig = {
     interactiveFeaturesEnabled:
       appConfig.interactiveFeaturesEnabled ?? DEFAULT_APP_CONFIG.interactiveFeaturesEnabled,
+    allCoursesFree: appConfig.allCoursesFree === true,
     home: normalizeHomeConfig(appConfig.home),
     courseDetail: {
       shadowModeEnabled: appConfig.courseDetail?.shadowModeEnabled ?? DEFAULT_APP_CONFIG.courseDetail.shadowModeEnabled,
@@ -185,6 +187,7 @@ export function initializeStore(initial?: Partial<StoreState>) {
       ? {
         interactiveFeaturesEnabled:
           initial.appConfig.interactiveFeaturesEnabled ?? DEFAULT_APP_CONFIG.interactiveFeaturesEnabled,
+        allCoursesFree: initial.appConfig.allCoursesFree === true,
         home: normalizeHomeConfig(initial.appConfig.home),
         courseDetail: {
           shadowModeEnabled:

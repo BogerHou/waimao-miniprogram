@@ -21,7 +21,7 @@ import {
   formatEntitlementExpiry,
   formatInviteErrorMessage,
 } from '../../utils/util'
-import { resolveInteractiveFeaturesEnabled } from '../../config/feature-flags'
+import { resolveMembershipUnlockEnabled } from '../../config/feature-flags'
 
 type UnlockPageData = {
   code: string
@@ -57,7 +57,7 @@ Page<UnlockPageData, WechatMiniprogram.IAnyObject>({
     } catch (_error) {
       // App config keeps its safe local fallback when refresh fails.
     }
-    if (!resolveInteractiveFeaturesEnabled(getStoreState().appConfig)) {
+    if (!resolveMembershipUnlockEnabled(getStoreState().appConfig)) {
       wx.switchTab({ url: '/pages/index/index' })
       return
     }
@@ -81,6 +81,10 @@ Page<UnlockPageData, WechatMiniprogram.IAnyObject>({
     })
   },
   handleStoreUpdate(state: StoreState) {
+    if (!resolveMembershipUnlockEnabled(state.appConfig)) {
+      wx.switchTab({ url: '/pages/index/index' })
+      return
+    }
     const ad = pickUnlockAd(
       state.appConfig.home.ads ?? [],
       state.appConfig.home.activeAdId || DEFAULT_HOME_AD.id,
@@ -132,6 +136,10 @@ Page<UnlockPageData, WechatMiniprogram.IAnyObject>({
     }, 700)
   },
   async handleRedeem() {
+    if (!resolveMembershipUnlockEnabled(getStoreState().appConfig)) {
+      wx.switchTab({ url: '/pages/index/index' })
+      return
+    }
     if (this.data.submitting || this.data.authLoading || this.data.fullAccess) return
 
     const code = this.data.code.trim()

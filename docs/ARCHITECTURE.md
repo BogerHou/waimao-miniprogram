@@ -5,7 +5,9 @@
 ## 顶层结构
 
 - `miniprogram/`：微信小程序源码和编译后的 `.js` 文件。
-- `miniprogram/app.json`：定义“课程 / 复习 / 我的”三个原生一级 Tab；课程详情、知识点、解锁等保持二级页面，不出现在 Tab Bar。
+- `miniprogram/app.json`：定义“课程 / 磨耳朵 / 复习 / 我的”四个原生一级 Tab；课程详情、知识点、解锁等保持二级页面，不出现在 Tab Bar。
+- `miniprogram/pages/listening/`：独立听力专辑目录、播放队列、可选原文和播放控制；不写课程完成或精练次数。模块协议、后台用法及发布边界见 [磨耳朵](LISTENING.md)。
+- `miniprogram/utils/listening-player*`：全局后台队列播放器与本机断点；`audio-focus` 协调课程、听力、复习音频，`background-audio-events` 解绑课程事件订阅，防止全局管理器保留旧页面。其他 Tab 用 `listening-mini-player` 共享状态，不因换页停止听力。
 - `miniprogram/pages/index/`：课程 Tab，展示 7 章外贸场景小节，默认第一章展开，并在课程树上方提供纯前端场景搜索。
 - `miniprogram/pages/course/`：课程详情，提供通听、精练、跟读三阶段，以及课程词典查词、英美发音和 AI 讲解。
 - `miniprogram/pages/learning/`：“我的”Tab，用一个紧凑学习概览展示累计练习时长、连续天数和完成小节数，并承载会员、练习帮助与反馈入口；不展示占屏较大的四周日历，未登录时保留访客状态，不自动跳页。
@@ -14,7 +16,7 @@
 - `miniprogram/pages/unlock/`：小程序专用邀请码解锁页；进入前要求用户填写头像/昵称完成登录，页面内展示微信二维码、会员权益和邀请码兑换控件。
 - `miniprogram/utils/api.ts`：外贸小程序 API 客户端，统一使用 `/api/waimao-mini/*`。
 - `miniprogram/store/`：轻量全局状态，保存登录用户、进度、app config 和 full access entitlement。
-- `miniprogram/config/feature-flags.ts`：服务端配置不可用时的安全回退；正常运行以服务端 `$DATA_ROOT/waimao-mini/app-config.json` 的 `interactiveFeaturesEnabled` 为真源。当前关闭会员解锁与音频播放能力，但仍展示全部章节并允许读取课程正文。
+- `miniprogram/config/feature-flags.ts`：服务端配置不可用时的安全回退；`interactiveFeaturesEnabled` 控制交互/音频，独立的 `allCoursesFree` 控制全课程免费，配置来自 `$DATA_ROOT/waimao-mini/app-config.json`。收费模式与运维位置见 [课程访问配置](COURSE_ACCESS.md)。
 - `tests/`：可在 Node 环境运行的小程序纯逻辑测试。
 - `docs/`：协作、架构、质量和变更历史。
 
@@ -27,6 +29,7 @@
 - 数据目录：`server/data/waimao-mini`
 - 静态音频：`server/static/waimao-mini/audio`
 - 客户端观测入口：`POST /api/waimao-mini/metrics`；只接收音源回退、音频加载超时和 API 错误三类低基数事件，结构化写入服务端日志。
+- 听力：公开目录与签名队列在 `/api/waimao-mini/listening/*`；管理员维护与上传在 `/api/waimao/admin/listening/*`。目录和私有音频保存在 `$DATA_ROOT/waimao-mini/listening`，不复用公开静态目录；当前单进程目录写锁和版本号防并发覆盖，多 worker 前需换共享锁/数据库。
 - 学习记录：`POST /api/waimao-mini/users/me/study-time` 同时接收本次学习秒数和精练次数；`GET /api/waimao-mini/users/me/study-records` 按日聚合并返回摘要。`waimao_mini_study_sessions.practice_count` 通过启动迁移兼容既有数据库。
 - 课程词典：构建时从固定版本 ECDICT 中抽取当前 50 个场景实际出现的普通单词，叠加项目外贸术语覆盖，生成约 480 KB 的 `resources/waimao-mini/dictionary.json`；邮箱、网址和产品型号不进入词典，任何真实课程词缺失都会让生成失败；`GET /api/waimao-mini/dictionary/:word` 匿名、限流并返回中文释义、英美音标及英美发音地址。
 - 数据生成脚本：`npm run waimao-mini:generate`
@@ -40,8 +43,8 @@
 2. 小节详情调用 `/api/waimao-mini/courses/:id` 获取场景字幕、整章音频源、小节播放范围和知识点；新版接口通过 `audioSources` 返回七牛私有签名地址和服务器签名备用源，旧 `audio` 字段保持服务器地址以兼容旧版客户端。
 3. Shadow 模式优先使用七牛整章音频，加载失败时按 `provider` 回退服务器源；前端继续用小节 `range.start/end` 和短句 cue `start/end` 限制播放范围。
 4. 完成小节后调用 `/api/waimao-mini/users/me/progress`，前端上报 `sceneId`、`cueIndex` 和 `totalCues`，后端按小节保存 cue 进度并汇总章节进度。
-5. 发布级总开关开启时，点击首页解锁提示或锁定小节会先强制微信登录，再进入解锁页；关闭时，服务器不执行会员拦截，全部章节可读，客户端隐藏会员入口、锁定态和音频练习控件。
-6. 总开关开启后，邀请码解锁调用 `/api/waimao-mini/invite/redeem`，写入小程序专用 entitlement；会员权益为全部章节 1 年访问权。
+5. `interactiveFeaturesEnabled=true` 且 `allCoursesFree=false` 时按会员资格锁定非试学章节；`allCoursesFree=true` 时访客也能读取全部课程、正常播放音频，隐藏会员入口且不修改会员权益。交互总开关关闭时仍保持原有全章节只读模式。
+6. `interactiveFeaturesEnabled=true` 且 `allCoursesFree=false` 时，邀请码解锁调用 `/api/waimao-mini/invite/redeem`，写入小程序专用 entitlement；会员权益为全部章节 1 年访问权。全免费期间兑换返回 409，不消耗邀请码或修改权益。
 7. API 5xx/网络失败、CDN 音频加载超时和实际切源先在客户端采样聚合，再直连 `/api/waimao-mini/metrics` 批量上报；该请求不经过通用请求封装，失败静默丢弃，避免递归和弱网流量放大。
 8. 首页场景搜索只过滤已经加载的章节树，不产生额外请求；查词结果与难句正文写入本地 `waimao_review_library_v1`，不上传录音或复习正文。
 9. 学习主页调用 `/api/waimao-mini/users/me/study-records?days=28` 刷新累计摘要；接口仍保留按日数据供后续使用，但当前页面不展示日历。累计资料数量从本地复习库读取，因此第一期不承诺跨设备同步。

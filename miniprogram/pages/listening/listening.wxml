@@ -1,0 +1,145 @@
+<view class="app-page">
+  <navigation-bar title="磨耳朵" back="{{false}}" color="black" background="#F5F7FB"></navigation-bar>
+  <view class="listening-page">
+    <scroll-view class="listening-scroll" scroll-y>
+      <view class="listening-content">
+        <view wx:if="{{!selectedAlbum}}" class="listening-intro">
+          <view class="listening-intro__top">
+            <view>
+              <text class="listening-eyebrow">LISTEN & LEARN</text>
+              <text class="listening-intro__title">让英语在耳边多待一会儿</text>
+            </view>
+            <view class="listening-intro__icon" aria-hidden="true"><view class="headphones"></view></view>
+          </view>
+          <text class="listening-intro__description">选一张专辑，连续听。通勤、散步或日常学习时，慢慢熟悉外贸英语。</text>
+          <text wx:if="{{listenedLabel}}" class="listening-intro__stat">{{listenedLabel}}</text>
+        </view>
+
+        <view wx:if="{{!audioPlaybackEnabled}}" class="listening-notice" role="status">
+          <text class="listening-notice__title">音频播放暂未开放</text>
+          <text class="listening-notice__description">可以先浏览专辑和音频目录，开放后即可连续收听。</text>
+        </view>
+
+        <button wx:if="{{!selectedAlbum && player.albumId && audioPlaybackEnabled}}" class="listening-action continue-listening" bindtap="handleContinueListening" aria-label="继续上次收听">
+          <view class="continue-listening__icon"><view class="play-icon"></view></view>
+          <view class="continue-listening__copy">
+            <text class="continue-listening__label">{{player.playing ? '回到正在收听' : '继续上次收听'}}</text>
+            <text class="continue-listening__title">{{player.trackTitle || player.albumTitle}}</text>
+            <text class="continue-listening__meta">{{player.albumTitle}} · {{positionLabel}}</text>
+          </view>
+          <view class="chevron" aria-hidden="true"></view>
+        </button>
+
+        <view wx:if="{{loading && !albums.length}}" class="listening-state" role="status">
+          <view class="loading-spinner"></view>
+          <text class="listening-state__title">正在准备听力内容</text>
+          <text class="listening-state__description">很快就可以开始收听</text>
+        </view>
+        <view wx:elif="{{error && !albums.length}}" class="listening-state">
+          <text class="listening-state__title">暂时没有加载成功</text>
+          <text class="listening-state__description">{{error}}</text>
+          <button class="listening-action listening-button listening-button--secondary" bindtap="handleRetry">重新加载</button>
+        </view>
+        <view wx:elif="{{!loading && !albums.length}}" class="listening-state">
+          <view class="listening-state__icon"><view class="headphones"></view></view>
+          <text class="listening-state__title">新专辑正在准备中</text>
+          <text class="listening-state__description">之后可以在这里连续收听课程和外贸音频。</text>
+        </view>
+
+        <view wx:if="{{albums.length && !selectedAlbum}}">
+          <view class="listening-section-title">
+            <text>听力专辑</text>
+            <text class="listening-section-title__count">{{albums.length}} 张专辑</text>
+          </view>
+          <scroll-view wx:if="{{categories.length > 1}}" class="category-scroll" scroll-x>
+            <view class="category-list">
+              <button class="listening-action category-pill {{!category ? 'category-pill--active' : ''}}" data-category="" bindtap="handleCategory">全部</button>
+              <button wx:for="{{categories}}" wx:key="*this" class="listening-action category-pill {{category === item ? 'category-pill--active' : ''}}" data-category="{{item}}" bindtap="handleCategory">{{item}}</button>
+            </view>
+          </scroll-view>
+          <button wx:for="{{visibleAlbums}}" wx:key="id" class="listening-action album-card" data-id="{{item.id}}" bindtap="handleOpenAlbum" aria-label="打开专辑 {{item.title}}">
+            <view class="album-cover">
+              <image wx:if="{{item.coverUrl}}" class="album-cover__image" src="{{item.coverUrl}}" mode="aspectFill" />
+              <view wx:else class="album-cover__fallback"><view class="headphones"></view></view>
+            </view>
+            <view class="album-card__copy">
+              <text wx:if="{{item.category}}" class="album-card__category">{{item.category}}</text>
+              <text class="album-card__title">{{item.title}}</text>
+              <text class="album-card__description">{{item.description}}</text>
+              <text class="album-card__meta">{{item.trackCount}} 条音频 · {{item.durationLabel}}</text>
+              <text wx:if="{{item.availableCount < item.trackCount && audioPlaybackEnabled}}" class="album-card__access">{{item.availableCount ? item.availableCount + ' 条可收听，其他需解锁' : '解锁后收听'}}</text>
+            </view>
+            <view class="chevron" aria-hidden="true"></view>
+          </button>
+        </view>
+
+        <view wx:if="{{selectedAlbum}}" class="album-detail">
+          <button class="listening-action album-back" bindtap="handleBackToAlbums"><view class="chevron chevron--back" aria-hidden="true"></view><text>全部专辑</text></button>
+          <view class="album-detail__intro">
+            <view class="album-cover album-cover--detail">
+              <image wx:if="{{selectedAlbum.coverUrl}}" class="album-cover__image" src="{{selectedAlbum.coverUrl}}" mode="aspectFill" />
+              <view wx:else class="album-cover__fallback"><view class="headphones"></view></view>
+            </view>
+            <view class="album-detail__copy">
+              <text class="album-card__category">{{selectedAlbum.category || '听力专辑'}}</text>
+              <text class="album-detail__title">{{selectedAlbum.title}}</text>
+              <text class="album-card__meta">{{selectedAlbum.trackCount}} 条音频 · {{selectedAlbum.durationLabel}}</text>
+            </view>
+          </view>
+          <text class="album-detail__description">{{selectedAlbum.description}}</text>
+          <button class="listening-action listening-button {{!audioPlaybackEnabled || !selectedAlbum.trackCount ? 'listening-button--disabled' : ''}}" bindtap="handlePlayAlbum" disabled="{{!audioPlaybackEnabled || !selectedAlbum.trackCount}}" loading="{{player.loading && player.albumId === selectedAlbum.id}}">
+            <view class="play-icon" aria-hidden="true"></view><text>{{selectedAlbum.availableCount < selectedAlbum.trackCount ? '播放可听内容' : '播放全部'}}</text>
+          </button>
+          <text wx:if="{{selectedAlbum.availableCount < selectedAlbum.trackCount && audioPlaybackEnabled}}" class="album-detail__access">未解锁的音频不会加入播放列表</text>
+          <view class="track-list">
+            <view wx:for="{{selectedAlbum.trackItems}}" wx:key="id" class="track-row {{player.albumId === selectedAlbum.id && player.trackId === item.id ? 'track-row--active' : ''}} {{item.locked ? 'track-row--locked' : ''}}">
+              <button class="listening-action track-row__main" data-id="{{item.id}}" bindtap="handlePlayTrack" disabled="{{!audioPlaybackEnabled}}" aria-label="{{item.locked ? '解锁后收听' : (player.albumId === selectedAlbum.id && player.trackId === item.id && player.playing ? '暂停' : '播放')}} {{item.title}}">
+                <view class="track-row__number">
+                  <view wx:if="{{player.albumId === selectedAlbum.id && player.trackId === item.id && player.playing}}" class="sound-bars"><view class="sound-bars__bar"></view><view class="sound-bars__bar sound-bars__bar--middle"></view><view class="sound-bars__bar sound-bars__bar--last"></view></view>
+                  <text wx:else>{{item.numberLabel}}</text>
+                </view>
+                <view class="track-row__copy">
+                  <text class="track-row__title">{{item.title}}</text>
+                  <text class="track-row__meta">{{item.durationLabel}}{{audioPlaybackEnabled ? (item.locked ? ' · 会员音频' : (item.free ? ' · 免费收听' : ' · 已解锁')) : ''}}</text>
+                </view>
+                <view wx:if="{{item.locked && audioPlaybackEnabled}}" class="lock-icon" aria-hidden="true"></view>
+                <view wx:elif="{{audioPlaybackEnabled}}" class="track-row__play"><view class="{{player.albumId === selectedAlbum.id && player.trackId === item.id && player.playing ? 'pause-icon' : 'play-icon'}}" aria-hidden="true"></view></view>
+              </button>
+              <button wx:if="{{item.transcript && !item.locked}}" class="listening-action transcript-button" data-id="{{item.id}}" bindtap="handleTranscript">原文</button>
+            </view>
+          </view>
+          <view wx:if="{{transcriptText}}" class="transcript-panel">
+            <view class="transcript-panel__header"><text>{{transcriptTitle}}</text><button class="listening-action text-button" bindtap="handleCloseTranscript">收起</button></view>
+            <scroll-view class="transcript-panel__scroll" scroll-y><text class="transcript-panel__text" selectable>{{transcriptText}}</text></scroll-view>
+          </view>
+        </view>
+        <view wx:if="{{error && albums.length}}" class="listening-inline-error"><text>内容更新失败，当前显示上次加载的目录</text><button class="listening-action text-button" bindtap="handleRetry">重试</button></view>
+        <text wx:if="{{albums.length}}" class="listening-footnote">收听时长单独记录，不计入课程练习完成进度。</text>
+      </view>
+    </scroll-view>
+
+    <view wx:if="{{player.active && player.albumId}}" class="listening-player">
+      <view class="listening-player__header">
+        <view class="listening-player__copy"><text class="listening-player__album">{{player.albumTitle}}</text><text class="listening-player__title">{{player.trackTitle}}</text></view>
+        <button class="listening-action player-close" bindtap="handleStopPlayback" aria-label="结束收听"><image class="player-close__icon" src="/assets/icons/x.svg" mode="aspectFit" /></button>
+      </view>
+      <view class="player-progress">
+        <slider class="player-progress__slider" value="{{progressValue}}" max="{{player.duration > 0 ? player.duration : 1}}" min="0" step="1" activeColor="#1e40af" backgroundColor="#e2e8f0" block-color="#1e40af" block-size="14" disabled="{{!audioPlaybackEnabled || player.loading || !player.duration}}" bindchanging="handleSeekChanging" bindchange="handleSeek" />
+        <view class="player-progress__time"><text>{{positionLabel}}</text><text class="player-progress__status">{{playerStatus}}</text><text>{{durationLabel}}</text></view>
+      </view>
+      <view class="player-controls">
+        <button class="listening-action player-skip" bindtap="handlePrevious" disabled="{{!audioPlaybackEnabled || player.loading}}" aria-label="上一条"><view class="skip-icon skip-icon--previous"><view class="skip-icon__bar"></view><view class="play-icon"></view></view></button>
+        <button class="listening-action player-toggle {{!audioPlaybackEnabled || player.loading ? 'player-toggle--disabled' : ''}}" bindtap="handleTogglePlayback" disabled="{{!audioPlaybackEnabled || player.loading}}" aria-label="{{player.playing ? '暂停播放' : '继续播放'}}"><view wx:if="{{player.loading}}" class="loading-spinner"></view><view wx:else class="{{player.playing ? 'pause-icon' : 'play-icon'}}"></view></button>
+        <button class="listening-action player-skip" bindtap="handleNext" disabled="{{!audioPlaybackEnabled || player.loading}}" aria-label="下一条"><view class="skip-icon"><view class="play-icon"></view><view class="skip-icon__bar"></view></view></button>
+      </view>
+      <view class="player-options">
+        <button class="listening-action player-option" bindtap="handleRepeatMode" aria-label="切换播放模式，当前{{modeLabel}}"><image class="player-option__icon" src="/assets/icons/repeat-2-active.svg" mode="aspectFit" /><text>{{modeLabel}}</text></button>
+        <button class="listening-action player-option {{player.sleepEndsAt ? 'player-option--active' : ''}}" bindtap="handleSleepTimer"><view class="clock-icon" aria-hidden="true"></view><text>{{timerLabel}}</text></button>
+        <button class="listening-action player-option {{queueVisible ? 'player-option--active' : ''}}" bindtap="handleToggleQueue"><view class="queue-icon" aria-hidden="true"><view class="queue-icon__line"></view><view class="queue-icon__line"></view><view class="queue-icon__line"></view></view><text>列表 {{queueItems.length}}</text></button>
+      </view>
+      <scroll-view wx:if="{{queueVisible}}" class="player-queue" scroll-y>
+        <button wx:for="{{queueItems}}" wx:key="id" class="listening-action player-queue__row {{player.trackId === item.id ? 'player-queue__row--active' : ''}}" data-id="{{item.id}}" bindtap="handleQueueTrack" disabled="{{!audioPlaybackEnabled}}"><text class="player-queue__number">{{item.numberLabel}}</text><text class="player-queue__title">{{item.title}}</text><text class="player-queue__duration">{{item.durationLabel}}</text></button>
+      </scroll-view>
+    </view>
+  </view>
+</view>

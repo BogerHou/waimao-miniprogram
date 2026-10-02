@@ -1,9 +1,10 @@
 import { fetchLearningRecords } from '../../utils/api'
 import { formatStudyDuration } from '../../utils/learning-records'
-import { getState as getStoreState } from '../../store/index'
+import { getState as getStoreState, subscribe } from '../../store/index'
 import {
   FEATURE_FLAGS,
   resolveInteractiveFeaturesEnabled,
+  resolveMembershipUnlockEnabled,
 } from '../../config/feature-flags'
 
 type LearningPageData = {
@@ -23,12 +24,24 @@ type LearningPageData = {
 }
 
 Page<LearningPageData, WechatMiniprogram.IAnyObject>({
+  storeUnsubscribe: undefined as (() => void) | undefined,
   data: {
     isAuthenticated: false, nickname: '', avatarUrl: '', avatarInitial: 'L',
     fullAccess: false, membershipLabel: '登录后查看会员权益', streakCount: 0, totalCompleted: 0,
     studyDurationLabel: '0 分钟', loading: false, error: '',
     membershipUnlockEnabled: FEATURE_FLAGS.membershipUnlock,
     audioPlaybackEnabled: FEATURE_FLAGS.audioPlayback,
+  },
+  onLoad() {
+    this.storeUnsubscribe = subscribe(state => {
+      this.setData({
+        membershipUnlockEnabled: resolveMembershipUnlockEnabled(state.appConfig),
+        audioPlaybackEnabled: resolveInteractiveFeaturesEnabled(state.appConfig),
+      })
+    })
+  },
+  onUnload() {
+    this.storeUnsubscribe?.()
   },
   onShow() {
     const state = getStoreState()
@@ -46,7 +59,7 @@ Page<LearningPageData, WechatMiniprogram.IAnyObject>({
         studyDurationLabel: '0 分钟',
         loading: false,
         error: '',
-        membershipUnlockEnabled: interactiveFeaturesEnabled,
+        membershipUnlockEnabled: resolveMembershipUnlockEnabled(state.appConfig),
         audioPlaybackEnabled: interactiveFeaturesEnabled,
       })
       return
@@ -62,7 +75,7 @@ Page<LearningPageData, WechatMiniprogram.IAnyObject>({
       streakCount: state.progress?.streakCount ?? state.user.streakCount ?? 0,
       totalCompleted: state.progress?.totalCompleted ?? state.user.totalCompleted ?? 0,
       studyDurationLabel: formatStudyDuration(state.user.studySeconds ?? 0),
-      membershipUnlockEnabled: interactiveFeaturesEnabled,
+      membershipUnlockEnabled: resolveMembershipUnlockEnabled(state.appConfig),
       audioPlaybackEnabled: interactiveFeaturesEnabled,
     })
     void this.loadRecords()

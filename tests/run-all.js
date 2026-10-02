@@ -6,11 +6,13 @@ require("./app-config-store.test");
 const app_config_sync_test_1 = require("./app-config-sync.test");
 require("./auth-session.test");
 require("./audio-source-fallback.test");
+require("./audio-focus-integration.test");
 require("./course-mode-config.test");
 require("./course-share-card.test");
 require("./course-completion-poster.test");
 require("./env-config.test");
 require("./feature-flags.test");
+const free_course_pages_test_1 = require("./free-course-pages.test");
 require("./knowledge-dialogue-format.test");
 require("./knowledge-format.test");
 const network_resilience_test_1 = require("./network-resilience.test");
@@ -27,9 +29,11 @@ require("./review-library.test");
 require("./review-storage-guard.test");
 require("./scene-search.test");
 require("./learning-records.test");
+const listening_page_test_1 = require("./listening-page.test");
+const listening_player_test_1 = require("./listening-player.test");
 require("./tab-navigation.test");
 require("./word-lookup.test");
-Promise.all([app_config_sync_test_1.appConfigSyncTestDone, network_resilience_test_1.networkResilienceTestDone])
+Promise.all([app_config_sync_test_1.appConfigSyncTestDone, network_resilience_test_1.networkResilienceTestDone, free_course_pages_test_1.freeCoursePagesTestDone, listening_page_test_1.listeningPageTestDone, listening_player_test_1.listeningPlayerTestDone])
     .then(() => {
     console.log("all miniprogram tests passed.");
 })

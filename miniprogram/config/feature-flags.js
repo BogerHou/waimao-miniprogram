@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FEATURE_FLAGS = exports.INTERACTIVE_FEATURES_ENABLED = void 0;
 exports.resolveInteractiveFeaturesEnabled = resolveInteractiveFeaturesEnabled;
+exports.resolveMembershipUnlockEnabled = resolveMembershipUnlockEnabled;
 /**
  * 服务端配置读取失败时的安全回退值。
  *
@@ -17,4 +18,8 @@ function resolveInteractiveFeaturesEnabled(appConfig) {
     return typeof appConfig?.interactiveFeaturesEnabled === 'boolean'
         ? appConfig.interactiveFeaturesEnabled
         : exports.INTERACTIVE_FEATURES_ENABLED;
+}
+// Free access changes the paywall only; audio still follows the interactive flag.
+function resolveMembershipUnlockEnabled(appConfig) {
+    return resolveInteractiveFeaturesEnabled(appConfig) && appConfig?.allCoursesFree !== true;
 }

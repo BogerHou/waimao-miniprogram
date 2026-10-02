@@ -28,7 +28,7 @@ Page({
         catch (_error) {
             // App config keeps its safe local fallback when refresh fails.
         }
-        if (!(0, feature_flags_1.resolveInteractiveFeaturesEnabled)((0, index_1.getState)().appConfig)) {
+        if (!(0, feature_flags_1.resolveMembershipUnlockEnabled)((0, index_1.getState)().appConfig)) {
             wx.switchTab({ url: '/pages/index/index' });
             return;
         }
@@ -53,6 +53,10 @@ Page({
         });
     },
     handleStoreUpdate(state) {
+        if (!(0, feature_flags_1.resolveMembershipUnlockEnabled)(state.appConfig)) {
+            wx.switchTab({ url: '/pages/index/index' });
+            return;
+        }
         const ad = pickUnlockAd(state.appConfig.home.ads ?? [], state.appConfig.home.activeAdId || index_1.DEFAULT_HOME_AD.id);
         this.setData({
             isAuthenticated: Boolean(state.token && state.user),
@@ -101,6 +105,10 @@ Page({
         }, 700);
     },
     async handleRedeem() {
+        if (!(0, feature_flags_1.resolveMembershipUnlockEnabled)((0, index_1.getState)().appConfig)) {
+            wx.switchTab({ url: '/pages/index/index' });
+            return;
+        }
         if (this.data.submitting || this.data.authLoading || this.data.fullAccess)
             return;
         const code = this.data.code.trim();

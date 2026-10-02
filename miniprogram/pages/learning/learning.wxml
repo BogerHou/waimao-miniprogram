@@ -66,4 +66,5 @@
       </view>
     </view>
   </scroll-view>
+  <listening-mini-player></listening-mini-player>
 </view>

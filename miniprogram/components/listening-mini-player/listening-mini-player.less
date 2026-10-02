@@ -1,0 +1,23 @@
+@import "../../styles/theme.less";
+
+:host { flex-shrink: 0; }
+.mini-player { display: flex; align-items: center; gap: 10rpx; margin: 0 20rpx 12rpx; padding: 12rpx 12rpx 12rpx 18rpx; border: 1rpx solid @tint-card-border; border-radius: 18rpx; background: @surface; box-shadow: 0 -4rpx 20rpx fade(@shadow-neutral, 5%); }
+.mini-player-action { margin: 0; padding: 0; border-radius: 0; background: transparent; color: inherit; font: inherit; line-height: inherit; text-align: left; }
+.mini-player-action::after { border: 0; }
+.mini-player__content { display: flex; align-items: center; gap: 16rpx; flex: 1; min-width: 0; }
+.mini-player__mark { width: 46rpx; height: 46rpx; flex-shrink: 0; display: flex; align-items: center; justify-content: center; gap: 4rpx; border-radius: 13rpx; color: @primary; background: @primary-soft; }
+.mini-player__bar { width: 4rpx; height: 12rpx; border-radius: 2rpx; background: currentColor; }
+.mini-player__bar--middle { height: 22rpx; }
+.mini-player__bar--last { height: 17rpx; }
+.mini-player__copy { flex: 1; min-width: 0; }
+.mini-player__title { display: block; overflow: hidden; color: @text; font-size: 25rpx; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.mini-player__status { display: block; margin-top: 5rpx; overflow: hidden; color: @muted; font-size: 20rpx; text-overflow: ellipsis; white-space: nowrap; }
+.mini-player__toggle, .mini-player__close { display: flex; align-items: center; justify-content: center; width: 60rpx; height: 60rpx; flex-shrink: 0; border-radius: 50%; }
+.mini-player__toggle { color: @primary; background: @primary-soft; }
+.mini-player__toggle--disabled { color: @faint; background: @page-bg-deep; }
+.mini-player__play { width: 0; height: 0; margin-left: 4rpx; border-top: 10rpx solid transparent; border-bottom: 10rpx solid transparent; border-left: 15rpx solid currentColor; }
+.mini-player__pause { width: 17rpx; height: 21rpx; border-left: 6rpx solid currentColor; border-right: 6rpx solid currentColor; box-sizing: border-box; }
+.mini-player__close { width: 48rpx; }
+.mini-player__close-icon { width: 25rpx; height: 25rpx; opacity: .6; }
+.mini-player__spinner { width: 20rpx; height: 20rpx; border: 3rpx solid fade(@primary, 20%); border-top-color: @primary; border-radius: 50%; animation: listening-mini-spin .8s linear infinite; }
+@keyframes listening-mini-spin { to { transform: rotate(360deg); } }

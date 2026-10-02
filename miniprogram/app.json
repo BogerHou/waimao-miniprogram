@@ -1,6 +1,7 @@
 {
   "pages": [
     "pages/index/index",
+    "pages/listening/listening",
     "pages/learning/learning",
     "pages/review/review",
     "pages/website-intro/website-intro",
@@ -26,6 +27,12 @@
         "text": "课程",
         "iconPath": "assets/tabs/courses.png",
         "selectedIconPath": "assets/tabs/courses-selected.png"
+      },
+      {
+        "pagePath": "pages/listening/listening",
+        "text": "磨耳朵",
+        "iconPath": "assets/tabs/listening.png",
+        "selectedIconPath": "assets/tabs/listening-selected.png"
       },
       {
         "pagePath": "pages/review/review",

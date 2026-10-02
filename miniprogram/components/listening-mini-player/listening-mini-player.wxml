@@ -1,0 +1,8 @@
+<view wx:if="{{visible}}" class="mini-player">
+  <button class="mini-player-action mini-player__content" bindtap="openListening" aria-label="打开磨耳朵播放器">
+    <view class="mini-player__mark" aria-hidden="true"><view class="mini-player__bar"></view><view class="mini-player__bar mini-player__bar--middle"></view><view class="mini-player__bar mini-player__bar--last"></view></view>
+    <view class="mini-player__copy"><text class="mini-player__title">{{title}}</text><text class="mini-player__status">{{status}} · {{albumTitle}}</text></view>
+  </button>
+  <button class="mini-player-action mini-player__toggle {{loading ? 'mini-player__toggle--disabled' : ''}}" bindtap="togglePlayback" disabled="{{loading}}" aria-label="{{playing ? '暂停收听' : '继续收听'}}"><view wx:if="{{loading}}" class="mini-player__spinner"></view><view wx:else class="{{playing ? 'mini-player__pause' : 'mini-player__play'}}" aria-hidden="true"></view></button>
+  <button class="mini-player-action mini-player__close" bindtap="closePlayer" aria-label="结束收听"><image class="mini-player__close-icon" src="/assets/icons/x.svg" mode="aspectFit" /></button>
+</view>

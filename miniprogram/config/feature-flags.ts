@@ -18,3 +18,10 @@ export function resolveInteractiveFeaturesEnabled(
     ? appConfig.interactiveFeaturesEnabled
     : INTERACTIVE_FEATURES_ENABLED
 }
+
+// Free access changes the paywall only; audio still follows the interactive flag.
+export function resolveMembershipUnlockEnabled(
+  appConfig?: { interactiveFeaturesEnabled?: boolean; allCoursesFree?: boolean },
+) {
+  return resolveInteractiveFeaturesEnabled(appConfig) && appConfig?.allCoursesFree !== true
+}

@@ -35,6 +35,8 @@ import {
 } from './pages/course/shadow-background-handoff'
 import { resolveInteractiveFeaturesEnabled } from './config/feature-flags'
 import { createWxReviewStorageGuard } from './utils/review-storage-guard'
+import { getAudioFocusOwner } from './utils/audio-focus'
+import { persistListeningPlayback, reconcileListeningForeground } from './utils/listening-player'
 
 type Unsubscribe = () => void
 
@@ -125,11 +127,13 @@ App<IAppOption>({
   },
   onShow() {
     void this.refreshAppConfig()
-    if (resolveInteractiveFeaturesEnabled(getStoreState().appConfig)) {
+    reconcileListeningForeground()
+    if (getAudioFocusOwner() !== 'listening' && resolveInteractiveFeaturesEnabled(getStoreState().appConfig)) {
       this.restoreBackgroundAudioRoute?.()
     }
   },
   onHide() {
+    persistListeningPlayback()
     flushMetrics()
   },
   async ensureAuth(profileOverride?: LoginProfilePayload) {
@@ -217,6 +221,13 @@ App<IAppOption>({
     })
 
     setTimeout(() => {
+      if (getAudioFocusOwner() === 'listening' || !resolveInteractiveFeaturesEnabled(getStoreState().appConfig)) return
+      if (!shouldRestoreBackgroundAudioRoute({
+        resumeState,
+        currentRoute: getCurrentPages().slice(-1)[0]?.route,
+        currentCourseId: (getCurrentPages().slice(-1)[0] as { options?: { id?: string } } | undefined)?.options?.id ?? null,
+        managerSrc: String(wx.getBackgroundAudioManager?.().src || ''),
+      })) return
       const latestPages = getCurrentPages()
       const latestPage = latestPages[latestPages.length - 1] as
         | { route?: string; options?: { id?: string } }
@@ -231,6 +242,7 @@ App<IAppOption>({
       wx.navigateTo({
         url,
         fail(error) {
+          if (getAudioFocusOwner() === 'listening' || !resolveInteractiveFeaturesEnabled(getStoreState().appConfig)) return
           console.warn('[App] Background audio navigateTo failed, trying redirectTo', error)
           wx.redirectTo({ url })
         },

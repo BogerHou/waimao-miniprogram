@@ -11,4 +11,13 @@ strict_1.default.equal(feature_flags_1.FEATURE_FLAGS.audioPlayback, feature_flag
 strict_1.default.equal((0, feature_flags_1.resolveInteractiveFeaturesEnabled)({ interactiveFeaturesEnabled: true }), true);
 strict_1.default.equal((0, feature_flags_1.resolveInteractiveFeaturesEnabled)({ interactiveFeaturesEnabled: false }), false);
 strict_1.default.equal((0, feature_flags_1.resolveInteractiveFeaturesEnabled)({}), feature_flags_1.INTERACTIVE_FEATURES_ENABLED);
+for (const interactiveFeaturesEnabled of [false, true]) {
+    for (const allCoursesFree of [false, true]) {
+        const config = { interactiveFeaturesEnabled, allCoursesFree };
+        strict_1.default.equal((0, feature_flags_1.resolveInteractiveFeaturesEnabled)(config), interactiveFeaturesEnabled);
+        strict_1.default.equal((0, feature_flags_1.resolveMembershipUnlockEnabled)(config), interactiveFeaturesEnabled && !allCoursesFree);
+    }
+}
+strict_1.default.equal((0, feature_flags_1.resolveMembershipUnlockEnabled)({ interactiveFeaturesEnabled: true }), true);
+strict_1.default.equal((0, feature_flags_1.resolveMembershipUnlockEnabled)({}), feature_flags_1.INTERACTIVE_FEATURES_ENABLED);
 console.log('feature flags tests passed.');

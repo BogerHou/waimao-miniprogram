@@ -79,4 +79,5 @@
       </view>
     </scroll-view>
   </view>
+  <listening-mini-player></listening-mini-player>
 </view>

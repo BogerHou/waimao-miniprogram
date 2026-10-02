@@ -20,6 +20,7 @@ import {
   resolveInteractiveFeaturesEnabled,
 } from '../../config/feature-flags'
 import { getState as getStoreState } from '../../store/index'
+import { claimAudioFocus, releaseAudioFocus, subscribeAudioFocus } from '../../utils/audio-focus'
 
 type ReviewTab = 'words' | 'cues'
 export type WordAudioStatus = 'idle' | 'loading' | 'playing' | 'paused'
@@ -66,6 +67,7 @@ type ReviewPageData = {
 
 Page<ReviewPageData, WechatMiniprogram.IAnyObject>({
   wordAudioContext: null as WechatMiniprogram.InnerAudioContext | null,
+  audioFocusUnsubscribe: undefined as (() => void) | undefined,
   data: {
     tab: 'words',
     words: [],
@@ -77,6 +79,11 @@ Page<ReviewPageData, WechatMiniprogram.IAnyObject>({
     wordAudioStatus: 'idle',
     audioPlaybackEnabled: FEATURE_FLAGS.audioPlayback,
   },
+  onLoad() {
+    this.audioFocusUnsubscribe = subscribeAudioFocus((next, previous) => {
+      if (previous === 'review' && next !== 'review') this.resetWordAudio()
+    })
+  },
   onShow() {
     this.setData({
       audioPlaybackEnabled: resolveInteractiveFeaturesEnabled(getStoreState().appConfig),
@@ -86,8 +93,11 @@ Page<ReviewPageData, WechatMiniprogram.IAnyObject>({
   },
   onHide() {
     this.resetWordAudio()
+    releaseAudioFocus('review')
   },
   onUnload() {
+    this.audioFocusUnsubscribe?.()
+    releaseAudioFocus('review')
     this.wordAudioContext?.destroy()
     this.wordAudioContext = null
   },
@@ -165,6 +175,7 @@ Page<ReviewPageData, WechatMiniprogram.IAnyObject>({
         return
       }
       this.setData({ wordAudioStatus: 'loading' })
+      claimAudioFocus('review')
       this.wordAudioContext.play()
       return
     }
@@ -174,6 +185,7 @@ Page<ReviewPageData, WechatMiniprogram.IAnyObject>({
     }
 
     const context = this.ensureWordAudioContext()
+    claimAudioFocus('review')
     context.stop()
     this.setData({ activeWordAudioId: audioId, wordAudioStatus: 'loading' })
     context.src = audioUrl

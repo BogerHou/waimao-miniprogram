@@ -23,7 +23,7 @@
           <text class="hero__greeting">{{userNickname}}</text>
           <view class="hero__membership">
             <view class="hero__membership-dot"></view>
-            <text>{{membershipUnlockEnabled ? (fullAccess ? '全部课程已解锁' : '第一章免费试学') : '学习进度已同步'}}</text>
+            <text>{{allCoursesFree ? '全部课程免费开放' : (membershipUnlockEnabled ? (fullAccess ? '全部课程已解锁' : '第一章免费试学') : '学习进度已同步')}}</text>
           </view>
         </view>
         <text class="hero__profile-arrow">›</text>
@@ -31,7 +31,7 @@
 
       <view wx:else class="hero__login">
         <view class="hero__login-copy">
-          <text class="hero__login-title">{{membershipUnlockEnabled ? '第一章免费试学' : '外贸场景课程'}}</text>
+          <text class="hero__login-title">{{allCoursesFree ? '全部课程免费开放' : (membershipUnlockEnabled ? '第一章免费试学' : '外贸场景课程')}}</text>
           <text class="hero__login-tip">登录后保存学习进度</text>
         </view>
         <button
@@ -232,4 +232,5 @@
   class="share-poster-canvas"
   style="width: 600px; height: 840px;"
 ></canvas>
+<listening-mini-player></listening-mini-player>
 </view>

@@ -5,12 +5,24 @@ const learning_records_1 = require("../../utils/learning-records");
 const index_1 = require("../../store/index");
 const feature_flags_1 = require("../../config/feature-flags");
 Page({
+    storeUnsubscribe: undefined,
     data: {
         isAuthenticated: false, nickname: '', avatarUrl: '', avatarInitial: 'L',
         fullAccess: false, membershipLabel: '登录后查看会员权益', streakCount: 0, totalCompleted: 0,
         studyDurationLabel: '0 分钟', loading: false, error: '',
         membershipUnlockEnabled: feature_flags_1.FEATURE_FLAGS.membershipUnlock,
         audioPlaybackEnabled: feature_flags_1.FEATURE_FLAGS.audioPlayback,
+    },
+    onLoad() {
+        this.storeUnsubscribe = (0, index_1.subscribe)(state => {
+            this.setData({
+                membershipUnlockEnabled: (0, feature_flags_1.resolveMembershipUnlockEnabled)(state.appConfig),
+                audioPlaybackEnabled: (0, feature_flags_1.resolveInteractiveFeaturesEnabled)(state.appConfig),
+            });
+        });
+    },
+    onUnload() {
+        this.storeUnsubscribe?.();
     },
     onShow() {
         const state = (0, index_1.getState)();
@@ -28,7 +40,7 @@ Page({
                 studyDurationLabel: '0 分钟',
                 loading: false,
                 error: '',
-                membershipUnlockEnabled: interactiveFeaturesEnabled,
+                membershipUnlockEnabled: (0, feature_flags_1.resolveMembershipUnlockEnabled)(state.appConfig),
                 audioPlaybackEnabled: interactiveFeaturesEnabled,
             });
             return;
@@ -44,7 +56,7 @@ Page({
             streakCount: state.progress?.streakCount ?? state.user.streakCount ?? 0,
             totalCompleted: state.progress?.totalCompleted ?? state.user.totalCompleted ?? 0,
             studyDurationLabel: (0, learning_records_1.formatStudyDuration)(state.user.studySeconds ?? 0),
-            membershipUnlockEnabled: interactiveFeaturesEnabled,
+            membershipUnlockEnabled: (0, feature_flags_1.resolveMembershipUnlockEnabled)(state.appConfig),
             audioPlaybackEnabled: interactiveFeaturesEnabled,
         });
         void this.loadRecords();

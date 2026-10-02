@@ -45,6 +45,7 @@ exports.DEFAULT_HOME_AD = {
 };
 exports.DEFAULT_APP_CONFIG = {
     interactiveFeaturesEnabled: false,
+    allCoursesFree: false,
     home: {
         bannerEnabled: false,
         practiceHelpEnabled: false,
@@ -129,6 +130,7 @@ function setEntitlement(entitlement, notify = true) {
 function setAppConfig(appConfig, notify = true) {
     state.appConfig = {
         interactiveFeaturesEnabled: appConfig.interactiveFeaturesEnabled ?? exports.DEFAULT_APP_CONFIG.interactiveFeaturesEnabled,
+        allCoursesFree: appConfig.allCoursesFree === true,
         home: normalizeHomeConfig(appConfig.home),
         courseDetail: {
             shadowModeEnabled: appConfig.courseDetail?.shadowModeEnabled ?? exports.DEFAULT_APP_CONFIG.courseDetail.shadowModeEnabled,
@@ -157,6 +159,7 @@ function initializeStore(initial) {
     state.appConfig = initial?.appConfig
         ? {
             interactiveFeaturesEnabled: initial.appConfig.interactiveFeaturesEnabled ?? exports.DEFAULT_APP_CONFIG.interactiveFeaturesEnabled,
+            allCoursesFree: initial.appConfig.allCoursesFree === true,
             home: normalizeHomeConfig(initial.appConfig.home),
             courseDetail: {
                 shadowModeEnabled: initial.appConfig.courseDetail?.shadowModeEnabled ?? exports.DEFAULT_APP_CONFIG.courseDetail.shadowModeEnabled,

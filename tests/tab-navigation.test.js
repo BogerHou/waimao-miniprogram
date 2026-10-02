@@ -11,10 +11,11 @@ const appJson = JSON.parse(node_fs_1.default.readFileSync(node_path_1.default.jo
 const tabs = appJson.tabBar?.list ?? [];
 strict_1.default.deepEqual(tabs.map(item => item.pagePath), [
     'pages/index/index',
+    'pages/listening/listening',
     'pages/review/review',
     'pages/learning/learning',
 ]);
-strict_1.default.deepEqual(tabs.map(item => item.text), ['课程', '复习', '我的']);
+strict_1.default.deepEqual(tabs.map(item => item.text), ['课程', '磨耳朵', '复习', '我的']);
 for (const tab of tabs) {
     for (const iconPath of [tab.iconPath, tab.selectedIconPath]) {
         strict_1.default.ok(iconPath, `${tab.text} tab should configure both icon states`);

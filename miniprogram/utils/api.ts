@@ -41,6 +41,7 @@ export type ChapterSceneItem = {
   cueCount: number
   duration: number
   free: boolean
+  trialFree?: boolean
   locked?: boolean
   status?: CourseStatus
   isCurrent?: boolean
@@ -55,6 +56,7 @@ export type ChapterListItem = {
   audio: string
   duration: number
   free: boolean
+  trialFree?: boolean
   locked?: boolean
   progressPercent?: number
   scenes: ChapterSceneItem[]
@@ -131,6 +133,7 @@ export type CourseDetailResponse = {
 
 export type AppConfigResponse = {
   interactiveFeaturesEnabled?: boolean
+  allCoursesFree?: boolean
   home: {
     bannerEnabled: boolean
     practiceHelpEnabled: boolean

@@ -2,7 +2,7 @@
 
 ## 关键路径
 
-以下会员与音频关键路径只在 `interactiveFeaturesEnabled=true` 时进入发布验收；当前关闭时，应验收全部章节可见可读、页面只读且不存在会员/播放入口或旧深链自动起播。
+以下音频关键路径在 `interactiveFeaturesEnabled=true` 时进入发布验收。会员链路另要求 `allCoursesFree=false`；免费模式应验证匿名访问全部课程且音频正常、无会员入口。交互关闭时，应验收全部章节可见可读、页面只读且不存在会员/播放入口或旧深链自动起播。配置与客户端发布边界见 [课程访问配置](COURSE_ACCESS.md)。
 
 - 小程序首页能加载 `/api/waimao-mini/courses` 并展示 7 章。
 - 匿名用户能进入第一章小节。
@@ -43,11 +43,15 @@ npm run dev:backend
 
 ## 运行注意
 
+- 磨耳朵上线前先发布后端和 Web 管理页，再上传小程序；现有 `release:check` 的线上检查覆盖既有课程，不证明新听力路由已部署。新模块的发布清单见 [LISTENING.md](LISTENING.md)。
+- 听力恢复只存稳定 ID、位置、播放模式与本机时长；签名源留内存，临近到期或发生到期错误重新取队列。账号或课程权限变化停止当前队列并重新授权，不能恢复旧缓存源。服务端变更未推送到正在后台运行的客户端，需重新打开/请求才能获取新配置。
+- 上传入口需在 Nginx 允许约 64 MB 请求体；服务端流式校验、背压写临时文件，失败清理。删除专辑条目不删除音频文件；第一版没有转码、存储配额、资源自动回收或音频云备份。
+
 - `npm run waimao-mini:generate` 会从外贸 Web 数据源生成章节与课程详情，并从校验过 SHA256 的固定 ECDICT 版本生成课程专用词典；可用 `ECDICT_SOURCE_PATH` 指向已经下载的原始 CSV。
 - 微信开发者工具、体验版和正式版默认都请求线上 `https://englishecho.site`；需要本地联调时再临时切换 `DEVELOPMENT_API_BASE_URL`。
 - 发布验收必须开启合法域名校验；微信后台 `request` 需包含 `https://englishecho.site`，`downloadFile` 需包含 `https://englishecho.site`、`https://dict.youdao.com` 与 `https://waimao-audio.englishecho.site`。
 - 已缓存登录态刷新失败时，只要持久化 token 仍存在就保留本地用户与权益；只有请求层确认 401 并清除 token 后才重新登录。
-- 线上音频优先使用两小时有效的七牛私有签名地址，失败时自动切换服务器签名源；进入课程会重新获取地址，不应持久化缓存。
+- 线上音频优先使用七牛私有签名地址（默认两小时，`QINIU_URL_TTL_SECONDS` 可配置 5 分钟至 24 小时），失败时自动切换约两小时有效的服务器签名源；进入课程会重新获取地址，不应持久化缓存。
 - AI 讲解会在外贸知识点上下文存在时启用外贸沟通语境提示；普通 EnglishPod 接口不应受影响。
 - 生词和难句第一期只保存在本机；清理小程序数据或更换设备会丢失，不能作为跨端真源。录音不保存、不上传。
 - 登录和 401 重新认证必须保全 `waimao_review_library_v1` 与 `waimao_starred_cues_v1`；认证后只补回缺失 key，不覆盖登录期间的较新收藏。

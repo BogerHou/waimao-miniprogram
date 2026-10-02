@@ -9,6 +9,8 @@ const metrics_1 = require("./utils/metrics");
 const shadow_background_handoff_1 = require("./pages/course/shadow-background-handoff");
 const feature_flags_1 = require("./config/feature-flags");
 const review_storage_guard_1 = require("./utils/review-storage-guard");
+const audio_focus_1 = require("./utils/audio-focus");
+const listening_player_1 = require("./utils/listening-player");
 function isDevtoolsUnsupportedAudioOptionError(error) {
     return String(error.errMsg ?? '').includes('开发者工具暂时不支持');
 }
@@ -85,11 +87,13 @@ App({
     },
     onShow() {
         void this.refreshAppConfig();
-        if ((0, feature_flags_1.resolveInteractiveFeaturesEnabled)((0, index_1.getState)().appConfig)) {
+        (0, listening_player_1.reconcileListeningForeground)();
+        if ((0, audio_focus_1.getAudioFocusOwner)() !== 'listening' && (0, feature_flags_1.resolveInteractiveFeaturesEnabled)((0, index_1.getState)().appConfig)) {
             this.restoreBackgroundAudioRoute?.();
         }
     },
     onHide() {
+        (0, listening_player_1.persistListeningPlayback)();
         (0, metrics_1.flushMetrics)();
     },
     async ensureAuth(profileOverride) {
@@ -170,6 +174,15 @@ App({
             fromBackgroundAudio: 1,
         });
         setTimeout(() => {
+            if ((0, audio_focus_1.getAudioFocusOwner)() === 'listening' || !(0, feature_flags_1.resolveInteractiveFeaturesEnabled)((0, index_1.getState)().appConfig))
+                return;
+            if (!(0, shadow_background_handoff_1.shouldRestoreBackgroundAudioRoute)({
+                resumeState,
+                currentRoute: getCurrentPages().slice(-1)[0]?.route,
+                currentCourseId: getCurrentPages().slice(-1)[0]?.options?.id ?? null,
+                managerSrc: String(wx.getBackgroundAudioManager?.().src || ''),
+            }))
+                return;
             const latestPages = getCurrentPages();
             const latestPage = latestPages[latestPages.length - 1];
             if (latestPage?.route === 'pages/course/course' &&
@@ -179,6 +192,8 @@ App({
             wx.navigateTo({
                 url,
                 fail(error) {
+                    if ((0, audio_focus_1.getAudioFocusOwner)() === 'listening' || !(0, feature_flags_1.resolveInteractiveFeaturesEnabled)((0, index_1.getState)().appConfig))
+                        return;
                     console.warn('[App] Background audio navigateTo failed, trying redirectTo', error);
                     wx.redirectTo({ url });
                 },

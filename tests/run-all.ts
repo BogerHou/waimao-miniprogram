@@ -4,11 +4,13 @@ import "./app-config-store.test"
 import { appConfigSyncTestDone } from "./app-config-sync.test"
 import "./auth-session.test"
 import "./audio-source-fallback.test"
+import './audio-focus-integration.test'
 import "./course-mode-config.test"
 import "./course-share-card.test"
 import "./course-completion-poster.test"
 import "./env-config.test"
 import "./feature-flags.test"
+import { freeCoursePagesTestDone } from "./free-course-pages.test"
 import "./knowledge-dialogue-format.test"
 import "./knowledge-format.test"
 import { networkResilienceTestDone } from "./network-resilience.test"
@@ -25,10 +27,12 @@ import "./review-library.test"
 import "./review-storage-guard.test"
 import "./scene-search.test"
 import "./learning-records.test"
+import { listeningPageTestDone } from './listening-page.test'
+import { listeningPlayerTestDone } from './listening-player.test'
 import "./tab-navigation.test"
 import "./word-lookup.test"
 
-Promise.all([appConfigSyncTestDone, networkResilienceTestDone])
+Promise.all([appConfigSyncTestDone, networkResilienceTestDone, freeCoursePagesTestDone, listeningPageTestDone, listeningPlayerTestDone])
   .then(() => {
     console.log("all miniprogram tests passed.")
   })

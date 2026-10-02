@@ -37,6 +37,8 @@ const api_1 = require("../../utils/api");
 const env_1 = require("../../config/env");
 const feature_flags_1 = require("../../config/feature-flags");
 const metrics_1 = require("../../utils/metrics");
+const audio_focus_1 = require("../../utils/audio-focus");
+const background_audio_events_1 = require("../../utils/background-audio-events");
 const practice_marks_1 = require("../../utils/practice-marks");
 const review_library_1 = require("../../utils/review-library");
 const next_scene_1 = require("../../utils/next-scene");
@@ -210,6 +212,11 @@ Page({
     activeAudioSourceProvider: '',
     // 其他
     storeUnsubscribe: undefined,
+    audioFocusUnsubscribe: undefined,
+    audioPageActive: false,
+    audioFocusEpoch: 0,
+    shadowPlaybackGeneration: 0,
+    backgroundAudioEventUnsubscribers: [],
     studySessionStart: null,
     studySessionPracticeStart: 0,
     pendingFocusCueId: '',
@@ -266,7 +273,11 @@ Page({
         });
     },
     shouldIgnoreMainAudioContextEvent() {
-        return this.suppressMainAudioContextEvents || this.data.playMode === 'shadow';
+        return !this.isCourseAudioCurrent(this.audioFocusEpoch) || this.suppressMainAudioContextEvents || this.data.playMode === 'shadow';
+    },
+    isCourseAudioCurrent(epoch) {
+        return this.audioPageActive && epoch === this.audioFocusEpoch &&
+            (0, audio_focus_1.getAudioFocusOwner)() === 'course' && (0, feature_flags_1.resolveInteractiveFeaturesEnabled)((0, index_1.getState)().appConfig);
     },
     clampCourseTimeToScene(courseTime, options = {}) {
         return playerCore.clampCourseTimeToScene(courseTime, this.courseRange, options);
@@ -420,6 +431,8 @@ Page({
         }
     },
     syncPendingShadowSeek(reason) {
+        if (!this.audioPageActive || (0, audio_focus_1.getAudioFocusOwner)() !== 'course')
+            return false;
         const pending = this.pendingShadowSeek;
         if (!pending) {
             return true;
@@ -492,6 +505,36 @@ Page({
     onLoad(query) {
         (0, share_1.enablePageShareMenu)();
         const interactiveFeaturesEnabled = (0, feature_flags_1.resolveInteractiveFeaturesEnabled)((0, index_1.getState)().appConfig);
+        this.audioPageActive = true;
+        this.audioFocusUnsubscribe = (0, audio_focus_1.subscribeAudioFocus)((next, previous) => {
+            if (previous !== 'course' || next === 'course')
+                return;
+            this.audioFocusEpoch++;
+            this.shadowPlaybackGeneration++;
+            this.audioContext?.pause();
+            this.wordAudioContext?.stop();
+            this.recordingAudioContext?.stop();
+            this.backgroundAudioManager?.pause();
+            this.clearGapTimer();
+            if (this.stopTimer) {
+                clearTimeout(this.stopTimer);
+                this.stopTimer = null;
+            }
+            this.pendingSubtitle = null;
+            this.pendingShadowResume = null;
+            this.pendingBackgroundAudioRestore = false;
+            this.backgroundAudioFallbackPending = false;
+            this.pendingShadowSeek = null;
+            this.shadowHandoffState = null;
+            this.backgroundPlaybackActive = false;
+            this.stopTracking();
+            this.clearAudioLoadTimeout();
+            this.clearBackgroundAudioLoadTimeout();
+            this.setAudioLoading(false);
+            this.setData({ playing: false, isRepeating: false, comparing: false });
+        });
+        if (interactiveFeaturesEnabled)
+            (0, audio_focus_1.claimAudioFocus)('course');
         const id = query?.id;
         if (!id) {
             this.setData({
@@ -591,6 +634,12 @@ Page({
         void this.syncCurrentSceneProgress('unload');
         void this.finalizeStudySession(true); // 立即上报，不防抖
         this.stopBackgroundPlayback(true);
+        this.audioPageActive = false;
+        this.audioFocusEpoch++;
+        this.audioFocusUnsubscribe?.();
+        this.backgroundAudioEventUnsubscribers.forEach((unsubscribe) => unsubscribe());
+        this.backgroundAudioEventUnsubscribers = [];
+        (0, audio_focus_1.releaseAudioFocus)('course');
         this.discardRecording();
         this.destroyAudioContext();
         this.destroyWordAudioContext();
@@ -630,6 +679,7 @@ Page({
         });
     },
     async loadCourse(id) {
+        const audioEpoch = this.audioFocusEpoch;
         this.courseRange = null;
         this.knowledgeContext = '';
         this.setData({
@@ -638,6 +688,8 @@ Page({
         });
         try {
             const detail = await (0, api_1.fetchCourseDetail)(id);
+            if (!this.audioPageActive)
+                return;
             const appConfig = (0, index_1.getState)().appConfig;
             const interactiveFeaturesEnabled = (0, feature_flags_1.resolveInteractiveFeaturesEnabled)(appConfig);
             const modePresentation = (0, course_mode_config_1.resolveStagePresentation)({
@@ -728,7 +780,11 @@ Page({
                 const autoplay = this.focusAutoplayRequested;
                 this.pendingFocusCueId = '';
                 this.focusAutoplayRequested = false;
-                setTimeout(() => this.focusCueFromSource(cueId, autoplay), 80);
+                setTimeout(() => {
+                    if (!this.audioPageActive || (autoplay && !this.isCourseAudioCurrent(audioEpoch)))
+                        return;
+                    this.focusCueFromSource(cueId, autoplay);
+                }, 80);
             }
             const restoredFromBackgroundAudio = modePresentation.showPracticeControls && this.pendingBackgroundAudioRestore
                 ? this.restoreBackgroundAudioFromStorage()
@@ -743,6 +799,8 @@ Page({
                 subtitles.length > 0 &&
                 !this.data.showStageGuide) {
                 setTimeout(() => {
+                    if (!this.isCourseAudioCurrent(audioEpoch))
+                        return;
                     this.startShadowMode();
                 }, 500);
             }
@@ -1207,7 +1265,7 @@ Page({
                 audio: nextAudioSource.url,
             },
         }, () => {
-            if (!this.backgroundAudioFallbackPending) {
+            if (!this.backgroundAudioFallbackPending || !this.isCourseAudioCurrent(this.audioFocusEpoch)) {
                 return;
             }
             this.backgroundAudioFallbackPending = false;
@@ -1221,8 +1279,14 @@ Page({
             return this.backgroundAudioManager;
         }
         const manager = wx.getBackgroundAudioManager();
+        const register = (name, callback) => {
+            this.backgroundAudioEventUnsubscribers.push((0, background_audio_events_1.subscribeBackgroundAudioEvent)(manager, name, (...args) => {
+                if (this.audioPageActive && (0, audio_focus_1.getAudioFocusOwner)() === 'course')
+                    callback(...args);
+            }));
+        };
         this.debugShadowBackground('create background manager');
-        manager.onPlay(() => {
+        register('onPlay', () => {
             this.backgroundAudioReady = true;
             this.clearBackgroundAudioLoadTimeout();
             this.debugShadowBackground('background onPlay');
@@ -1240,7 +1304,7 @@ Page({
                 };
             }
         });
-        manager.onPause(() => {
+        register('onPause', () => {
             this.debugShadowBackground('background onPause');
             this.updateShadowCourseTimeFromManager(typeof manager.currentTime === 'number' ? manager.currentTime : undefined);
             if (this.data.playMode === 'shadow') {
@@ -1254,7 +1318,7 @@ Page({
                 };
             }
         });
-        manager.onStop(() => {
+        register('onStop', () => {
             this.debugShadowBackground('background onStop');
             this.updateShadowCourseTimeFromManager(typeof manager.currentTime === 'number' ? manager.currentTime : undefined);
             this.backgroundPlaybackActive = false;
@@ -1267,17 +1331,17 @@ Page({
             }
         });
         if (typeof manager.onEnded === 'function') {
-            manager.onEnded(() => {
+            register('onEnded', () => {
                 this.debugShadowBackground('background onEnded');
             });
         }
         if (typeof manager.onWaiting === 'function') {
-            manager.onWaiting(() => {
+            register('onWaiting', () => {
                 this.debugShadowBackground('background onWaiting');
             });
         }
         if (typeof manager.onCanplay === 'function') {
-            manager.onCanplay(() => {
+            register('onCanplay', () => {
                 this.backgroundAudioReady = true;
                 this.clearBackgroundAudioLoadTimeout();
                 const elapsedMs = this.backgroundAudioRequestStartedAt
@@ -1297,23 +1361,23 @@ Page({
             });
         }
         if (typeof manager.onTimeUpdate === 'function') {
-            manager.onTimeUpdate(() => {
+            register('onTimeUpdate', () => {
                 this.updateShadowCourseTimeFromManager(typeof manager.currentTime === 'number' ? manager.currentTime : undefined);
                 this.syncPendingShadowSeek('onTimeUpdate');
             });
         }
         if (typeof manager.onNext === 'function') {
-            manager.onNext(() => {
+            register('onNext', () => {
                 this.debugShadowBackground('background onNext');
             });
         }
         if (typeof manager.onPrev === 'function') {
-            manager.onPrev(() => {
+            register('onPrev', () => {
                 this.debugShadowBackground('background onPrev');
             });
         }
         if (typeof manager.onError === 'function') {
-            manager.onError((error) => {
+            register('onError', (error) => {
                 const failedSource = String(manager.src || '');
                 logAudioRequest('background:onError', failedSource, {
                     courseId: this.courseId,
@@ -1332,6 +1396,8 @@ Page({
         return manager;
     },
     getShadowCurrentTime() {
+        if ((0, audio_focus_1.getAudioFocusOwner)() !== 'course')
+            return this.lastKnownCourseTime;
         const manager = this.ensureBackgroundAudioManager();
         return this.clampCourseTimeToScene((0, shadow_background_handoff_1.resolveObservedShadowCourseTime)({
             observedTime: typeof manager.currentTime === 'number' ? manager.currentTime : 0,
@@ -1343,9 +1409,12 @@ Page({
         }));
     },
     playShadowCourseAt(courseTime, shouldAutoplay = true, options = {}) {
-        if (!this.data.course) {
+        if (!this.audioPageActive || !(0, feature_flags_1.resolveInteractiveFeaturesEnabled)((0, index_1.getState)().appConfig) || !this.data.course) {
             return false;
         }
+        (0, audio_focus_1.claimAudioFocus)('course');
+        const audioEpoch = this.audioFocusEpoch;
+        const playbackTicket = ++this.shadowPlaybackGeneration;
         const targetCourseTime = this.clampCourseTimeToScene(courseTime, {
             restartWhenPastEnd: true,
         });
@@ -1401,6 +1470,8 @@ Page({
             this.backgroundAudioRequestStartedAt = Date.now();
             this.scheduleBackgroundAudioLoadTimeout(meta.src);
             setTimeout(() => {
+                if (!this.isCourseAudioCurrent(audioEpoch) || playbackTicket !== this.shadowPlaybackGeneration || String(manager.src || '') !== meta.src)
+                    return;
                 this.syncPendingShadowSeek('post-src-assign');
                 try {
                     manager.seek(meta.startTime);
@@ -1430,11 +1501,15 @@ Page({
             manager.pause();
         }
         setTimeout(() => {
+            if (!this.isCourseAudioCurrent(audioEpoch) || playbackTicket !== this.shadowPlaybackGeneration || String(manager.src || '') !== meta.src)
+                return;
             this.syncPendingShadowSeek('post-direct-seek');
         }, 0);
         return true;
     },
     pauseShadowPlayback() {
+        if ((0, audio_focus_1.getAudioFocusOwner)() !== 'course')
+            return;
         const manager = this.ensureBackgroundAudioManager();
         this.debugShadowBackground('pause shadow playback');
         if (typeof manager.pause === 'function') {
@@ -1571,7 +1646,8 @@ Page({
         return matched;
     },
     handleBackgroundHandoff() {
-        if (this.data.playMode !== 'shadow' ||
+        if ((0, audio_focus_1.getAudioFocusOwner)() !== 'course' ||
+            this.data.playMode !== 'shadow' ||
             !this.data.course) {
             this.debugShadowBackground('skip background handoff', {
                 reason: {
@@ -1608,7 +1684,8 @@ Page({
         this.lastKnownCourseTime = typeof manager.currentTime === 'number' ? manager.currentTime : courseTime;
     },
     handleForegroundReturn() {
-        if (this.data.playMode !== 'shadow' ||
+        if ((0, audio_focus_1.getAudioFocusOwner)() !== 'course' ||
+            this.data.playMode !== 'shadow' ||
             !this.data.course ||
             !this.shadowHandoffState?.active ||
             this.shadowHandoffState.courseId !== this.courseId) {
@@ -1654,6 +1731,7 @@ Page({
         this.isRecoveringFromBackground = false;
     },
     resumeForegroundShadowPlayback(courseTime, shouldAutoplay) {
+        (0, audio_focus_1.claimAudioFocus)('course');
         const manager = this.ensureBackgroundAudioManager();
         this.lastKnownCourseTime = courseTime;
         this.debugShadowBackground('resume foreground playback start', { courseTime, shouldAutoplay });
@@ -1684,6 +1762,7 @@ Page({
         this.isRecoveringFromBackground = false;
     },
     stopBackgroundPlayback(stopPlayback) {
+        this.shadowPlaybackGeneration++;
         this.debugShadowBackground('stop background playback', { stopPlayback });
         this.clearBackgroundAudioLoadTimeout();
         this.backgroundAudioReady = false;
@@ -1696,7 +1775,7 @@ Page({
         if (stopPlayback) {
             this.clearBackgroundAudioResumeState();
         }
-        if (!this.backgroundAudioManager) {
+        if (!this.backgroundAudioManager || (0, audio_focus_1.getAudioFocusOwner)() !== 'course') {
             return;
         }
         try {
@@ -1714,6 +1793,10 @@ Page({
     },
     handleStoreUpdate(state) {
         const interactiveFeaturesEnabled = (0, feature_flags_1.resolveInteractiveFeaturesEnabled)(state.appConfig);
+        if (!interactiveFeaturesEnabled && this.data.audioPlaybackEnabled)
+            this.audioFocusEpoch++;
+        if (this.audioPageActive && interactiveFeaturesEnabled && !this.data.audioPlaybackEnabled)
+            (0, audio_focus_1.claimAudioFocus)('course');
         const modePresentation = (0, course_mode_config_1.resolveStagePresentation)({
             currentStage: this.data.stage,
             gapEnabled: this.data.gapEnabled,
@@ -2020,6 +2103,7 @@ Page({
         }
         this.ensureWordAudioContext();
         if (this.wordAudioContext) {
+            (0, audio_focus_1.claimAudioFocus)('course');
             this.wordAudioContext.stop();
             this.wordAudioContext.src = url;
             this.wordAudioContext.play();
@@ -2067,6 +2151,7 @@ Page({
             return;
         }
         console.log(`[播放] 模式=${this.data.playMode}, 段落=${subtitle.id}`);
+        (0, audio_focus_1.claimAudioFocus)('course');
         // Echo 模式：优先使用完整音频 + seek，失败时回退到切片
         if (this.data.playMode === 'echo') {
             if (!this.audioContext) {
@@ -2235,12 +2320,15 @@ Page({
     },
     // 处理重复播放的下一次
     handleRepeatNext(subtitle) {
+        const audioEpoch = this.audioFocusEpoch;
         const currentCount = this.data.repeatCount + 1;
         console.log(`[Repeat] 当前次数: ${currentCount}/${this.data.repeatTarget}`);
         if (currentCount < this.data.repeatTarget) {
             // 还没达到目标次数，继续重复
             this.setData({ repeatCount: currentCount });
             setTimeout(() => {
+                if (!this.isCourseAudioCurrent(audioEpoch))
+                    return;
                 if (!this.data.isRepeating) {
                     console.log(`[Repeat] 重复已取消，停止`);
                     return;
@@ -2274,6 +2362,8 @@ Page({
             // 影子跟读模式：重复完成后继续播放下一个段落
             if (this.data.playMode === 'shadow') {
                 setTimeout(() => {
+                    if (!this.isCourseAudioCurrent(audioEpoch))
+                        return;
                     this.playNextInShadowMode();
                 }, 200);
             }
@@ -2578,9 +2668,12 @@ Page({
         }
         // gap-advance：句末静音留白（约等于句长）后自动播放下一句
         const gapMs = playerCore.computeGapMs(subtitle, this.data.playbackRate);
+        const audioEpoch = this.audioFocusEpoch;
         console.log('[Stage] 留白跟读等待', { subtitleId: subtitle.id, nextId: next.id, gapMs });
         this.setData({ gapWaiting: true });
         this.gapTimer = setTimeout(() => {
+            if (!this.isCourseAudioCurrent(audioEpoch))
+                return;
             this.gapTimer = null;
             this.setData({ gapWaiting: false });
             if (this.data.playMode !== 'echo' ||
@@ -2785,6 +2878,7 @@ Page({
             context.onError(() => this.finishCompare());
             this.recordingAudioContext = context;
         }
+        (0, audio_focus_1.claimAudioFocus)('course');
         this.recordingAudioContext.src = this.recordedTempPath;
         this.recordingAudioContext.play();
     },
@@ -2952,6 +3046,8 @@ Page({
     },
     // 开始影子跟读模式
     startShadowMode() {
+        if (!this.isCourseAudioCurrent(this.audioFocusEpoch))
+            return;
         this.currentSubtitleIndex = 0;
         const firstSubtitle = this.data.subtitles[0];
         if (firstSubtitle) {
@@ -2968,6 +3064,8 @@ Page({
     },
     // 影子跟读模式播放下一个
     playNextInShadowMode() {
+        if (!this.isCourseAudioCurrent(this.audioFocusEpoch))
+            return;
         if (this.data.playMode !== 'shadow') {
             return;
         }
@@ -3088,6 +3186,7 @@ Page({
         if (!this.data.showPracticeControls) {
             return;
         }
+        (0, audio_focus_1.claimAudioFocus)('course');
         // Echo 模式：使用 InnerAudioContext
         if (this.data.playMode === 'echo') {
             if (!this.audioContext) {
@@ -3361,6 +3460,9 @@ Page({
     },
     // 应用播放速度（强制生效）
     applyPlaybackRate(speed) {
+        if (!this.isCourseAudioCurrent(this.audioFocusEpoch))
+            return;
+        const audioEpoch = this.audioFocusEpoch;
         this.setData({
             playbackRate: speed,
         });
@@ -3390,6 +3492,8 @@ Page({
             context.playbackRate = speed;
             // 短暂延迟后恢复播放
             setTimeout(() => {
+                if (!this.isCourseAudioCurrent(audioEpoch) || this.audioContext !== context || this.data.playMode !== 'echo')
+                    return;
                 context.seek(currentTime);
                 context.play();
                 console.log(`[Speed] 已应用速度 ${speed}x，恢复播放位置 ${currentTime.toFixed(2)}s`);
